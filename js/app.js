@@ -5,7 +5,7 @@
    ========================================================= */
 
 /* ---------- config ---------- */
-const PASSWORD  = "20011998";           // كلمة الفتح
+const PASSWORD  = "20041998";           // كلمة الفتح
 const DATA_KEY  = "youmiyatna_data";    // localStorage bucket for the JSON book
 const GATE_KEY  = "youmiyatna_open";    // session unlock flag
 const SEED_URL  = "data/seed.json";     // first-run content
