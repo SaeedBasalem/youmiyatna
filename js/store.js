@@ -31,6 +31,13 @@ export const store = {
 
   get soundOn() { return localStorage.getItem(K.sound) !== "off"; },
   set soundOn(v) { localStorage.setItem(K.sound, v ? "on" : "off"); },
+
+  get pushOn() { return localStorage.getItem("yn_push") === "on"; },
+  set pushOn(v) { localStorage.setItem("yn_push", v ? "on" : "off"); },
+  get theme() { return localStorage.getItem("yn_theme") || "system"; },   // system|light|dark
+  set theme(v) { localStorage.setItem("yn_theme", v); },
+  get accent() { return localStorage.getItem("yn_accent") || "default"; },
+  set accent(v) { localStorage.setItem("yn_accent", v); },
 };
 
 function readJSON(k, dflt) { try { return JSON.parse(localStorage.getItem(k)) ?? dflt; } catch { return dflt; } }

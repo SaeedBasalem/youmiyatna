@@ -44,4 +44,9 @@ export const api = {
   onThisDay:     ()               => call("on_this_day", {}),
   milestones:    ()               => call("get_milestones"),
   markSeen:      (badge_key)      => call("mark_milestone_seen", { badge_key }),
+  // push
+  getVapid:      ()               => call("get_vapid"),
+  subscribePush: (subscription, ua) => call("subscribe_push", { subscription, ua }),
+  unsubscribePush:(endpoint)      => call("unsubscribe_push", { endpoint }),
+  testPush:      ()               => call("test_push"),
 };

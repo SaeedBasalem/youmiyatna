@@ -289,6 +289,34 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .sepia{animation:sepia 1.1s ease}
 @keyframes sepia{0%{filter:sepia(.7) contrast(1.1)}100%{filter:none}}
 
+/* ---------- presence ---------- */
+.presence{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px;color:var(--ink-2);opacity:0;max-width:0;overflow:hidden;transition:opacity .3s}
+.presence.on{opacity:1;max-width:220px}
+.presence-dot{width:11px;height:11px;border-radius:50%;background:var(--ink-soft);border:2px solid var(--ink);flex:none}
+.presence.on .presence-dot{background:var(--mint);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(56,217,169,.35)}}
+
+/* ---------- hub ---------- */
+.hub-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+.hub-card{position:relative;aspect-ratio:1.15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  border:var(--border-lg) solid var(--ink);border-radius:var(--radius);background:var(--paper-panel);box-shadow:var(--shadow);transition:transform .1s}
+.hub-card:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
+.hub-card .he{font-size:40px}
+.hub-card .hl{font-family:var(--font-display);font-weight:800;font-size:17px}
+.hub-card:nth-child(1){background:var(--him-tint)}
+.hub-card:nth-child(2){background:var(--her-tint)}
+.hub-card.soon{background:var(--paper-sunk);opacity:.72}
+.hub-card .soon-tag{position:absolute;top:8px;inset-inline-end:8px;font-size:10px;font-weight:800;background:var(--lilac);border:2px solid var(--ink);border-radius:var(--pill);padding:2px 7px}
+
+/* ---------- segmented + accents (settings) ---------- */
+.seg{display:inline-flex;border:var(--border) solid var(--ink);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.seg-opt{padding:8px 14px;font-weight:800;font-size:14px;background:var(--paper);border-inline-start:2px solid var(--ink)}
+.seg-opt:first-child{border-inline-start:none}
+.seg-opt.sel{background:var(--ink);color:var(--paper)}
+.accent-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.accent-sw{width:34px;height:34px;border-radius:50%;border:var(--border) solid var(--ink);box-shadow:var(--shadow-sm)}
+.accent-sw.sel{outline:3px solid var(--ink);outline-offset:2px;transform:scale(1.08)}
+
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001s!important;transition-duration:.05s!important}
   .moment{transform:none!important}

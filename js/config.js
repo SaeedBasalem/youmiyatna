@@ -43,3 +43,12 @@ export const DUA = [
 ];
 
 export const TZ_OFFSET_MIN = 180; // Asia/Riyadh, for display date math
+
+// accent presets (override a handful of tokens). 'default' keeps the built-in palette.
+export const ACCENTS = {
+  default: { name: "ذهبي",  vars: {} },
+  sunset:  { name: "غروب",  vars: { "--sun": "#FF9A3C", "--coral": "#FF5E5B", "--her": "#FF6FA5", "--him": "#7C5CFF", "--lilac": "#C79BFF" } },
+  ocean:   { name: "بحر",   vars: { "--sun": "#38C0ED", "--coral": "#2D9CDB", "--mint": "#3FD9A0", "--him": "#2D5BFF", "--her": "#00B8A9" } },
+  rose:    { name: "وردي",  vars: { "--sun": "#FFB0C7", "--coral": "#FF5D8F", "--her": "#FF5D8F", "--him": "#9B7EDE", "--lilac": "#E0A9FF" } },
+  forest:  { name: "غابة",  vars: { "--sun": "#A9C74A", "--mint": "#4CAF7D", "--coral": "#E07A3F", "--olive": "#5E7524", "--him": "#3E8E7E" } },
+};

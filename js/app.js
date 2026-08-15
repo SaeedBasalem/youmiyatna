@@ -6,8 +6,11 @@ import {
   h, $, clear, avatar, personChip, moodChip, toast, confetti, sparkleAt, heartFly,
   relTime, fullDate, monthYear, arNum,
 } from "./ui.js";
-import { PEOPLE, other, MOODS, moodEmoji, REACTIONS, BADGES, DUA } from "./config.js";
+import { PEOPLE, other, MOODS, moodEmoji, REACTIONS, BADGES, DUA, ACCENTS } from "./config.js";
 import { downscale, openDoodle, VoiceRecorder, uploadSigned } from "./media.js";
+import { realtime } from "./realtime.js";
+import { push } from "./push.js";
+import { applyTheme, setTheme, setAccent } from "./theme.js";
 
 const APP = () => document.getElementById("app");
 const go = (route) => { location.hash = "#/" + route; };
@@ -19,13 +22,15 @@ function loader(on) {
 
 /* ---------------- boot + router ---------------- */
 store.init();
+applyTheme();
 setAuthFailHandler(() => { store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("pointerdown", () => sound.resume(), { once: true });
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
+navigator.serviceWorker?.addEventListener?.("message", (e) => { const nav = e.data?.nav; if (nav) location.hash = nav.includes("#") ? nav.slice(nav.indexOf("#")) : "#/feed"; });
 
 (function boot() {
-  if (store.token && store.person) { if (!location.hash) location.hash = "#/feed"; renderRoute(); refreshConfig(); }
+  if (store.token && store.person) { if (!location.hash) location.hash = "#/feed"; renderRoute(); refreshConfig(); initLive(); }
   else if (store.token) go("who");
   else go("lock");
   if (!location.hash) renderRoute();
@@ -40,6 +45,8 @@ function renderRoute() {
     case "lock": return viewLock();
     case "who": return viewWho();
     case "feed": return shell("feed", viewFeed);
+    case "chat": return shell("chat", viewChat);
+    case "hub": return shell("hub", viewHub);
     case "timeline": return shell("timeline", viewTimeline);
     case "milestones": return shell("milestones", viewMilestones);
     case "me": return shell("me", viewMe);
@@ -74,17 +81,57 @@ function topbar() {
   const badge = h("button", { class: "days-badge", onclick: () => go("milestones") },
     "🌙 معًا منذ ", h("b", {}, d == null ? "—" : arNum(d)), d == null ? "" : " يومًا");
   const snd = h("button", { class: "icon-btn", onclick: (e) => { const on = sound.toggle(); e.currentTarget.textContent = on ? "🔊" : "🔇"; } }, store.soundOn ? "🔊" : "🔇");
-  return h("div", { class: "topbar" }, badge, h("span", { class: "spacer" }), snd);
+  const on = realtime.partnerOnline();
+  const suffix = other(store.person) === "her" ? " متصلة" : " متصل";
+  const pres = h("span", { class: "presence" + (on ? " on" : "") }, h("span", { class: "presence-dot" }), on ? (PEOPLE[other(store.person)]?.name || "") + suffix : "");
+  return h("div", { class: "topbar" }, badge, pres, h("span", { class: "spacer" }), snd);
 }
 function tabbar(active) {
   const tab = (key, ic, label, route) => h("button", { class: "tab" + (active === key ? " active" : ""), onclick: () => { sound.tab(); go(route); } }, h("span", { class: "ic" }, ic), label);
   return h("nav", { class: "tabbar" },
     tab("feed", "🏠", "البيت", "feed"),
-    tab("timeline", "📖", "حكايتنا", "timeline"),
+    tab("chat", "💬", "همس", "chat"),
     h("button", { class: "tab compose", onclick: () => { sound.tab(); openCompose(); } }, h("span", { class: "plus" }, "＋")),
-    tab("milestones", "🏆", "إنجازاتنا", "milestones"),
+    tab("hub", "✦", "حياتنا", "hub"),
     tab("me", PEOPLE[store.person]?.initial || "أنا", "أنا", "me"),
   );
+}
+
+/* ---------------- live (realtime) ---------------- */
+let liveWired = false;
+function initLive() {
+  realtime.init();
+  if (liveWired) return; liveWired = true;
+  realtime.onPresence(() => { const bar = $(".topbar"); if (bar && $(".days-badge", bar)) bar.replaceWith(topbar()); });
+  realtime.onEvent((p) => {
+    if (p.type === "moment") { const route = (location.hash || "").replace(/^#\//, "").split("/")[0]; if (route === "feed" && feedNode) viewFeed(feedNode); }
+  });
+}
+
+/* ---------------- hub + chat ---------------- */
+function comingSoon(title, emoji, desc) {
+  return h("div", {},
+    h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, title)),
+    h("div", { class: "empty" }, h("div", { class: "big" }, emoji), h("div", {}, desc), h("div", { class: "dua" }, "قريبًا 🌱")));
+}
+function viewChat(content) { content.appendChild(comingSoon("همس", "💬", "غرفة الهمس بينكما — رسائل حيّة، صوت، وإشعارات.")); }
+function viewHub(content) {
+  content.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "حياتنا")));
+  const cards = [
+    { emoji: "📖", label: "حكايتنا", route: "timeline", on: true },
+    { emoji: "🏆", label: "إنجازاتنا", route: "milestones", on: true },
+    { emoji: "🌤️", label: "طقوسنا", route: "rituals", on: false },
+    { emoji: "🗓️", label: "التقويم", route: "plan", on: false },
+    { emoji: "🕌", label: "روحانياتنا", route: "spiritual", on: false },
+    { emoji: "🌱", label: "حديقتنا", route: "garden", on: false },
+    { emoji: "📝", label: "قوائمنا", route: "lists", on: false },
+    { emoji: "✉️", label: "رسائل الغد", route: "letters", on: false },
+    { emoji: "🔎", label: "بحث", route: "search", on: false },
+  ];
+  const grid = h("div", { class: "hub-grid" });
+  cards.forEach((c) => grid.appendChild(h("button", { class: "hub-card" + (c.on ? "" : " soon"), onclick: () => { sound.tab(); if (c.on) go(c.route); else toast("قريبًا 🌱"); } },
+    h("span", { class: "he" }, c.emoji), h("span", { class: "hl" }, c.label), c.on ? null : h("span", { class: "soon-tag" }, "قريبًا"))));
+  content.appendChild(grid);
 }
 
 /* ---------------- lock / who ---------------- */
@@ -123,7 +170,7 @@ function viewWho() {
     loader(true);
     const r = await api.chooseIdentity(person);
     loader(false);
-    if (r.ok && r.data.token) { store.setAuth(r.data.token, person); sound.unlock(); refreshConfig(); go("feed"); }
+    if (r.ok && r.data.token) { store.setAuth(r.data.token, person); sound.unlock(); refreshConfig(); initLive(); go("feed"); }
     else toast("تعذّر الدخول، حاولا مجددًا");
   }
   app.appendChild(h("div", { class: "lock view" },
@@ -395,6 +442,31 @@ function viewMe(content) {
   content.appendChild(h("div", { class: "set-row" }, h("div", { class: "k" }, "نسخة احتياطية"),
     h("button", { class: "btn sm ghost", style: { marginInlineStart: "auto" }, onclick: exportJSON }, "⬇ نزّلا JSON")));
 
+  // notifications
+  const notifBtns = h("div", { class: "row", style: { width: "100%", gap: "10px", margin: "0" } });
+  notifBtns.appendChild(h("button", { class: "btn sm " + (store.pushOn ? "ghost" : "mint"), onclick: async (e) => {
+    if (store.pushOn) { await push.disable(); toast("أُوقفت الإشعارات"); renderRoute(); return; }
+    e.currentTarget.textContent = "…";
+    const r = await push.enable();
+    if (r.ok) { toast("فُعّلت الإشعارات 🔔"); renderRoute(); }
+    else { toast(r.reason === "denied" ? "رُفض إذن الإشعارات" : r.reason === "unsupported" ? "غير مدعوم هنا" : "تعذّر التفعيل"); renderRoute(); }
+  } }, store.pushOn ? "إيقاف" : "تفعيل"));
+  if (store.pushOn) notifBtns.appendChild(h("button", { class: "btn sm ghost", onclick: async () => { const r = await push.test(); toast(r.ok ? "أُرسل إشعار تجريبي 🔔" : "تعذّر"); } }, "جرّبا"));
+  content.appendChild(h("div", { class: "set-row", style: { flexWrap: "wrap" } }, h("div", { class: "k", style: { width: "100%" } }, "الإشعارات 🔔"), notifBtns,
+    push.supported() ? null : h("div", { class: "muted", style: { fontSize: "13px", width: "100%" } }, "على الآيفون: أضيفا التطبيق للشاشة الرئيسية أولًا.")));
+
+  // appearance: theme + accent
+  const themeSeg = h("div", { class: "seg" });
+  [["system", "تلقائي"], ["light", "فاتح"], ["dark", "داكن"]].forEach(([v, label]) =>
+    themeSeg.appendChild(h("button", { class: "seg-opt" + (store.theme === v ? " sel" : ""), onclick: () => { setTheme(v); renderRoute(); } }, label)));
+  const accents = h("div", { class: "accent-row" });
+  Object.entries(ACCENTS).forEach(([k, a]) => {
+    const c1 = (a.vars && a.vars["--sun"]) || "#FFC93C";
+    const c2 = (a.vars && a.vars["--coral"]) || "#FF6B4A";
+    accents.appendChild(h("button", { class: "accent-sw" + (store.accent === k ? " sel" : ""), title: a.name, style: { background: `linear-gradient(135deg, ${c1} 50%, ${c2} 50%)` }, onclick: () => { setAccent(k); renderRoute(); } }));
+  });
+  content.appendChild(h("div", { class: "set-row", style: { flexWrap: "wrap", gap: "10px" } }, h("div", { class: "k", style: { width: "100%" } }, "المظهر 🎨"), themeSeg, accents));
+
   content.appendChild(h("button", { class: "btn ghost", style: { marginTop: "10px" }, onclick: () => { store.clearAuth(); toast("أُقفل الكتاب"); go("lock"); } }, "أقفلا الكتاب"));
 }
 async function exportJSON() {
@@ -466,7 +538,7 @@ function openCompose() {
       }
       const r = await api.addMoment({ body, mood: draft.mood || null, happened_at: dateInput.value || undefined, media });
       loader(false);
-      if (r.ok) { scrim.remove(); sound.post(); const x = innerWidth / 2, y = innerHeight / 2; sparkleAt(x, y); go("feed"); renderRoute(); toast("أُضيفت لحظتكما 🌙"); }
+      if (r.ok) { scrim.remove(); sound.post(); const x = innerWidth / 2, y = innerHeight / 2; sparkleAt(x, y); realtime.broadcast("moment"); go("feed"); renderRoute(); toast("أُضيفت لحظتكما 🌙"); }
       else err.textContent = r.data.detail || "تعذّر الحفظ";
     } catch (e2) { loader(false); err.textContent = "تعذّر رفع الوسائط"; }
   }
