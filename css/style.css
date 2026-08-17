@@ -500,6 +500,23 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
   #book-print .bp-body{font-size:16px;line-height:1.9;white-space:pre-wrap;margin-top:4px;color:#111}
 }
 
+/* ---------- garden (حديقتنا) ---------- */
+.garden{display:flex;flex-direction:column;gap:12px}
+.garden-scene{padding:10px;background:linear-gradient(180deg,var(--him-tint),var(--paper-panel))}
+.garden-svg{width:100%;height:auto;display:block}
+.garden-stage{text-align:center;font-family:var(--font-display);font-weight:800;font-size:20px}
+.garden-legend{display:flex;flex-direction:column;gap:8px;padding:14px;border:var(--border) solid var(--ink);border-radius:var(--radius);background:var(--paper-panel);box-shadow:var(--shadow-sm)}
+.gl-row{display:flex;align-items:center;gap:10px;font-weight:700}
+.gl-emoji{font-size:22px}
+
+/* ---------- app-lock ---------- */
+.applock-ov{position:fixed;inset:0;z-index:200;background-color:var(--paper);display:flex;align-items:center;justify-content:center;padding:20px;
+  background-image:radial-gradient(var(--paper-sunk) 1.4px, transparent 1.4px);background-size:20px 20px}
+.applock-ov .cover{width:min(360px,92vw);display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;
+  padding:28px 22px;border:var(--border-lg) solid var(--ink);border-radius:var(--radius);background:var(--paper-panel);box-shadow:var(--shadow-lg)}
+.applock-ov .cover .btn{width:100%}
+.applock-ov .pin{text-align:center;letter-spacing:8px;font-family:var(--font-display);font-weight:800;font-size:22px}
+
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001s!important;transition-duration:.05s!important}
   .moment{transform:none!important}

@@ -1,11 +1,11 @@
 // يومياتنا — service worker: offline shell (network-first) + web-push display.
-const CACHE = "yn-v8";
+const CACHE = "yn-v9";
 const ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23FBF3E4'/%3E%3Ctext y='.9em' font-size='78'%3E🌙%3C/text%3E%3C/svg%3E";
 const CORE = [
   "./", "index.html", "manifest.webmanifest",
   "css/style.css",
   "js/app.js", "js/config.js", "js/api.js", "js/store.js", "js/sound.js", "js/ui.js", "js/media.js",
-  "js/realtime.js", "js/push.js", "js/theme.js", "js/chat.js", "js/rituals.js", "js/letters.js", "js/plan.js", "js/lists.js", "js/spiritual.js", "js/playlist.js", "js/ai.js",
+  "js/realtime.js", "js/push.js", "js/theme.js", "js/chat.js", "js/rituals.js", "js/letters.js", "js/plan.js", "js/lists.js", "js/spiritual.js", "js/playlist.js", "js/ai.js", "js/garden.js", "js/applock.js",
 ];
 self.addEventListener("install", (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE).catch(() => {}))); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });

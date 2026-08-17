@@ -19,6 +19,8 @@ import { viewLists } from "./lists.js";
 import { viewSpiritual, spiritualOnDhikr, hijriShort } from "./spiritual.js";
 import { viewPlaylist } from "./playlist.js";
 import { viewSearch } from "./ai.js";
+import { viewGarden } from "./garden.js";
+import { appLock } from "./applock.js";
 
 const APP = () => document.getElementById("app");
 const go = (route) => { location.hash = "#/" + route; };
@@ -30,6 +32,34 @@ function loader(on) {
 // module state (declared before boot() so a returning logged-in user never hits a TDZ)
 let feedItems = [], feedNode = null, chatUnread = 0, liveWired = false, homeRitual = null;
 
+/* ---------------- app-lock (local PIN/biometric) ---------------- */
+function showAppLock() {
+  if ($("#applock")) return;
+  const err = h("div", { class: "err" });
+  const pin = h("input", { class: "field pin", type: "password", inputmode: "numeric", placeholder: "••••", maxLength: 8, autocomplete: "off" });
+  async function bio() { try { await appLock.verifyBio(); appLock.markUnlocked(); ov.remove(); } catch { err.textContent = "تعذّرت البصمة"; } }
+  async function submit() { if (await appLock.tryPin(pin.value.trim())) { appLock.markUnlocked(); ov.remove(); } else { err.textContent = "رمز خاطئ"; pin.value = ""; const c = ov.querySelector(".cover"); c.classList.remove("shake"); void c.offsetWidth; c.classList.add("shake"); } }
+  pin.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+  const ov = h("div", { id: "applock", class: "applock-ov" }, h("div", { class: "cover" },
+    h("div", { style: { fontSize: "44px" } }, "🔒"),
+    h("div", { class: "tag" }, "أدخلا رمز القفل"),
+    pin, h("button", { class: "btn sun", onclick: submit }, "افتحا"),
+    appLock.hasBio() ? h("button", { class: "btn ghost", style: { marginTop: "8px" }, onclick: bio }, "🔑 البصمة") : null, err));
+  document.body.appendChild(ov);
+  setTimeout(() => pin.focus(), 50);
+  if (appLock.hasBio()) bio();
+}
+function appLockSetup() {
+  const pin = h("input", { class: "field pin", type: "password", inputmode: "numeric", placeholder: "رمز (٤-٨ أرقام)", maxLength: 8 });
+  const pin2 = h("input", { class: "field pin", type: "password", inputmode: "numeric", placeholder: "تأكيد الرمز", maxLength: 8 });
+  const err = h("div", { class: "err" });
+  const sc = h("div", { class: "scrim center" }, h("div", { class: "modal" }, h("h3", {}, "قفل التطبيق 🔒"), pin, h("div", { style: { height: "8px" } }), pin2, err,
+    h("div", { class: "attach-rail", style: { marginTop: "14px" } },
+      h("button", { class: "btn ghost", onclick: () => sc.remove() }, "إلغاء"),
+      h("button", { class: "btn sun", onclick: async () => { const a = pin.value.trim(), b = pin2.value.trim(); if (a.length < 4) { err.textContent = "٤ أرقام على الأقل"; return; } if (a !== b) { err.textContent = "غير متطابق"; return; } await appLock.setup(a); sc.remove(); toast("فُعّل القفل 🔒"); renderRoute(); } }, "فعّلا"))));
+  document.body.appendChild(sc);
+}
+
 /* ---------------- boot + router ---------------- */
 store.init();
 applyTheme();
@@ -38,8 +68,10 @@ window.addEventListener("hashchange", renderRoute);
 window.addEventListener("pointerdown", () => sound.resume(), { once: true });
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
 navigator.serviceWorker?.addEventListener?.("message", (e) => { const nav = e.data?.nav; if (nav) location.hash = nav.includes("#") ? nav.slice(nav.indexOf("#")) : "#/feed"; });
+document.addEventListener("visibilitychange", () => { if (document.hidden) appLock.lockNow(); else if (appLock.isLocked()) showAppLock(); });
 
 (function boot() {
+  if (appLock.isLocked()) showAppLock();
   if (store.token && store.person) { if (!location.hash) location.hash = "#/feed"; renderRoute(); refreshConfig(); initLive(); }
   else if (store.token) go("who");
   else go("lock");
@@ -64,6 +96,7 @@ function renderRoute() {
     case "spiritual": return shell("spiritual", viewSpiritual);
     case "playlist": return shell("playlist", viewPlaylist);
     case "search": return shell("search", viewSearch);
+    case "garden": return shell("garden", viewGarden);
     case "timeline": return shell("timeline", viewTimeline);
     case "milestones": return shell("milestones", viewMilestones);
     case "me": return shell("me", viewMe);
@@ -152,7 +185,7 @@ function viewHub(content) {
     { emoji: "🌤️", label: "طقوسنا", route: "rituals", on: true },
     { emoji: "🗓️", label: "التقويم", route: "plan", on: true },
     { emoji: "🕌", label: "روحانياتنا", route: "spiritual", on: true },
-    { emoji: "🌱", label: "حديقتنا", route: "garden", on: false },
+    { emoji: "🌱", label: "حديقتنا", route: "garden", on: true },
     { emoji: "📝", label: "قوائمنا", route: "lists", on: true },
     { emoji: "🎵", label: "أغنياتنا", route: "playlist", on: true },
     { emoji: "✉️", label: "رسائل الغد", route: "letters", on: true },
@@ -517,6 +550,13 @@ function viewMe(content) {
     accents.appendChild(h("button", { class: "accent-sw" + (store.accent === k ? " sel" : ""), title: a.name, style: { background: `linear-gradient(135deg, ${c1} 50%, ${c2} 50%)` }, onclick: () => { setAccent(k); renderRoute(); } }));
   });
   content.appendChild(h("div", { class: "set-row", style: { flexWrap: "wrap", gap: "10px" } }, h("div", { class: "k", style: { width: "100%" } }, "المظهر 🎨"), themeSeg, accents));
+
+  content.appendChild(h("div", { class: "set-row" }, h("div", { class: "k" }, "قفل التطبيق 🔒"),
+    appLock.enabled()
+      ? h("div", { class: "row", style: { marginInlineStart: "auto", gap: "8px" } },
+          h("button", { class: "btn sm ghost", onclick: async () => { if (appLock.hasBio()) { toast("البصمة مفعّلة"); return; } try { await appLock.enrollBio(); toast("فُعّلت البصمة 🔑"); } catch { toast("البصمة غير متاحة هنا"); } renderRoute(); } }, appLock.hasBio() ? "بصمة ✓" : "＋ بصمة"),
+          h("button", { class: "btn sm ghost", onclick: () => { appLock.disable(); toast("أُلغي القفل"); renderRoute(); } }, "إيقاف"))
+      : h("button", { class: "btn sm mint", style: { marginInlineStart: "auto" }, onclick: appLockSetup }, "تفعيل")));
 
   content.appendChild(h("button", { class: "btn ghost", style: { marginTop: "10px" }, onclick: () => { store.clearAuth(); toast("أُقفل الكتاب"); go("lock"); } }, "أقفلا الكتاب"));
 }

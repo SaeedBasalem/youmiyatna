@@ -4,14 +4,22 @@
   "lang": "ar",
   "dir": "rtl",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#FBF3E4",
   "theme_color": "#FBF3E4",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23FBF3E4'/%3E%3Ctext y='.9em' font-size='84'%3E🌙%3C/text%3E%3C/svg%3E",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23FBF3E4'/%3E%3Ctext y='.9em' font-size='84'%3E🌙%3C/text%3E%3C/svg%3E",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    { "name": "لحظة جديدة", "short_name": "لحظة", "url": "./#/feed" },
+    { "name": "همس", "short_name": "همس", "url": "./#/chat" },
+    { "name": "حديقتنا", "short_name": "حديقتنا", "url": "./#/garden" },
+    { "name": "روحانياتنا", "short_name": "ذِكر", "url": "./#/spiritual" }
   ]
 }
