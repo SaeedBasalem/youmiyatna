@@ -1,5 +1,6 @@
 // يومياتنا — shared config & constants
 export const FN   = "https://vfyzedlyveukjaukcekq.supabase.co/functions/v1/journal";
+export const FN2  = "https://vfyzedlyveukjaukcekq.supabase.co/functions/v1/journal2";
 export const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmeXplZGx5dmV1a2phdWtjZWtxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NDU5MjksImV4cCI6MjA4ODAyMTkyOX0.ojqZrTULclfbd_PrU0VCP7E0ylJGLskdi53BUEwiC-w";
 
 // the two people
@@ -51,4 +52,6 @@ export const ACCENTS = {
   ocean:   { name: "بحر",   vars: { "--sun": "#38C0ED", "--coral": "#2D9CDB", "--mint": "#3FD9A0", "--him": "#2D5BFF", "--her": "#00B8A9" } },
   rose:    { name: "وردي",  vars: { "--sun": "#FFB0C7", "--coral": "#FF5D8F", "--her": "#FF5D8F", "--him": "#9B7EDE", "--lilac": "#E0A9FF" } },
   forest:  { name: "غابة",  vars: { "--sun": "#A9C74A", "--mint": "#4CAF7D", "--coral": "#E07A3F", "--olive": "#5E7524", "--him": "#3E8E7E" } },
+  berry:   { name: "توت",   vars: { "--sun": "#FF6B9D", "--coral": "#C9184A", "--her": "#FF4D6D", "--him": "#7B2CBF", "--lilac": "#E0AAFF" } },
+  night:   { name: "ليل",   vars: { "--sun": "#8AB4F8", "--coral": "#F28B82", "--mint": "#81C995", "--him": "#8AB4F8", "--her": "#C58AF9", "--lilac": "#C58AF9" } },
 };

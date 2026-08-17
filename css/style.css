@@ -317,6 +317,189 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .accent-sw{width:34px;height:34px;border-radius:50%;border:var(--border) solid var(--ink);box-shadow:var(--shadow-sm)}
 .accent-sw.sel{outline:3px solid var(--ink);outline-offset:2px;transform:scale(1.08)}
 
+/* ---------- chat (همس) ---------- */
+.chat-view{display:flex;flex-direction:column}
+.chat-scroll{height:calc(100dvh - 210px);overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:8px 2px 100px;scrollbar-width:thin}
+.chat-footer{position:fixed;bottom:var(--nav-h);left:0;right:0;max-width:var(--max);margin:0 auto;padding:8px 14px 10px;background:var(--paper);border-top:var(--border) solid var(--ink);z-index:25;display:flex;flex-direction:column;gap:6px}
+.chat-day{align-self:center;background:var(--paper-sunk);border:2px solid var(--ink);border-radius:var(--pill);padding:3px 12px;font-size:12px;font-weight:800;margin:6px 0}
+.chat-msg{max-width:80%;padding:9px 13px;border:2px solid var(--ink);border-radius:16px;box-shadow:var(--shadow-sm);line-height:1.6;word-break:break-word}
+.chat-msg.mine{align-self:flex-start}
+.chat-msg.theirs{align-self:flex-end}
+.chat-msg.him{background:var(--him-tint)}
+.chat-msg.her{background:var(--her-tint)}
+.chat-msg.pending{opacity:.55}
+.chat-text{font-size:16px}
+.chat-img{max-width:210px;border-radius:10px;border:2px solid var(--ink);display:block}
+.chat-meta{font-size:11px;color:var(--ink-2);margin-top:3px;text-align:end;font-weight:700}
+.voice-mini{display:flex;align-items:center;gap:8px}
+.vm-play{width:30px;height:30px;border:2px solid var(--ink);border-radius:50%;background:var(--paper);font-size:14px;display:flex;align-items:center;justify-content:center;flex:none}
+.vm-dur{font-weight:700;font-size:13px}
+.chat-composer{display:flex;align-items:flex-end;gap:8px}
+.chat-input{flex:1;resize:none;max-height:120px;padding:11px 14px;border:var(--border) solid var(--ink);border-radius:16px;background:var(--paper-sunk);font-size:16px;outline:none;line-height:1.5;font-family:var(--font-body)}
+.chat-input:focus{background:var(--paper-panel);box-shadow:var(--shadow-sm)}
+.c-att{width:44px;height:44px;border:var(--border) solid var(--ink);border-radius:12px;background:var(--paper-panel);box-shadow:var(--shadow-sm);font-size:20px;flex:none}
+.c-att:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+.c-send{width:48px;height:48px;border:var(--border) solid var(--ink);border-radius:14px;background:var(--sun);box-shadow:var(--shadow-sm);font-size:20px;font-weight:900;flex:none}
+.c-send:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+.typing{align-self:flex-end;display:flex;gap:5px;padding:9px 13px;margin:0 2px 6px;border:2px solid var(--ink);border-radius:14px;background:var(--paper-panel);width:fit-content;box-shadow:var(--shadow-sm)}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--ink);animation:typedot 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.2s}
+.typing i:nth-child(3){animation-delay:.4s}
+@keyframes typedot{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+.tab-badge{position:absolute;top:6px;inset-inline-start:calc(50% + 6px);min-width:19px;height:19px;padding:0 4px;border:2px solid var(--ink);border-radius:var(--pill);background:var(--coral);color:var(--ink);font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center}
+
+/* ---------- rituals (طقوسنا) ---------- */
+.rituals{display:flex;flex-direction:column;gap:14px}
+.ritual-card{padding:16px}
+.rc-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-family:var(--font-display);font-weight:800;font-size:17px}
+.rc-emoji{font-size:22px}
+.rc-q{font-size:18px;font-weight:600;line-height:1.6;margin-bottom:12px}
+.ans{display:flex;gap:10px;align-items:flex-start;margin:8px 0;padding:10px;border:2px solid var(--ink);border-radius:12px;background:var(--paper-sunk)}
+.ans-t{line-height:1.6;white-space:pre-wrap}
+.grat-list{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
+.grat-item{padding:8px 12px;border:2px solid var(--ink);border-radius:10px;background:var(--paper-sunk);line-height:1.5}
+.grat-item.him{border-inline-start:6px solid var(--him)}
+.grat-item.her{border-inline-start:6px solid var(--her)}
+.mood-cal{display:grid;grid-template-columns:repeat(21,1fr);gap:3px}
+.mc-cell{display:flex;flex-direction:column;align-items:center;gap:1px;padding:3px 0;border:1.5px solid var(--ink);border-radius:6px;background:var(--paper-sunk);font-size:11px;line-height:1.1}
+.cd-item{display:flex;align-items:center;gap:10px;padding:10px;border:2px solid var(--ink);border-radius:12px;background:var(--paper-sunk);margin:6px 0}
+.cd-emoji{font-size:26px}
+.cd-body{flex:1;display:flex;flex-direction:column;line-height:1.3;min-width:0}
+.cd-days{font-family:var(--font-display);font-weight:800;font-size:13px;background:var(--sun);border:2px solid var(--ink);border-radius:var(--pill);padding:3px 10px;white-space:nowrap}
+.cd-del{width:28px;height:28px;border:2px solid var(--ink);border-radius:8px;background:var(--paper);font-size:12px;flex:none}
+
+/* ---------- today strip (home) ---------- */
+.today-strip{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.ts-q,.ts-cd{display:flex;align-items:center;gap:10px;width:100%;text-align:start;padding:12px 14px;border:var(--border) solid var(--ink);border-radius:var(--radius);background:var(--lilac);box-shadow:var(--shadow-sm);transition:transform .1s}
+.ts-q:active,.ts-cd:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+.ts-ic{font-size:24px}
+.ts-body{flex:1;min-width:0}
+.ts-cta{font-weight:800;background:var(--sun);border:2px solid var(--ink);border-radius:var(--pill);padding:4px 12px;font-size:13px;white-space:nowrap}
+.ts-cd{background:var(--mint)}
+.ts-cd b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ts-days{font-weight:800;background:var(--paper);border:2px solid var(--ink);border-radius:var(--pill);padding:3px 10px;font-size:13px;white-space:nowrap}
+
+/* ---------- letters (رسائل الغد) ---------- */
+.letters{display:flex;flex-direction:column;gap:12px}
+.letter-card{padding:14px;border:var(--border) solid var(--ink);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.letter-card.sealed{background:var(--paper-sunk)}
+.letter-card.open{background:var(--olive-tint)}
+.lc-top{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:800;margin-bottom:6px;flex-wrap:wrap}
+.lc-ic{font-size:22px}
+.lc-days{font-weight:800;margin-top:4px}
+.letter-body{font-family:var(--font-faith);font-size:18px;line-height:2;white-space:pre-wrap;background:var(--paper-sunk);border:2px solid var(--ink);border-radius:12px;padding:14px;max-height:50vh;overflow-y:auto}
+
+/* ---------- plan / calendar ---------- */
+.plan{display:flex;flex-direction:column}
+.cal{padding:14px;margin-bottom:6px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-family:var(--font-display);font-weight:800;font-size:18px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-wk{margin-bottom:6px}
+.cal-wd{text-align:center;font-weight:800;font-size:11px;color:var(--ink-2)}
+.cal-cell{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:2px solid var(--ink);border-radius:9px;background:var(--paper-sunk);font-weight:700;font-size:14px}
+.cal-cell.empty-cell{border:none;background:transparent}
+.cal-cell.today{background:var(--sun)}
+.cal-cell.has{background:var(--her-tint)}
+.cal-cell.today.has{background:var(--sun);outline:3px solid var(--her)}
+.cal-dot{position:absolute;bottom:3px;inset-inline-end:4px;min-width:14px;height:14px;font-size:9px;font-weight:900;background:var(--coral);border:1.5px solid var(--ink);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.ev-item{display:flex;align-items:center;gap:10px;padding:10px;border:2px solid var(--ink);border-radius:12px;background:var(--paper-panel);box-shadow:var(--shadow-sm);margin:6px 0}
+.ev-item.him{border-inline-start:6px solid var(--him)}
+.ev-item.her{border-inline-start:6px solid var(--her)}
+.ev-date{display:flex;flex-direction:column;align-items:center;min-width:44px;font-family:var(--font-display);line-height:1}
+.ev-date b{font-size:22px}
+.ev-date span{font-size:11px;color:var(--ink-2)}
+.ev-body{flex:1;display:flex;flex-direction:column;line-height:1.3;min-width:0}
+.ev-body .muted{font-size:13px}
+
+/* ---------- lists ---------- */
+.lists{display:flex;flex-direction:column;gap:12px}
+.list-card{display:flex;align-items:center;gap:12px;width:100%;text-align:start;padding:14px;border:var(--border) solid var(--ink);border-radius:var(--radius);background:var(--paper-panel);box-shadow:var(--shadow);transition:transform .1s}
+.list-card:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+.list-card:nth-child(3n+1){background:var(--him-tint)}
+.list-card:nth-child(3n+2){background:var(--her-tint)}
+.list-card:nth-child(3n){background:var(--olive-tint)}
+.lc-emoji{font-size:30px}
+.lc-info{flex:1;display:flex;flex-direction:column;line-height:1.3}
+.lc-arrow{font-size:22px;font-weight:900}
+.list-items{display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow-y:auto}
+.li-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:2px solid var(--ink);border-radius:10px;background:var(--paper-sunk)}
+.li-row.done .li-text{text-decoration:line-through;opacity:.55}
+.li-check{width:26px;height:26px;border:2px solid var(--ink);border-radius:7px;background:var(--paper);font-size:14px;font-weight:900;flex:none;display:flex;align-items:center;justify-content:center}
+.li-row.done .li-check{background:var(--mint)}
+.li-text{flex:1;line-height:1.4}
+.li-who{width:20px;height:20px;border:1.5px solid var(--ink);border-radius:50%;background:var(--paper);font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;flex:none}
+.li-del{font-size:12px;color:var(--ink-soft);flex:none}
+
+/* ---------- hijri ---------- */
+.hijri-chip{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border:2px solid var(--ink);border-radius:var(--pill);background:var(--olive-tint);color:var(--ink);font-weight:800;font-size:12px;box-shadow:var(--shadow-sm);white-space:nowrap}
+.hijri-line{font-family:var(--font-faith);color:var(--olive);background:var(--olive-tint);border:2px solid var(--ink);border-radius:12px;padding:8px 14px;margin-bottom:12px;text-align:center;font-weight:700}
+
+/* ---------- spiritual (روحانياتنا) ---------- */
+.spiritual{display:flex;flex-direction:column;gap:14px}
+.tasbeeh-body{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:6px}
+.tasbeeh-btn{width:190px;height:190px;border-radius:50%;border:var(--border-lg) solid var(--ink);background:var(--olive-tint);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:transform .08s}
+.tasbeeh-btn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
+.tasbeeh-btn.pulse{animation:tbpulse .18s}
+@keyframes tbpulse{50%{transform:scale(.94)}}
+.tb-count{font-family:var(--font-display);font-weight:900;font-size:56px;line-height:1}
+.tb-label{font-family:var(--font-faith);font-size:16px}
+.tasbeeh-total{font-weight:800;color:var(--ink-2)}
+.prog-bar{height:16px;border:2px solid var(--ink);border-radius:var(--pill);background:var(--paper-sunk);overflow:hidden}
+.prog-fill{height:100%;background:var(--mint);transition:width .3s}
+.juz-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:12px}
+.juz-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border:2px solid var(--ink);border-radius:9px;background:var(--paper-sunk);font-family:var(--font-display);font-weight:800;font-size:15px}
+.juz-cell.read.him{background:var(--him)}
+.juz-cell.read.her{background:var(--her)}
+.juz-cell:active{transform:scale(.92)}
+.dua-list{display:flex;flex-direction:column;gap:10px}
+.dua-item{padding:12px;border:2px solid var(--ink);border-radius:12px;background:var(--paper-sunk)}
+.dua-item.him{border-inline-start:6px solid var(--him)}
+.dua-item.her{border-inline-start:6px solid var(--her)}
+.dua-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.dua-for{margin-inline-start:auto;font-size:12px;font-weight:800;background:var(--olive-tint);border:2px solid var(--ink);border-radius:var(--pill);padding:2px 10px}
+.dua-body{font-family:var(--font-faith);font-size:18px;line-height:1.9;margin-bottom:8px}
+.ameen-btn{padding:6px 16px;border:2px solid var(--ink);border-radius:var(--pill);background:var(--paper);font-weight:800;box-shadow:var(--shadow-sm)}
+.ameen-btn.on{background:var(--sun)}
+
+/* ---------- carousel + video ---------- */
+.carousel{position:relative}
+.carousel-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;border:var(--border) solid var(--ink);border-radius:var(--radius-sm);box-shadow:var(--shadow-sm);scrollbar-width:none}
+.carousel-track::-webkit-scrollbar{display:none}
+.carousel-img{width:100%;flex:0 0 100%;scroll-snap-align:center;object-fit:cover;max-height:360px}
+.carousel-dots{display:flex;justify-content:center;gap:6px;margin-top:8px}
+.cdot{width:8px;height:8px;border-radius:50%;border:2px solid var(--ink);background:var(--paper)}
+.cdot.on{background:var(--ink)}
+.m-video{width:100%;border:var(--border) solid var(--ink);border-radius:var(--radius-sm);box-shadow:var(--shadow-sm);background:#000;max-height:420px}
+
+/* ---------- playlist (أغنياتنا) ---------- */
+.playlist{display:flex;flex-direction:column;gap:10px}
+.song-card{display:flex;align-items:center;gap:12px;padding:10px;border:var(--border) solid var(--ink);border-radius:var(--radius);background:var(--paper-panel);box-shadow:var(--shadow-sm)}
+.song-cover{width:52px;height:52px;border:2px solid var(--ink);border-radius:10px;object-fit:cover;flex:none}
+.song-ic{width:52px;height:52px;border:2px solid var(--ink);border-radius:10px;background:var(--lilac);display:flex;align-items:center;justify-content:center;font-size:26px;flex:none}
+.song-meta{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.song-meta b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.song-play{width:44px;height:44px;border:2px solid var(--ink);border-radius:50%;background:var(--mint);display:flex;align-items:center;justify-content:center;font-size:18px;text-decoration:none;color:var(--ink);flex:none}
+
+/* ---------- search + memories ---------- */
+.search-results{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.search-item{padding:12px;border:2px solid var(--ink);border-radius:12px;background:var(--paper-panel);box-shadow:var(--shadow-sm);line-height:1.6}
+.search-item.him{border-inline-start:6px solid var(--him)}
+.search-item.her{border-inline-start:6px solid var(--her)}
+
+/* ---------- printable book ---------- */
+#book-print{display:none}
+@media print{
+  body.printing{background:#fff!important}
+  body.printing > *:not(#book-print){display:none!important}
+  #book-print{display:block!important;color:#000;font-family:'IBM Plex Sans Arabic',sans-serif;padding:18px}
+  #book-print h1{font-family:'Cairo',sans-serif;font-size:32px;text-align:center;margin:0 0 4px;color:#111}
+  #book-print .bp-sub{text-align:center;color:#666;margin-bottom:24px}
+  #book-print .bp-moment{border-bottom:1px solid #ddd;padding:12px 0;break-inside:avoid}
+  #book-print .bp-date{font-weight:800;font-size:13px;color:#444}
+  #book-print .bp-mood{font-size:13px;color:#666}
+  #book-print .bp-body{font-size:16px;line-height:1.9;white-space:pre-wrap;margin-top:4px;color:#111}
+}
+
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001s!important;transition-duration:.05s!important}
   .moment{transform:none!important}

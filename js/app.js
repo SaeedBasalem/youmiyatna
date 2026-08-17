@@ -11,6 +11,14 @@ import { downscale, openDoodle, VoiceRecorder, uploadSigned } from "./media.js";
 import { realtime } from "./realtime.js";
 import { push } from "./push.js";
 import { applyTheme, setTheme, setAccent } from "./theme.js";
+import { viewChat, chatOnMessage, chatOnTyping, chatOnRead, isChatActive } from "./chat.js";
+import { viewRituals } from "./rituals.js";
+import { viewLetters } from "./letters.js";
+import { viewPlan } from "./plan.js";
+import { viewLists } from "./lists.js";
+import { viewSpiritual, spiritualOnDhikr, hijriShort } from "./spiritual.js";
+import { viewPlaylist } from "./playlist.js";
+import { viewSearch } from "./ai.js";
 
 const APP = () => document.getElementById("app");
 const go = (route) => { location.hash = "#/" + route; };
@@ -19,6 +27,8 @@ function loader(on) {
   if (on) { if (!l) document.body.appendChild(h("div", { id: "loader", class: "loader" }, h("div", { class: "spinner" }))); }
   else if (l) l.remove();
 }
+// module state (declared before boot() so a returning logged-in user never hits a TDZ)
+let feedItems = [], feedNode = null, chatUnread = 0, liveWired = false, homeRitual = null;
 
 /* ---------------- boot + router ---------------- */
 store.init();
@@ -45,8 +55,15 @@ function renderRoute() {
     case "lock": return viewLock();
     case "who": return viewWho();
     case "feed": return shell("feed", viewFeed);
-    case "chat": return shell("chat", viewChat);
+    case "chat": chatUnread = 0; return shell("chat", viewChat);
     case "hub": return shell("hub", viewHub);
+    case "rituals": return shell("rituals", viewRituals);
+    case "letters": return shell("letters", viewLetters);
+    case "plan": return shell("plan", viewPlan);
+    case "lists": return shell("lists", viewLists);
+    case "spiritual": return shell("spiritual", viewSpiritual);
+    case "playlist": return shell("playlist", viewPlaylist);
+    case "search": return shell("search", viewSearch);
     case "timeline": return shell("timeline", viewTimeline);
     case "milestones": return shell("milestones", viewMilestones);
     case "me": return shell("me", viewMe);
@@ -84,13 +101,16 @@ function topbar() {
   const on = realtime.partnerOnline();
   const suffix = other(store.person) === "her" ? " متصلة" : " متصل";
   const pres = h("span", { class: "presence" + (on ? " on" : "") }, h("span", { class: "presence-dot" }), on ? (PEOPLE[other(store.person)]?.name || "") + suffix : "");
-  return h("div", { class: "topbar" }, badge, pres, h("span", { class: "spacer" }), snd);
+  const hj = h("button", { class: "hijri-chip", onclick: () => go("spiritual") }, "☪ " + hijriShort());
+  return h("div", { class: "topbar" }, badge, pres, h("span", { class: "spacer" }), hj, snd);
 }
 function tabbar(active) {
   const tab = (key, ic, label, route) => h("button", { class: "tab" + (active === key ? " active" : ""), onclick: () => { sound.tab(); go(route); } }, h("span", { class: "ic" }, ic), label);
+  const chatTab = tab("chat", "💬", "همس", "chat");
+  if (chatUnread > 0) chatTab.appendChild(h("span", { class: "tab-badge" }, chatUnread > 9 ? "٩+" : arNum(chatUnread)));
   return h("nav", { class: "tabbar" },
     tab("feed", "🏠", "البيت", "feed"),
-    tab("chat", "💬", "همس", "chat"),
+    chatTab,
     h("button", { class: "tab compose", onclick: () => { sound.tab(); openCompose(); } }, h("span", { class: "plus" }, "＋")),
     tab("hub", "✦", "حياتنا", "hub"),
     tab("me", PEOPLE[store.person]?.initial || "أنا", "أنا", "me"),
@@ -98,13 +118,23 @@ function tabbar(active) {
 }
 
 /* ---------------- live (realtime) ---------------- */
-let liveWired = false;
+function currentRoute() { return (location.hash || "#/feed").replace(/^#\//, "").split("/")[0]; }
+function updateChatBadge() { const tb = $(".tabbar"); if (tb) tb.replaceWith(tabbar(currentRoute())); }
 function initLive() {
   realtime.init();
+  api.chatUnread().then((r) => { if (r.ok) { chatUnread = r.data.unread || 0; updateChatBadge(); } });
   if (liveWired) return; liveWired = true;
   realtime.onPresence(() => { const bar = $(".topbar"); if (bar && $(".days-badge", bar)) bar.replaceWith(topbar()); });
   realtime.onEvent((p) => {
-    if (p.type === "moment") { const route = (location.hash || "").replace(/^#\//, "").split("/")[0]; if (route === "feed" && feedNode) viewFeed(feedNode); }
+    if (p.type === "moment") { if (currentRoute() === "feed" && feedNode) viewFeed(feedNode); }
+    else if (p.type === "message") { if (isChatActive()) chatOnMessage(); else { chatUnread++; updateChatBadge(); } }
+    else if (p.type === "typing") { chatOnTyping(!!p.on); }
+    else if (p.type === "read") { chatOnRead(); }
+    else if (p.type === "event") { if (currentRoute() === "plan") { const c = $(".view"); if (c) viewPlan(clear(c)); } }
+    else if (p.type === "list") { if (currentRoute() === "lists") { const c = $(".view"); if (c) viewLists(clear(c)); } }
+    else if (p.type === "dhikr") { if (currentRoute() === "spiritual") spiritualOnDhikr(p); }
+    else if (p.type === "spiritual") { if (currentRoute() === "spiritual") { const c = $(".view"); if (c) viewSpiritual(clear(c)); } }
+    else if (p.type === "playlist") { if (currentRoute() === "playlist") { const c = $(".view"); if (c) viewPlaylist(clear(c)); } }
   });
 }
 
@@ -114,19 +144,19 @@ function comingSoon(title, emoji, desc) {
     h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, title)),
     h("div", { class: "empty" }, h("div", { class: "big" }, emoji), h("div", {}, desc), h("div", { class: "dua" }, "قريبًا 🌱")));
 }
-function viewChat(content) { content.appendChild(comingSoon("همس", "💬", "غرفة الهمس بينكما — رسائل حيّة، صوت، وإشعارات.")); }
 function viewHub(content) {
   content.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "حياتنا")));
   const cards = [
     { emoji: "📖", label: "حكايتنا", route: "timeline", on: true },
     { emoji: "🏆", label: "إنجازاتنا", route: "milestones", on: true },
-    { emoji: "🌤️", label: "طقوسنا", route: "rituals", on: false },
-    { emoji: "🗓️", label: "التقويم", route: "plan", on: false },
-    { emoji: "🕌", label: "روحانياتنا", route: "spiritual", on: false },
+    { emoji: "🌤️", label: "طقوسنا", route: "rituals", on: true },
+    { emoji: "🗓️", label: "التقويم", route: "plan", on: true },
+    { emoji: "🕌", label: "روحانياتنا", route: "spiritual", on: true },
     { emoji: "🌱", label: "حديقتنا", route: "garden", on: false },
-    { emoji: "📝", label: "قوائمنا", route: "lists", on: false },
-    { emoji: "✉️", label: "رسائل الغد", route: "letters", on: false },
-    { emoji: "🔎", label: "بحث", route: "search", on: false },
+    { emoji: "📝", label: "قوائمنا", route: "lists", on: true },
+    { emoji: "🎵", label: "أغنياتنا", route: "playlist", on: true },
+    { emoji: "✉️", label: "رسائل الغد", route: "letters", on: true },
+    { emoji: "🔎", label: "بحث", route: "search", on: true },
   ];
   const grid = h("div", { class: "hub-grid" });
   cards.forEach((c) => grid.appendChild(h("button", { class: "hub-card" + (c.on ? "" : " soon"), onclick: () => { sound.tab(); if (c.on) go(c.route); else toast("قريبًا 🌱"); } },
@@ -184,8 +214,6 @@ function viewWho() {
 }
 
 /* ---------------- feed ---------------- */
-let feedItems = [];
-let feedNode = null;
 function groupReactions(rs) {
   const m = {};
   for (const r of rs || []) { (m[r.emoji] = m[r.emoji] || { count: 0, mine: false }).count++; if (r.actor === store.person) m[r.emoji].mine = true; }
@@ -194,15 +222,27 @@ function groupReactions(rs) {
 async function viewFeed(content) {
   feedNode = content;
   renderFeed(store.cachedFeed(), null, true);
-  const [f, otd] = await Promise.all([api.feed(), api.onThisDay()]);
+  const [f, otd, rt] = await Promise.all([api.feed(), api.onThisDay(), api.ritualsToday()]);
+  if (rt.ok) homeRitual = rt.data;
   if (f.ok) { feedItems = f.data.items || []; store.cacheFeed(feedItems); renderFeed(feedItems, otd.ok ? otd.data.items : []); }
   else if (f.offline) toast("غير متصل — نعرض المحفوظ");
+}
+function daysToDate(dateStr) { const t = new Date(dateStr + "T00:00:00Z").getTime(); const today = new Date(new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10) + "T00:00:00Z").getTime(); return Math.round((t - today) / 86400000); }
+function todayStrip(rt) {
+  const strip = h("div", { class: "today-strip" });
+  strip.appendChild(h("button", { class: "ts-q", onclick: () => go("rituals") }, h("span", { class: "ts-ic" }, "🌟"),
+    h("div", { class: "ts-body" }, h("b", {}, "سؤال اليوم"), h("div", { class: "muted", style: { fontSize: "13px" } }, rt.question)),
+    rt.prompt && rt.prompt.mine == null ? h("span", { class: "ts-cta" }, "أجيبا") : null));
+  const up = (rt.countdowns || []).map((c) => ({ c, days: daysToDate(c.target_date) })).filter((x) => x.days >= 0).sort((a, b) => a.days - b.days)[0];
+  if (up) strip.appendChild(h("button", { class: "ts-cd", onclick: () => go("rituals") }, h("span", {}, up.c.emoji || "🎉"), h("b", {}, up.c.title), h("span", { class: "ts-days" }, up.days === 0 ? "اليوم!" : arNum(up.days) + " يوم")));
+  return strip;
 }
 function renderFeed(items, otd, loadingCache) {
   if (!feedNode) return;
   const c = clear(feedNode);
   c.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "البيت"),
     h("button", { class: "btn sm ghost", onclick: () => viewFeed(feedNode) }, "↻ تحديث")));
+  if (homeRitual && !loadingCache) c.appendChild(todayStrip(homeRitual));
   if (otd && otd.length) {
     for (const e of otd) c.appendChild(momentCard(e, { flashback: true }));
   }
@@ -239,12 +279,23 @@ function momentCard(e, opts = {}) {
 function mediaBlock(media) {
   if (!media || !media.length) return null;
   const box = h("div", { class: "m-media" });
+  const photos = media.filter((m) => m.kind === "photo" && m.signed_url);
+  if (photos.length === 1) box.appendChild(h("img", { class: "m-photo", src: photos[0].signed_url, loading: "lazy", alt: "" }));
+  else if (photos.length > 1) box.appendChild(carousel(photos));
   for (const m of media) {
-    if (m.kind === "photo" && m.signed_url) box.appendChild(h("img", { class: "m-photo", src: m.signed_url, loading: "lazy", alt: "" }));
+    if (m.kind === "video" && m.signed_url) box.appendChild(h("video", { class: "m-video", src: m.signed_url, controls: true, preload: "metadata", playsInline: true }));
     else if (m.kind === "voice" && m.signed_url) box.appendChild(voicePill(m));
     else if (m.kind === "song") box.appendChild(songPill(m));
   }
   return box;
+}
+function carousel(photos) {
+  const track = h("div", { class: "carousel-track" });
+  photos.forEach((p) => track.appendChild(h("img", { class: "carousel-img", src: p.signed_url, loading: "lazy", alt: "" })));
+  const dots = h("div", { class: "carousel-dots" });
+  photos.forEach((_, i) => dots.appendChild(h("span", { class: "cdot" + (i === 0 ? " on" : "") })));
+  track.addEventListener("scroll", () => { const idx = Math.round(Math.abs(track.scrollLeft) / track.clientWidth); dots.querySelectorAll(".cdot").forEach((d, i) => d.classList.toggle("on", i === idx)); });
+  return h("div", { class: "carousel" }, track, dots);
 }
 function voicePill(m) {
   const audio = h("audio", { src: m.signed_url, preload: "none" });
@@ -499,6 +550,7 @@ function openCompose() {
       let node;
       if (m.kind === "photo") node = h("img", { class: "m-photo", src: m.preview });
       else if (m.kind === "voice") node = h("div", { class: "voice-pill" }, h("span", { class: "play" }, "🎙️"), h("div", { class: "wave" }, ...(m.meta.bars || []).map((v) => { const i2 = h("i"); i2.style.height = Math.max(10, v * 100) + "%"; return i2; })), arNum(m.meta.duration) + "ث");
+      else if (m.kind === "video") node = h("video", { class: "m-video", src: m.preview, controls: true, preload: "metadata", playsInline: true });
       else node = h("div", { class: "song-pill" }, h("span", { class: "cassette" }, "🎵"), h("div", { class: "meta" }, h("b", {}, m.meta.title || "أغنية"), h("span", { class: "muted" }, m.meta.artist || "")));
       previews.appendChild(h("div", { style: { position: "relative" } }, node,
         h("button", { class: "icon-btn", style: { position: "absolute", top: "6px", insetInlineEnd: "6px", width: "32px", height: "32px" }, onclick: () => { draft.media.splice(i, 1); renderPreviews(); } }, "✕")));
@@ -514,8 +566,16 @@ function openCompose() {
     renderPreviews();
   } });
 
+  const videoInput = h("input", { type: "file", accept: "video/*", class: "hidden", onchange: (e) => {
+    const f = e.target.files[0]; if (!f) return; e.target.value = "";
+    if (f.size > 52428800) { toast("الفيديو كبير — الحد ٥٠ م.ب"); return; }
+    draft.media.push({ kind: "video", blob: f, contentType: f.type || "video/mp4", preview: URL.createObjectURL(f) });
+    renderPreviews();
+  } });
+
   const rail = h("div", { class: "attach-rail" },
     h("button", { class: "attach", onclick: () => fileInput.click() }, h("span", { class: "ic" }, "📷"), "صورة"),
+    h("button", { class: "attach", onclick: () => videoInput.click() }, h("span", { class: "ic" }, "🎬"), "فيديو"),
     h("button", { class: "attach", onclick: () => recordVoice(draft, renderPreviews) }, h("span", { class: "ic" }, "🎙️"), "صوت"),
     h("button", { class: "attach", onclick: () => addSong(draft, renderPreviews) }, h("span", { class: "ic" }, "🎵"), "أغنية"),
   );
@@ -550,7 +610,7 @@ function openCompose() {
       h("div", { class: "muted", style: { textAlign: "center", marginBottom: "6px" } }, "ستظهر باسم ", PEOPLE[store.person]?.name || ""),
       moodRow,
       bodyInput,
-      rail, fileInput, previews,
+      rail, fileInput, videoInput, previews,
       h("label", { class: "lbl" }, "متى حدثت؟ (اختياري)"), dateInput,
       err,
       h("div", { class: "attach-rail", style: { marginTop: "14px" } },
