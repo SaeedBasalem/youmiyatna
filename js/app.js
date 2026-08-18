@@ -21,6 +21,7 @@ import { viewPlaylist } from "./playlist.js";
 import { viewSearch } from "./ai.js";
 import { viewGarden } from "./garden.js";
 import { appLock } from "./applock.js";
+import { sortable, swipeNav, pullRefresh, stagger } from "./gestures.js";
 
 const APP = () => document.getElementById("app");
 const go = (route) => { location.hash = "#/" + route; };
@@ -30,7 +31,7 @@ function loader(on) {
   else if (l) l.remove();
 }
 // module state (declared before boot() so a returning logged-in user never hits a TDZ)
-let feedItems = [], feedNode = null, chatUnread = 0, liveWired = false, homeRitual = null;
+let feedItems = [], feedNode = null, chatUnread = 0, liveWired = false, homeRitual = null, slideDir = "", gesturesWired = false;
 
 /* ---------------- app-lock (local PIN/biometric) ---------------- */
 function showAppLock() {
@@ -76,6 +77,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) appLo
   else if (store.token) go("who");
   else go("lock");
   if (!location.hash) renderRoute();
+  initGestures();
 })();
 
 function renderRoute() {
@@ -113,10 +115,18 @@ async function refreshConfig() {
 function shell(active, viewFn) {
   const app = clear(APP());
   app.appendChild(topbar());
-  const content = h("div", { class: "view" });
+  const content = h("div", { class: "view" + (slideDir ? " " + slideDir : "") });
+  slideDir = "";
   app.appendChild(content);
   app.appendChild(tabbar(active));
   viewFn(content);
+}
+const NAVSEQ = ["feed", "chat", "hub", "me"];
+function navTo(route) { const i = NAVSEQ.indexOf(currentRoute()), j = NAVSEQ.indexOf(route); if (i >= 0 && j >= 0 && i !== j) slideDir = j > i ? "slide-l" : "slide-r"; go(route); }
+function initGestures() {
+  if (gesturesWired) return; gesturesWired = true;
+  swipeNav(APP(), (dir) => { const i = NAVSEQ.indexOf(currentRoute()); if (i < 0) return; const ni = i + (dir < 0 ? 1 : -1); if (ni < 0 || ni >= NAVSEQ.length) return; sound.tab(); navTo(NAVSEQ[ni]); });
+  pullRefresh(() => { renderRoute(); }, () => !$("#applock") && !$(".scrim") && !$(".modal-bg"));
 }
 function daysTogether() {
   const a = store.config.anniversary_date; if (!a) return null;
@@ -138,7 +148,7 @@ function topbar() {
   return h("div", { class: "topbar" }, badge, pres, h("span", { class: "spacer" }), hj, snd);
 }
 function tabbar(active) {
-  const tab = (key, ic, label, route) => h("button", { class: "tab" + (active === key ? " active" : ""), onclick: () => { sound.tab(); go(route); } }, h("span", { class: "ic" }, ic), label);
+  const tab = (key, ic, label, route) => h("button", { class: "tab" + (active === key ? " active" : ""), onclick: () => { sound.tab(); navTo(route); } }, h("span", { class: "ic" }, ic), label);
   const chatTab = tab("chat", "💬", "همس", "chat");
   if (chatUnread > 0) chatTab.appendChild(h("span", { class: "tab-badge" }, chatUnread > 9 ? "٩+" : arNum(chatUnread)));
   return h("nav", { class: "tabbar" },
@@ -177,24 +187,32 @@ function comingSoon(title, emoji, desc) {
     h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, title)),
     h("div", { class: "empty" }, h("div", { class: "big" }, emoji), h("div", {}, desc), h("div", { class: "dua" }, "قريبًا 🌱")));
 }
+let hubRearranging = false;
 function viewHub(content) {
-  content.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "حياتنا")));
-  const cards = [
-    { emoji: "📖", label: "حكايتنا", route: "timeline", on: true },
-    { emoji: "🏆", label: "إنجازاتنا", route: "milestones", on: true },
-    { emoji: "🌤️", label: "طقوسنا", route: "rituals", on: true },
-    { emoji: "🗓️", label: "التقويم", route: "plan", on: true },
-    { emoji: "🕌", label: "روحانياتنا", route: "spiritual", on: true },
-    { emoji: "🌱", label: "حديقتنا", route: "garden", on: true },
-    { emoji: "📝", label: "قوائمنا", route: "lists", on: true },
-    { emoji: "🎵", label: "أغنياتنا", route: "playlist", on: true },
-    { emoji: "✉️", label: "رسائل الغد", route: "letters", on: true },
-    { emoji: "🔎", label: "بحث", route: "search", on: true },
+  const title = h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "حياتنا"),
+    h("button", { class: "btn sm " + (hubRearranging ? "sun" : "ghost"), style: { marginInlineStart: "auto" }, onclick: () => { hubRearranging = !hubRearranging; viewHub(clear(content)); } }, hubRearranging ? "تمّ ✓" : "✥ ترتيب"));
+  content.appendChild(title);
+  if (hubRearranging) content.appendChild(h("div", { class: "reorder-hint" }, "اسحبا البطاقات لإعادة الترتيب 🖐️"));
+  let cards = [
+    { emoji: "📖", label: "حكايتنا", route: "timeline" },
+    { emoji: "🏆", label: "إنجازاتنا", route: "milestones" },
+    { emoji: "🌤️", label: "طقوسنا", route: "rituals" },
+    { emoji: "🗓️", label: "التقويم", route: "plan" },
+    { emoji: "🕌", label: "روحانياتنا", route: "spiritual" },
+    { emoji: "🌱", label: "حديقتنا", route: "garden" },
+    { emoji: "📝", label: "قوائمنا", route: "lists" },
+    { emoji: "🎵", label: "أغنياتنا", route: "playlist" },
+    { emoji: "✉️", label: "رسائل الغد", route: "letters" },
+    { emoji: "🔎", label: "بحث", route: "search" },
   ];
-  const grid = h("div", { class: "hub-grid" });
-  cards.forEach((c) => grid.appendChild(h("button", { class: "hub-card" + (c.on ? "" : " soon"), onclick: () => { sound.tab(); if (c.on) go(c.route); else toast("قريبًا 🌱"); } },
-    h("span", { class: "he" }, c.emoji), h("span", { class: "hl" }, c.label), c.on ? null : h("span", { class: "soon-tag" }, "قريبًا"))));
+  const ord = store.hubOrder;
+  if (ord) cards.sort((a, b) => { const ia = ord.indexOf(a.route), ib = ord.indexOf(b.route); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
+  const grid = h("div", { class: "hub-grid" + (hubRearranging ? " rearrange" : "") });
+  cards.forEach((c) => grid.appendChild(h("button", { class: "hub-card", dataset: { id: c.route }, onclick: () => { if (hubRearranging) return; sound.tab(); go(c.route); } },
+    h("span", { class: "he" }, c.emoji), h("span", { class: "hl" }, c.label))));
   content.appendChild(grid);
+  if (hubRearranging) sortable(grid, ".hub-card", (order) => { store.hubOrder = order; });
+  else stagger(grid, ".hub-card");
 }
 
 /* ---------------- lock / who ---------------- */
@@ -261,24 +279,37 @@ async function viewFeed(content) {
   else if (f.offline) toast("غير متصل — نعرض المحفوظ");
 }
 function daysToDate(dateStr) { const t = new Date(dateStr + "T00:00:00Z").getTime(); const today = new Date(new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10) + "T00:00:00Z").getTime(); return Math.round((t - today) / 86400000); }
-function todayStrip(rt) {
-  const strip = h("div", { class: "today-strip" });
-  strip.appendChild(h("button", { class: "ts-q", onclick: () => go("rituals") }, h("span", { class: "ts-ic" }, "🌟"),
+const HOME_WIDGETS = { prompt: { label: "سؤال اليوم", emoji: "🌟" }, countdown: { label: "العدّ التنازلي", emoji: "⏳" }, otd: { label: "في مثل هذا اليوم", emoji: "🔁" } };
+function homeWidgetList() { return store.homeWidgets || [{ key: "prompt", on: true }, { key: "countdown", on: true }, { key: "otd", on: true }]; }
+function promptWidget(rt) {
+  if (!rt || !rt.prompt) return null;
+  return h("button", { class: "ts-q", onclick: () => go("rituals") }, h("span", { class: "ts-ic" }, "🌟"),
     h("div", { class: "ts-body" }, h("b", {}, "سؤال اليوم"), h("div", { class: "muted", style: { fontSize: "13px" } }, rt.question)),
-    rt.prompt && rt.prompt.mine == null ? h("span", { class: "ts-cta" }, __g("أجِب","أجيبي")) : null));
+    rt.prompt.mine == null ? h("span", { class: "ts-cta" }, __g("أجِب", "أجيبي")) : null);
+}
+function countdownWidget(rt) {
   const up = (rt.countdowns || []).map((c) => ({ c, days: daysToDate(c.target_date) })).filter((x) => x.days >= 0).sort((a, b) => a.days - b.days)[0];
-  if (up) strip.appendChild(h("button", { class: "ts-cd", onclick: () => go("rituals") }, h("span", {}, up.c.emoji || "🎉"), h("b", {}, up.c.title), h("span", { class: "ts-days" }, up.days === 0 ? "اليوم!" : arNum(up.days) + " يوم")));
-  return strip;
+  if (!up) return null;
+  return h("button", { class: "ts-cd", onclick: () => go("rituals") }, h("span", {}, up.c.emoji || "🎉"), h("b", {}, up.c.title), h("span", { class: "ts-days" }, up.days === 0 ? "اليوم!" : arNum(up.days) + " يوم"));
 }
 function renderFeed(items, otd, loadingCache) {
   if (!feedNode) return;
   const c = clear(feedNode);
   c.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "البيت"),
+    h("button", { class: "btn sm ghost", style: { marginInlineStart: "auto" }, onclick: () => homeCustomize() }, "⚙"),
     h("button", { class: "btn sm ghost", onclick: () => viewFeed(feedNode) }, "↻ تحديث")));
-  if (homeRitual && !loadingCache) c.appendChild(todayStrip(homeRitual));
-  if (otd && otd.length) {
-    for (const e of otd) c.appendChild(momentCard(e, { flashback: true }));
+  const wl = homeWidgetList();
+  if (homeRitual && !loadingCache) {
+    const strip = h("div", { class: "today-strip" });
+    for (const w of wl) {
+      if (!w.on) continue;
+      if (w.key === "prompt") { const n = promptWidget(homeRitual); if (n) strip.appendChild(n); }
+      else if (w.key === "countdown") { const n = countdownWidget(homeRitual); if (n) strip.appendChild(n); }
+    }
+    if (strip.children.length) c.appendChild(strip);
   }
+  const otdOn = !wl.some((w) => w.key === "otd" && !w.on);
+  if (otdOn && otd && otd.length) for (const e of otd) c.appendChild(momentCard(e, { flashback: true }));
   if (!items || !items.length) {
     c.appendChild(h("div", { class: "empty" },
       h("div", { class: "big" }, "🌙"),
@@ -288,7 +319,31 @@ function renderFeed(items, otd, loadingCache) {
     ));
     return;
   }
-  items.forEach((e) => c.appendChild(momentCard(e)));
+  const list = h("div", {});
+  items.forEach((e) => list.appendChild(momentCard(e)));
+  c.appendChild(list);
+  if (!loadingCache) stagger(list, ".moment");
+}
+function homeCustomize() {
+  let widgets = homeWidgetList().map((w) => ({ ...w }));
+  const list = h("div", {});
+  clear(list);
+  widgets.forEach((w) => {
+    const meta = HOME_WIDGETS[w.key] || { label: w.key, emoji: "▫️" };
+    list.appendChild(h("div", { class: "widget-row reorder", dataset: { id: w.key } },
+      h("span", { class: "wr-drag" }, "⠿"),
+      h("span", { class: "wr-label" }, meta.emoji + " " + meta.label),
+      h("button", { class: "toggle" + (w.on ? " on" : ""), onclick: (e) => { const wr = widgets.find((x) => x.key === w.key); wr.on = !wr.on; e.currentTarget.classList.toggle("on", wr.on); } })));
+  });
+  sortable(list, ".widget-row", (order) => { widgets = order.map((k) => widgets.find((w) => w.key === k)).filter(Boolean); });
+  const sc = h("div", { class: "scrim center" }, h("div", { class: "modal" },
+    h("h3", {}, "خصّصا البيت ⚙"),
+    h("div", { class: "muted", style: { marginBottom: "10px" } }, "أظهرا/أخفيا العناصر، واسحبا ⠿ للترتيب."),
+    list,
+    h("div", { class: "attach-rail", style: { marginTop: "16px" } },
+      h("button", { class: "btn ghost", onclick: () => sc.remove() }, "إلغاء"),
+      h("button", { class: "btn sun", onclick: () => { store.homeWidgets = widgets; sc.remove(); if (feedNode) viewFeed(feedNode); } }, __g("احفظ", "احفظي")))));
+  document.body.appendChild(sc);
 }
 function momentCard(e, opts = {}) {
   const p = PEOPLE[e.author] || PEOPLE.him;

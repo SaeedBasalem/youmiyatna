@@ -38,6 +38,11 @@ export const store = {
   set theme(v) { localStorage.setItem("yn_theme", v); },
   get accent() { return localStorage.getItem("yn_accent") || "default"; },
   set accent(v) { localStorage.setItem("yn_accent", v); },
+
+  get hubOrder() { return readJSON("yn_hub_order", null); },       // [route,...] custom hub order
+  set hubOrder(v) { writeJSON("yn_hub_order", v); },
+  get homeWidgets() { return readJSON("yn_home_widgets", null); }, // [{key,on},...] home customization
+  set homeWidgets(v) { writeJSON("yn_home_widgets", v); },
 };
 
 // gendered UI helper: resolves at render time to the logged-in person's grammatical gender.
