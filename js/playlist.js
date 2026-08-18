@@ -12,7 +12,7 @@ export async function viewPlaylist(content) {
   const r = await api.listPlaylist();
   clear(list);
   const items = r.ok ? r.data.items : [];
-  if (!items.length) { list.appendChild(h("div", { class: "empty" }, h("div", { class: "big" }, "🎵"), h("div", {}, "ابدآ قائمة أغانيكما 🎶"), h("div", { class: "dua" }, "لكل حبٍّ لحنه."))); return; }
+  if (!items.length) { list.appendChild(h("div", { class: "empty" }, h("div", { class: "big" }, "🎵"), h("div", {}, __g("ابدأ قائمة أغانيكما 🎶","ابدئي قائمة أغانيكما 🎶")), h("div", { class: "dua" }, "لكل حبٍّ لحنه."))); return; }
   items.forEach((s) => list.appendChild(songCard(s, content)));
 }
 function songCard(s, content) {
@@ -33,6 +33,6 @@ function songModal(content) {
     h("label", { class: "lbl" }, "الرابط"), url,
     h("div", { class: "attach-rail", style: { marginTop: "14px" } },
       h("button", { class: "btn ghost", onclick: () => sc.remove() }, "إلغاء"),
-      h("button", { class: "btn coral", onclick: async () => { const t = title.value.trim(); if (!t) { title.focus(); return; } const r = await api.addSong({ title: t, artist: artist.value.trim() || null, url: url.value.trim() || null }); if (r.ok) { sc.remove(); sound.post(); realtime.broadcast("playlist"); viewPlaylist(clear(content)); } else toast("تعذّر"); } }, "أضيفا"))));
+      h("button", { class: "btn coral", onclick: async () => { const t = title.value.trim(); if (!t) { title.focus(); return; } const r = await api.addSong({ title: t, artist: artist.value.trim() || null, url: url.value.trim() || null }); if (r.ok) { sc.remove(); sound.post(); realtime.broadcast("playlist"); viewPlaylist(clear(content)); } else toast("تعذّر"); } }, __g("أضِف","أضيفي")))));
   document.body.appendChild(sc);
 }

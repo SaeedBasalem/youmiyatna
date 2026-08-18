@@ -51,7 +51,7 @@ function upcoming(content) {
   const box = h("div", {});
   box.appendChild(h("div", { class: "t-h2", style: { margin: "16px 2px 8px" } }, "المواعيد القادمة"));
   const up = allEvents.filter((e) => e.date >= todayStr()).slice(0, 20);
-  if (!up.length) box.appendChild(h("div", { class: "muted", style: { padding: "8px" } }, "لا مواعيد قادمة — أضيفا موعدًا 💞"));
+  if (!up.length) box.appendChild(h("div", { class: "muted", style: { padding: "8px" } }, __g("لا مواعيد قادمة — أضِف موعدًا 💞","لا مواعيد قادمة — أضيفي موعدًا 💞")));
   up.forEach((e) => {
     const dt = new Date(e.date + "T00:00:00Z");
     box.appendChild(h("div", { class: "ev-item " + (e.created_by || "") },
@@ -69,7 +69,7 @@ function dayModal(content, ds, evs) {
     ...(evs.length ? evs.map((e) => h("div", { class: "ev-item " + (e.created_by || "") }, h("div", { class: "ev-body" }, h("b", {}, e.title), h("span", { class: "muted" }, (e.time ? e.time + " · " : "") + (e.note || ""))), h("button", { class: "cd-del", onclick: async () => { await api.delEvent(e.id); realtime.broadcast("event"); sc.remove(); viewPlan(clear(content)); } }, "✕"))) : [h("div", { class: "muted" }, "لا مواعيد في هذا اليوم.")]),
     h("div", { class: "attach-rail", style: { marginTop: "14px" } },
       h("button", { class: "btn ghost", onclick: () => sc.remove() }, "إغلاق"),
-      h("button", { class: "btn sun", onclick: () => { sc.remove(); eventModal(content, ds); } }, "＋ أضيفا موعدًا"))));
+      h("button", { class: "btn sun", onclick: () => { sc.remove(); eventModal(content, ds); } }, __g("＋ أضِف موعدًا","＋ أضيفي موعدًا")))));
   document.body.appendChild(sc);
 }
 
@@ -90,6 +90,6 @@ function eventModal(content, defaultDate) {
         const t = title.value.trim(), dt = date.value; if (!t) { title.focus(); return; } if (!dt) { date.focus(); return; }
         const r = await api.addEvent({ title: t, date: dt, time: time.value || null, note: note.value.trim() || null });
         if (r.ok) { sc.remove(); sound.post(); realtime.broadcast("event"); viewPlan(clear(content)); toast("أُضيف الموعد 📅"); } else toast("تعذّر");
-      } }, "أضيفا"))));
+      } }, __g("أضِف","أضيفي")))));
   document.body.appendChild(sc);
 }

@@ -32,8 +32,8 @@ function promptCard(d, content) {
   } else {
     const ta = h("textarea", { class: "field", rows: 2, placeholder: "إجابتك… (تظهر بعد أن يجيب الطرفان)" });
     card.appendChild(ta);
-    card.appendChild(h("button", { class: "btn sun sm", style: { marginTop: "8px" }, onclick: async () => { const v = ta.value.trim(); if (!v) return; await api.answerPrompt(v); sound.post(); reload(content); } }, "أجيبا"));
-    if (d.prompt.theirs_answered) card.appendChild(h("div", { class: "muted", style: { marginTop: "6px" } }, PEOPLE[other(store.person)].name + " أجاب — أجيبا لتنكشف الإجابتان!"));
+    card.appendChild(h("button", { class: "btn sun sm", style: { marginTop: "8px" }, onclick: async () => { const v = ta.value.trim(); if (!v) return; await api.answerPrompt(v); sound.post(); reload(content); } }, __g("أجِب","أجيبي")));
+    if (d.prompt.theirs_answered) card.appendChild(h("div", { class: "muted", style: { marginTop: "6px" } }, PEOPLE[other(store.person)].name + __g(" أجاب — أجِب لتنكشف الإجابتان!"," أجاب — أجيبي لتنكشف الإجابتان!")));
   }
   return card;
 }
@@ -63,20 +63,20 @@ function gratitudeCard(d, content) {
   const card = h("div", { class: "panel ritual-card" }, h("div", { class: "rc-head" }, h("span", { class: "rc-emoji" }, "🤲"), h("b", {}, "امتنان اليوم")));
   const list = h("div", { class: "grat-list" });
   const all = [...d.gratitude.mine.map((x) => ({ ...x, who: store.person })), ...d.gratitude.theirs.map((x) => ({ ...x, who: other(store.person) }))];
-  if (!all.length) list.appendChild(h("div", { class: "muted" }, "اكتبا شيئًا تشكران الله عليه اليوم 🤍"));
+  if (!all.length) list.appendChild(h("div", { class: "muted" }, __g("اكتب شيئًا تشكران الله عليه اليوم 🤍","اكتبي شيئًا تشكران الله عليه اليوم 🤍")));
   all.forEach((g) => list.appendChild(h("div", { class: "grat-item " + g.who }, "🤍 " + g.text + " — " + PEOPLE[g.who].name)));
   card.appendChild(list);
   const inp = h("input", { class: "field", placeholder: "أنا ممتن لـ…" });
   const add = async () => { const v = inp.value.trim(); if (!v) return; inp.value = ""; await api.addGratitude(v); sound.post(); reload(content); };
   inp.addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });
-  card.appendChild(h("div", { class: "row", style: { marginTop: "8px", gap: "8px" } }, inp, h("button", { class: "btn mint sm", onclick: add }, "أضيفا")));
+  card.appendChild(h("div", { class: "row", style: { marginTop: "8px", gap: "8px" } }, inp, h("button", { class: "btn mint sm", onclick: add }, __g("أضِف","أضيفي"))));
   return card;
 }
 
 function daysUntil(dateStr) { const t = new Date(dateStr + "T00:00:00Z").getTime(); const today = new Date(new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10) + "T00:00:00Z").getTime(); return Math.round((t - today) / 86400000); }
 function countdownCard(d, content) {
   const card = h("div", { class: "panel ritual-card" }, h("div", { class: "rc-head" }, h("span", { class: "rc-emoji" }, "⏳"), h("b", {}, "العدّ التنازلي")));
-  if (!d.countdowns.length) card.appendChild(h("div", { class: "muted" }, "أضيفا موعدًا تنتظرانه 💞"));
+  if (!d.countdowns.length) card.appendChild(h("div", { class: "muted" }, __g("أضِف موعدًا تنتظرانه 💞","أضيفي موعدًا تنتظرانه 💞")));
   d.countdowns.forEach((c) => {
     const days = daysUntil(c.target_date);
     card.appendChild(h("div", { class: "cd-item" }, h("span", { class: "cd-emoji" }, c.emoji || "🎉"),
@@ -98,6 +98,6 @@ function addCountdownModal(content) {
     h("label", { class: "lbl" }, "رمز"), emoji,
     h("div", { class: "attach-rail", style: { marginTop: "14px" } },
       h("button", { class: "btn ghost", onclick: () => sc.remove() }, "إلغاء"),
-      h("button", { class: "btn sun", onclick: async () => { const t = title.value.trim(), dt = date.value; if (!t) { title.focus(); return; } if (!dt) { date.focus(); return; } const r = await api.addCountdown(t, dt, emoji.value.trim() || "🎉"); if (r.ok) { sc.remove(); sound.post(); reload(content); } else toast("تعذّر"); } }, "أضيفا"))));
+      h("button", { class: "btn sun", onclick: async () => { const t = title.value.trim(), dt = date.value; if (!t) { title.focus(); return; } if (!dt) { date.focus(); return; } const r = await api.addCountdown(t, dt, emoji.value.trim() || "🎉"); if (r.ok) { sc.remove(); sound.post(); reload(content); } else toast("تعذّر"); } }, __g("أضِف","أضيفي")))));
   document.body.appendChild(sc);
 }

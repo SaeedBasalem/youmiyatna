@@ -42,8 +42,8 @@ function showAppLock() {
   pin.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
   const ov = h("div", { id: "applock", class: "applock-ov" }, h("div", { class: "cover" },
     h("div", { style: { fontSize: "44px" } }, "🔒"),
-    h("div", { class: "tag" }, "أدخلا رمز القفل"),
-    pin, h("button", { class: "btn sun", onclick: submit }, "افتحا"),
+    h("div", { class: "tag" }, __g("أدخل رمز القفل","أدخلي رمز القفل")),
+    pin, h("button", { class: "btn sun", onclick: submit }, __g("افتح","افتحي")),
     appLock.hasBio() ? h("button", { class: "btn ghost", style: { marginTop: "8px" }, onclick: bio }, "🔑 البصمة") : null, err));
   document.body.appendChild(ov);
   setTimeout(() => pin.focus(), 50);
@@ -56,14 +56,14 @@ function appLockSetup() {
   const sc = h("div", { class: "scrim center" }, h("div", { class: "modal" }, h("h3", {}, "قفل التطبيق 🔒"), pin, h("div", { style: { height: "8px" } }), pin2, err,
     h("div", { class: "attach-rail", style: { marginTop: "14px" } },
       h("button", { class: "btn ghost", onclick: () => sc.remove() }, "إلغاء"),
-      h("button", { class: "btn sun", onclick: async () => { const a = pin.value.trim(), b = pin2.value.trim(); if (a.length < 4) { err.textContent = "٤ أرقام على الأقل"; return; } if (a !== b) { err.textContent = "غير متطابق"; return; } await appLock.setup(a); sc.remove(); toast("فُعّل القفل 🔒"); renderRoute(); } }, "فعّلا"))));
+      h("button", { class: "btn sun", onclick: async () => { const a = pin.value.trim(), b = pin2.value.trim(); if (a.length < 4) { err.textContent = "٤ أرقام على الأقل"; return; } if (a !== b) { err.textContent = "غير متطابق"; return; } await appLock.setup(a); sc.remove(); toast("فُعّل القفل 🔒"); renderRoute(); } }, __g("فعّل","فعّلي")))));
   document.body.appendChild(sc);
 }
 
 /* ---------------- boot + router ---------------- */
 store.init();
 applyTheme();
-setAuthFailHandler(() => { store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });
+setAuthFailHandler(() => { store.clearAuth(); toast(__g("انتهت الجلسة، افتح من جديد","انتهت الجلسة، افتحي من جديد")); go("lock"); });
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("pointerdown", () => sound.resume(), { once: true });
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
@@ -206,7 +206,7 @@ function viewLock() {
     sound.resume();
     const pass = pin.value.trim();
     err.textContent = "";
-    if (!pass) { err.textContent = "اكتبا كلمة الفتح"; return; }
+    if (!pass) { err.textContent = __g("اكتب كلمة الفتح","اكتبي كلمة الفتح"); return; }
     loader(true);
     const r = await api.unlock(pass);
     loader(false);
@@ -221,7 +221,7 @@ function viewLock() {
     h("div", { class: "tag" }, "عالمٌ صغيرٌ بيننا، نكتبه معًا، ونمضي به إلى رضا الله."),
     h("div", { class: "box" },
       pin,
-      h("button", { class: "btn sun", onclick: submit }, "افتحا الكتاب"),
+      h("button", { class: "btn sun", onclick: submit }, __g("افتح الكتاب","افتحي الكتاب")),
       err,
     ),
   ));
@@ -234,11 +234,11 @@ function viewWho() {
     const r = await api.chooseIdentity(person);
     loader(false);
     if (r.ok && r.data.token) { store.setAuth(r.data.token, person); sound.unlock(); refreshConfig(); initLive(); go("feed"); }
-    else toast("تعذّر الدخول، حاولا مجددًا");
+    else toast(__g("تعذّر الدخول، حاول مجددًا","تعذّر الدخول، حاولي مجددًا"));
   }
   app.appendChild(h("div", { class: "lock view" },
     h("div", { class: "brand", style: { fontSize: "40px", textShadow: "4px 4px 0 var(--mint)" } }, "مين معنا؟"),
-    h("div", { class: "tag" }, "اختارا أنفسكما — لنعرف صاحب كل لحظة."),
+    h("div", { class: "tag" }, __g("اختر نفسك — لنعرف صاحب كل لحظة.","اختاري نفسكِ — لنعرف صاحب كل لحظة.")),
     h("div", { class: "who-cards" },
       h("button", { class: "who-card him", onclick: () => pick("him") }, avatar("him", "lg"), PEOPLE.him.name),
       h("button", { class: "who-card her", onclick: () => pick("her") }, avatar("her", "lg"), PEOPLE.her.name),
@@ -265,7 +265,7 @@ function todayStrip(rt) {
   const strip = h("div", { class: "today-strip" });
   strip.appendChild(h("button", { class: "ts-q", onclick: () => go("rituals") }, h("span", { class: "ts-ic" }, "🌟"),
     h("div", { class: "ts-body" }, h("b", {}, "سؤال اليوم"), h("div", { class: "muted", style: { fontSize: "13px" } }, rt.question)),
-    rt.prompt && rt.prompt.mine == null ? h("span", { class: "ts-cta" }, "أجيبا") : null));
+    rt.prompt && rt.prompt.mine == null ? h("span", { class: "ts-cta" }, __g("أجِب","أجيبي")) : null));
   const up = (rt.countdowns || []).map((c) => ({ c, days: daysToDate(c.target_date) })).filter((x) => x.days >= 0).sort((a, b) => a.days - b.days)[0];
   if (up) strip.appendChild(h("button", { class: "ts-cd", onclick: () => go("rituals") }, h("span", {}, up.c.emoji || "🎉"), h("b", {}, up.c.title), h("span", { class: "ts-days" }, up.days === 0 ? "اليوم!" : arNum(up.days) + " يوم")));
   return strip;
@@ -397,7 +397,7 @@ async function viewMoment(id) {
 
   // notes
   const thread = h("div", { class: "notes" });
-  function paintNotes(list) { clear(thread); if (!list.length) thread.appendChild(h("div", { class: "empty", style: { padding: "20px" } }, "لسا ما في همسة… قولا شي حلو 💛")); list.forEach((n) => thread.appendChild(noteBubble(n))); }
+  function paintNotes(list) { clear(thread); if (!list.length) thread.appendChild(h("div", { class: "empty", style: { padding: "20px" } }, __g("لسا ما في همسة… قل شي حلو 💛","لسا ما في همسة… قولي شي حلو 💛"))); list.forEach((n) => thread.appendChild(noteBubble(n))); }
   paintNotes(notes);
   const input = h("input", { class: "field", placeholder: "همسة حبّ…" });
   async function send() {
@@ -411,7 +411,7 @@ async function viewMoment(id) {
   c.appendChild(h("div", { class: "panel", style: { padding: "12px" } },
     h("div", { class: "t-h2", style: { marginBottom: "10px" } }, "الهمسات"),
     thread,
-    h("div", { class: "note-composer" }, input, h("button", { class: "btn her sm", onclick: send }, "أرسلي")),
+    h("div", { class: "note-composer" }, input, h("button", { class: "btn her sm", onclick: send }, __g("أرسل","أرسلي"))),
   ));
 }
 function noteBubble(n) {
@@ -475,7 +475,7 @@ async function viewMilestones(content) {
   } else {
     wrap.appendChild(h("div", { class: "hero-counter", style: { background: "var(--paper-panel)" } },
       h("div", { class: "t-h2" }, "متى بدأت حكايتكما؟"),
-      h("button", { class: "btn coral", style: { width: "auto", marginTop: "10px" }, onclick: () => go("me") }, "حدّدا تاريخ البداية"),
+      h("button", { class: "btn coral", style: { width: "auto", marginTop: "10px" }, onclick: () => go("me") }, __g("حدّد تاريخ البداية","حدّدي تاريخ البداية")),
     ));
   }
   wrap.appendChild(h("div", { class: "stat-row" },
@@ -511,20 +511,20 @@ async function viewMilestones(content) {
 function viewMe(content) {
   content.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "أنا")));
   content.appendChild(h("div", { class: "set-row" }, avatar(store.person, "lg"),
-    h("div", {}, h("div", { class: "k" }, PEOPLE[store.person]?.name || ""), h("div", { class: "muted" }, "هذا أنا الآن")),
+    h("div", {}, h("div", { class: "k" }, PEOPLE[store.person]?.name || ""), h("div", { class: "muted" }, __g("هذا أنا الآن","هذه أنا الآن"))),
     h("button", { class: "btn sm ghost", style: { marginInlineStart: "auto" }, onclick: () => go("who") }, "مو أنا؟")));
 
   const dateInput = h("input", { class: "field", type: "date", value: store.config.anniversary_date || "" });
   content.appendChild(h("div", { class: "set-row", style: { flexWrap: "wrap" } },
     h("div", { class: "k", style: { width: "100%" } }, "تاريخ بدايتنا 💍"),
     dateInput,
-    h("button", { class: "btn sm mint", onclick: async () => { const v = dateInput.value; if (!v) return; loader(true); const r = await api.setConfig("anniversary_date", v); loader(false); if (r.ok) { store.setConfig({ anniversary_date: v }); toast("حُفظ 💛"); } } }, "احفظا")));
+    h("button", { class: "btn sm mint", onclick: async () => { const v = dateInput.value; if (!v) return; loader(true); const r = await api.setConfig("anniversary_date", v); loader(false); if (r.ok) { store.setConfig({ anniversary_date: v }); toast("حُفظ 💛"); } } }, __g("احفظ","احفظي"))));
 
   content.appendChild(h("div", { class: "set-row" }, h("div", { class: "k" }, "الصوت"),
     h("button", { class: "btn sm ghost", style: { marginInlineStart: "auto" }, onclick: (e) => { const on = sound.toggle(); e.currentTarget.textContent = on ? "🔊 مُفعّل" : "🔇 صامت"; } }, store.soundOn ? "🔊 مُفعّل" : "🔇 صامت")));
 
   content.appendChild(h("div", { class: "set-row" }, h("div", { class: "k" }, "نسخة احتياطية"),
-    h("button", { class: "btn sm ghost", style: { marginInlineStart: "auto" }, onclick: exportJSON }, "⬇ نزّلا JSON")));
+    h("button", { class: "btn sm ghost", style: { marginInlineStart: "auto" }, onclick: exportJSON }, __g("⬇ نزّل JSON","⬇ نزّلي JSON"))));
 
   // notifications
   const notifBtns = h("div", { class: "row", style: { width: "100%", gap: "10px", margin: "0" } });
@@ -535,9 +535,9 @@ function viewMe(content) {
     if (r.ok) { toast("فُعّلت الإشعارات 🔔"); renderRoute(); }
     else { toast(r.reason === "denied" ? "رُفض إذن الإشعارات" : r.reason === "unsupported" ? "غير مدعوم هنا" : "تعذّر التفعيل"); renderRoute(); }
   } }, store.pushOn ? "إيقاف" : "تفعيل"));
-  if (store.pushOn) notifBtns.appendChild(h("button", { class: "btn sm ghost", onclick: async () => { const r = await push.test(); toast(r.ok ? "أُرسل إشعار تجريبي 🔔" : "تعذّر"); } }, "جرّبا"));
+  if (store.pushOn) notifBtns.appendChild(h("button", { class: "btn sm ghost", onclick: async () => { const r = await push.test(); toast(r.ok ? "أُرسل إشعار تجريبي 🔔" : "تعذّر"); } }, __g("جرّب","جرّبي")));
   content.appendChild(h("div", { class: "set-row", style: { flexWrap: "wrap" } }, h("div", { class: "k", style: { width: "100%" } }, "الإشعارات 🔔"), notifBtns,
-    push.supported() ? null : h("div", { class: "muted", style: { fontSize: "13px", width: "100%" } }, "على الآيفون: أضيفا التطبيق للشاشة الرئيسية أولًا.")));
+    push.supported() ? null : h("div", { class: "muted", style: { fontSize: "13px", width: "100%" } }, __g("على الآيفون: أضِف التطبيق للشاشة الرئيسية أولًا.","على الآيفون: أضيفي التطبيق للشاشة الرئيسية أولًا."))));
 
   // appearance: theme + accent
   const themeSeg = h("div", { class: "seg" });
@@ -558,7 +558,7 @@ function viewMe(content) {
           h("button", { class: "btn sm ghost", onclick: () => { appLock.disable(); toast("أُلغي القفل"); renderRoute(); } }, "إيقاف"))
       : h("button", { class: "btn sm mint", style: { marginInlineStart: "auto" }, onclick: appLockSetup }, "تفعيل")));
 
-  content.appendChild(h("button", { class: "btn ghost", style: { marginTop: "10px" }, onclick: () => { store.clearAuth(); toast("أُقفل الكتاب"); go("lock"); } }, "أقفلا الكتاب"));
+  content.appendChild(h("button", { class: "btn ghost", style: { marginTop: "10px" }, onclick: () => { store.clearAuth(); toast("أُقفل الكتاب"); go("lock"); } }, __g("أقفل الكتاب","أقفلي الكتاب")));
 }
 async function exportJSON() {
   loader(true);
@@ -575,7 +575,7 @@ function openCompose() {
   const draft = { mood: "", media: [], happened_at: "" };
   const err = h("div", { class: "err" });
   const previews = h("div", { class: "m-media", style: { marginTop: "10px" } });
-  const bodyInput = h("textarea", { class: "field", rows: 4, placeholder: "شو صار اليوم؟ اكتبا للحظة…" });
+  const bodyInput = h("textarea", { class: "field", rows: 4, placeholder: __g("شو صار اليوم؟ اكتب للحظة…","شو صار اليوم؟ اكتبي للحظة…") });
 
   const moodRow = h("div", { class: "mood-row" }, ...MOODS.map(([label, emo]) =>
     h("button", { class: "mood-opt", onclick: (e) => {
@@ -624,7 +624,7 @@ function openCompose() {
 
   async function post() {
     const body = bodyInput.value.trim();
-    if (!body && !draft.media.length) { err.textContent = "اكتبا لحظة أو أرفقا شيئًا"; return; }
+    if (!body && !draft.media.length) { err.textContent = __g("اكتب لحظة أو أرفق شيئًا","اكتبي لحظة أو أرفقي شيئًا"); return; }
     loader(true);
     try {
       const media = [];
@@ -655,7 +655,7 @@ function openCompose() {
       err,
       h("div", { class: "attach-rail", style: { marginTop: "14px" } },
         h("button", { class: "btn ghost", onclick: () => scrim.remove() }, "إلغاء"),
-        h("button", { class: "btn sun", onclick: post }, "انشراها 🌙"),
+        h("button", { class: "btn sun", onclick: post }, __g("انشرها 🌙","انشريها 🌙")),
       ),
     ));
   scrim.addEventListener("click", (e) => { if (e.target === scrim) scrim.remove(); });
@@ -678,7 +678,7 @@ function recordVoice(draft, done) {
       draft.media.push({ kind: "voice", blob: out.blob, contentType: out.mime, meta: { bars: out.bars, duration: out.duration } });
       done(); sc.remove();
     }
-  } }, "⏺ ابدآ التسجيل");
+  } }, __g("⏺ ابدأ التسجيل","⏺ ابدئي التسجيل"));
   const sc = h("div", { class: "scrim center" }, h("div", { class: "modal" },
     h("h3", {}, "همسة صوتية 🎙️"), wave, timer,
     h("div", { style: { height: "10px" } }), btn,
@@ -697,7 +697,7 @@ function addSong(draft, done) {
     h("label", { class: "lbl" }, "الرابط"), url,
     h("div", { class: "attach-rail", style: { marginTop: "14px" } },
       h("button", { class: "btn ghost", onclick: () => sc.remove() }, "إلغاء"),
-      h("button", { class: "btn her", onclick: () => { if (!title.value.trim()) { title.focus(); return; } draft.media.push({ kind: "song", url: url.value.trim(), meta: { title: title.value.trim(), artist: artist.value.trim() } }); done(); sc.remove(); } }, "أرفقاها"),
+      h("button", { class: "btn her", onclick: () => { if (!title.value.trim()) { title.focus(); return; } draft.media.push({ kind: "song", url: url.value.trim(), meta: { title: title.value.trim(), artist: artist.value.trim() } }); done(); sc.remove(); } }, __g("أرفقها","أرفقيها")),
     )));
   document.body.appendChild(sc);
 }

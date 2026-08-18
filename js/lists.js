@@ -21,7 +21,7 @@ export async function viewLists(content) {
   const r = await api.getLists();
   lists = r.ok ? r.data.lists : [];
   clear(wrap);
-  if (!lists.length) { wrap.appendChild(h("div", { class: "empty" }, h("div", { class: "big" }, "📝"), h("div", {}, "لا قوائم بعد… أنشئا قائمة تجمعكما."))); return; }
+  if (!lists.length) { wrap.appendChild(h("div", { class: "empty" }, h("div", { class: "big" }, "📝"), h("div", {}, __g("لا قوائم بعد… أنشئ قائمة تجمعكما.","لا قوائم بعد… أنشئي قائمة تجمعكما.")))); return; }
   lists.forEach((l) => wrap.appendChild(listCard(l, content)));
 }
 
@@ -37,7 +37,7 @@ function listDetail(content, l) {
   const box = h("div", { class: "list-items" });
   function paint() {
     clear(box);
-    if (!l.items.length) box.appendChild(h("div", { class: "muted" }, "أضيفا أول عنصر 👇"));
+    if (!l.items.length) box.appendChild(h("div", { class: "muted" }, __g("أضِف أول عنصر 👇","أضيفي أول عنصر 👇")));
     l.items.forEach((it) => {
       const row = h("div", { class: "li-row" + (it.done ? " done" : "") },
         h("button", { class: "li-check", onclick: async () => { const r = await api.toggleItem(it.id); if (r.ok) { it.done = r.data.done; paint(); sound.tab(); realtime.broadcast("list"); } } }, it.done ? "✓" : ""),
@@ -48,13 +48,13 @@ function listDetail(content, l) {
     });
   }
   paint();
-  const inp = h("input", { class: "field", placeholder: "أضيفا عنصرًا…" });
+  const inp = h("input", { class: "field", placeholder: __g("أضِف عنصرًا…","أضيفي عنصرًا…") });
   const add = async () => { const v = inp.value.trim(); if (!v) return; inp.value = ""; const r = await api.addItem(l.id, v); if (r.ok) { l.items.push(r.data.item); paint(); sound.post(); realtime.broadcast("list"); } };
   inp.addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });
   const sc = h("div", { class: "scrim center" }, h("div", { class: "modal" },
     h("h3", {}, (l.emoji || "📝") + " " + l.title),
     box,
-    h("div", { class: "row", style: { marginTop: "10px", gap: "8px" } }, inp, h("button", { class: "btn mint sm", onclick: add }, "أضيفا")),
+    h("div", { class: "row", style: { marginTop: "10px", gap: "8px" } }, inp, h("button", { class: "btn mint sm", onclick: add }, __g("أضِف","أضيفي"))),
     h("div", { class: "attach-rail", style: { marginTop: "14px" } },
       h("button", { class: "btn ghost", onclick: () => sc.remove() }, "إغلاق"),
       h("button", { class: "btn sm", style: { background: "var(--paper)" }, onclick: async () => { if (!confirm("حذف القائمة كاملة؟")) return; await api.delList(l.id); realtime.broadcast("list"); sc.remove(); viewLists(clear(content)); } }, "حذف القائمة"))));
@@ -72,6 +72,6 @@ function newListModal(content) {
     h("label", { class: "lbl" }, "الاسم"), h("div", { class: "row", style: { gap: "8px" } }, emoji, title),
     h("div", { class: "attach-rail", style: { marginTop: "14px" } },
       h("button", { class: "btn ghost", onclick: () => sc.remove() }, "إلغاء"),
-      h("button", { class: "btn coral", onclick: async () => { const t = title.value.trim(); if (!t) { title.focus(); return; } const r = await api.addList(t, null, emoji.value.trim() || "📝"); if (r.ok) { sc.remove(); sound.post(); realtime.broadcast("list"); viewLists(clear(content)); } else toast("تعذّر"); } }, "أنشئا"))));
+      h("button", { class: "btn coral", onclick: async () => { const t = title.value.trim(); if (!t) { title.focus(); return; } const r = await api.addList(t, null, emoji.value.trim() || "📝"); if (r.ok) { sc.remove(); sound.post(); realtime.broadcast("list"); viewLists(clear(content)); } else toast("تعذّر"); } }, __g("أنشئ","أنشئي")))));
   document.body.appendChild(sc);
 }

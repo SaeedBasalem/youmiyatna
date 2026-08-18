@@ -52,7 +52,7 @@ async function recap(from, to) {
   return composeRecap(r.ok ? r.data.items : []);
 }
 function composeRecap(items) {
-  if (!items.length) return "لا لحظات في هذه الفترة بعد… ابدآ بصنع الذكريات 🌙";
+  if (!items.length) return __g("لا لحظات في هذه الفترة بعد… ابدأ بصنع الذكريات 🌙","لا لحظات في هذه الفترة بعد… ابدئي بصنع الذكريات 🌙");
   const n = items.length;
   const byMood = {}; items.forEach((m) => { if (m.mood) byMood[m.mood] = (byMood[m.mood] || 0) + 1; });
   const top = Object.entries(byMood).sort((a, b) => b[1] - a[1])[0];
@@ -106,7 +106,7 @@ async function exportBook() {
 export function viewSearch(content) {
   content.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "بحث وذكريات")));
   const status = h("div", { class: "muted", style: { minHeight: "20px", margin: "4px 0" } });
-  const inp = h("input", { class: "field", placeholder: "ابحثا في ذكرياتكما بالمعنى…" });
+  const inp = h("input", { class: "field", placeholder: __g("ابحث في ذكرياتكما بالمعنى…","ابحثي في ذكرياتكما بالمعنى…") });
   const results = h("div", { class: "search-results" });
   async function doSearch() {
     const q = inp.value.trim(); if (!q) return;
@@ -115,7 +115,7 @@ export function viewSearch(content) {
       await getEmbedder((p) => { if (p && p.status === "progress" && p.progress) status.textContent = "تحميل النموذج… " + Math.round(p.progress) + "٪"; });
       status.textContent = "نبحث…";
       const items = await semanticSearch(q);
-      status.textContent = items.length ? "" : "لا نتائج — جرّبا «بناء الفهرس» أولًا.";
+      status.textContent = items.length ? "" : __g("لا نتائج — جرّب «بناء الفهرس» أولًا.","لا نتائج — جرّبي «بناء الفهرس» أولًا.");
       clear(results);
       items.forEach((e) => results.appendChild(h("div", { class: "search-item " + (e.author || ""), onclick: () => (location.hash = "#/moment/" + e.id) },
         h("div", { class: "m-head", style: { marginBottom: "4px" } }, personChip(e.author), h("span", { class: "when" }, fullDate(e.happened_at))),
@@ -123,7 +123,7 @@ export function viewSearch(content) {
     } catch { status.textContent = "تعذّر البحث على هذا الجهاز (يتطلب متصفحًا حديثًا)."; }
   }
   inp.addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
-  content.appendChild(h("div", { class: "row", style: { gap: "8px" } }, inp, h("button", { class: "btn sun sm", onclick: doSearch }, "ابحثا")));
+  content.appendChild(h("div", { class: "row", style: { gap: "8px" } }, inp, h("button", { class: "btn sun sm", onclick: doSearch }, __g("ابحث","ابحثي"))));
   content.appendChild(status);
   content.appendChild(results);
   content.appendChild(h("button", { class: "btn ghost sm", style: { marginTop: "10px" }, onclick: async (e) => { const b = e.currentTarget; b.textContent = "نفهرس…"; const n = await buildIndex((c) => { b.textContent = "فُهرس " + arNum(c) + "…"; }); b.textContent = "بناء الفهرس 🔎"; toast("فُهرست " + arNum(n) + " لحظة"); } }, "بناء الفهرس 🔎"));
@@ -132,7 +132,7 @@ export function viewSearch(content) {
   content.appendChild(h("div", { class: "attach-rail" },
     h("button", { class: "btn coral sm", onclick: () => showRecap("month") }, "رسالة الشهر 💌"),
     h("button", { class: "btn coral sm", onclick: () => showRecap("year") }, "خلاصة العام ✨")));
-  content.appendChild(h("button", { class: "btn ghost", style: { marginTop: "12px" }, onclick: () => exportBook() }, "📖 احفظا ككتاب (PDF)"));
+  content.appendChild(h("button", { class: "btn ghost", style: { marginTop: "12px" }, onclick: () => exportBook() }, __g("📖 احفظ ككتاب (PDF)","📖 احفظي ككتاب (PDF)")));
 
   async function showRecap(period) {
     const now = new Date(Date.now() + 180 * 60000);

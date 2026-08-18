@@ -75,8 +75,8 @@ function khatmahCard(data, content) {
   const { khatmah, logs } = data;
   const card = h("div", { class: "panel" }, h("div", { class: "rc-head" }, h("span", { class: "rc-emoji" }, "📖"), h("b", {}, "ختمة القرآن")));
   if (!khatmah) {
-    card.appendChild(h("div", { class: "muted", style: { marginBottom: "10px" } }, "ابدآ ختمةً تقرآنها معًا — كل جزء بينكما 📖"));
-    card.appendChild(h("button", { class: "btn sun sm", onclick: async () => { await api.newKhatmah("ختمتنا", 30); viewSpiritual(clear(content)); } }, "ابدآ ختمة"));
+    card.appendChild(h("div", { class: "muted", style: { marginBottom: "10px" } }, __g("ابدأ ختمةً تقرؤها — كل جزء بينكما 📖","ابدئي ختمةً تقرئينها — كل جزء بينكما 📖")));
+    card.appendChild(h("button", { class: "btn sun sm", onclick: async () => { await api.newKhatmah("ختمتنا", 30); viewSpiritual(clear(content)); } }, __g("ابدأ ختمة","ابدئي ختمة")));
     return card;
   }
   const readMap = {}; (logs || []).forEach((l) => (readMap[l.unit] = l.by_who));
@@ -95,7 +95,7 @@ function forLabel(f) { return f === "him" ? "لسعيد" : f === "her" ? "ليا
 function duaWall(items, content) {
   const card = h("div", { class: "panel" }, h("div", { class: "rc-head" }, h("span", { class: "rc-emoji" }, "🤲"), h("b", {}, "دعواتنا")));
   const list = h("div", { class: "dua-list" });
-  if (!items.length) list.appendChild(h("div", { class: "muted" }, "اكتبا دعوةً لبعضكما 🤍"));
+  if (!items.length) list.appendChild(h("div", { class: "muted" }, __g("اكتب دعوةً لبعضكما 🤍","اكتبي دعوةً لبعضكما 🤍")));
   items.forEach((d) => {
     const ameen = Array.isArray(d.ameen) ? d.ameen : [];
     const mine = ameen.includes(store.person);
@@ -118,6 +118,6 @@ function duaModal(content) {
     h("label", { class: "lbl" }, "لمن؟"), seg,
     h("div", { class: "attach-rail", style: { marginTop: "14px" } },
       h("button", { class: "btn ghost", onclick: () => sc.remove() }, "إلغاء"),
-      h("button", { class: "btn coral", onclick: async () => { const b = body.value.trim(); if (!b) { body.focus(); return; } const r = await api.addDua(b, who); if (r.ok) { sc.remove(); sound.post(); realtime.broadcast("spiritual"); viewSpiritual(clear(content)); } else toast("تعذّر"); } }, "اكتبا"))));
+      h("button", { class: "btn coral", onclick: async () => { const b = body.value.trim(); if (!b) { body.focus(); return; } const r = await api.addDua(b, who); if (r.ok) { sc.remove(); sound.post(); realtime.broadcast("spiritual"); viewSpiritual(clear(content)); } else toast("تعذّر"); } }, __g("اكتب","اكتبي")))));
   document.body.appendChild(sc);
 }

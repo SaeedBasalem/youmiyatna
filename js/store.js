@@ -40,5 +40,9 @@ export const store = {
   set accent(v) { localStorage.setItem("yn_accent", v); },
 };
 
+// gendered UI helper: resolves at render time to the logged-in person's grammatical gender.
+// Saeed (him) → masculine, wife (her) → feminine. Used by the auto-gendering of UI strings.
+globalThis.__g = (m, f) => (store.person === "her" ? f : m);
+
 function readJSON(k, dflt) { try { return JSON.parse(localStorage.getItem(k)) ?? dflt; } catch { return dflt; } }
 function writeJSON(k, v) { localStorage.setItem(k, JSON.stringify(v)); }

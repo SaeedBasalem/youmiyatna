@@ -28,7 +28,7 @@ export async function viewChat(content) {
 
 function render() {
   clear(scroller);
-  if (!msgs.length) { scroller.appendChild(h("div", { class: "empty", style: { margin: "auto" } }, h("div", { class: "big" }, "💬"), h("div", {}, "لا رسائل بعد… ابدآ الهمس 💛"))); return; }
+  if (!msgs.length) { scroller.appendChild(h("div", { class: "empty", style: { margin: "auto" } }, h("div", { class: "big" }, "💬"), h("div", {}, __g("لا رسائل بعد… ابدأ الهمس 💛","لا رسائل بعد… ابدئي الهمس 💛")))); return; }
   let lastDay = null;
   for (const m of msgs) {
     const day = new Date(m.created_at).toDateString();
@@ -58,7 +58,7 @@ function voiceMini(m) {
 }
 
 function composer() {
-  const input = h("textarea", { class: "chat-input", rows: 1, placeholder: "اكتبا همسة…" });
+  const input = h("textarea", { class: "chat-input", rows: 1, placeholder: __g("اكتب همسة…","اكتبي همسة…") });
   input.addEventListener("input", () => { autoGrow(input); onTyping(); });
   input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendText(input); } });
   const fileInput = h("input", { type: "file", accept: "image/*", class: "hidden", onchange: (e) => onImage(e) });
@@ -100,7 +100,7 @@ function recordVoice() {
   const btn = h("button", { class: "btn coral", onclick: async () => {
     if (!running) { try { await rec.start(); } catch { toast("لا يمكن الوصول للميكروفون"); return; } running = true; t0 = Date.now(); btn.textContent = "⏹ إيقاف"; iv = setInterval(() => (timer.textContent = arNum(Math.round((Date.now() - t0) / 1000)) + "ث"), 250); }
     else { clearInterval(iv); const out = await rec.stop(); sc.remove(); await sendVoice(out); }
-  } }, "⏺ ابدآ التسجيل");
+  } }, __g("⏺ ابدأ التسجيل","⏺ ابدئي التسجيل"));
   const sc = h("div", { class: "scrim center" }, h("div", { class: "modal" },
     h("h3", {}, "همسة صوتية 🎙️"), wave, timer, h("div", { style: { height: "10px" } }), btn,
     h("button", { class: "btn ghost", style: { marginTop: "10px" }, onclick: () => { if (running) { clearInterval(iv); rec.stop(); } sc.remove(); } }, "إلغاء")));
