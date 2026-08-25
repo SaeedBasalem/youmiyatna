@@ -18,7 +18,13 @@ store.init(); applyTheme(); applyAccent();
 setAuthFailHandler(() => { store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("pointerdown", () => sound.resume(), { once: true });
-if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  const hadController = !!navigator.serviceWorker.controller;
+  let refreshing = false;
+  // when a new service worker takes control (an update shipped), reload once to pick up fresh assets
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (refreshing || !hadController) return; refreshing = true; location.reload(); });
+  navigator.serviceWorker.register("sw.js").then((reg) => { try { reg.update(); } catch {} setInterval(() => { try { reg.update(); } catch {} }, 30 * 60 * 1000); }).catch(() => {});
+}
 
 (function boot() {
   const start = () => { if (store.token && store.person) { if (!location.hash) location.hash = "#/home"; renderRoute(); } else if (store.token) go("who"); else go("lock"); if (!location.hash) renderRoute(); };
