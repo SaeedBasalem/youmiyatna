@@ -2,7 +2,7 @@
 import { api } from "../api.js";
 import { store } from "../store.js";
 import { sound } from "../sound.js";
-import { h, $, clear, avatar, personChip, moodChip, heartFly, relTime, fullDate, monthYear, arNum, toast, sparkleAt } from "../ui.js";
+import { h, $, clear, avatar, personChip, moodChip, heartFly, relTime, fullDate, monthYear, arNum, toast, sparkleAt, waveBars, clickable } from "../ui.js";
 import { PEOPLE, MOODS, REACTIONS, moodEmoji } from "../config.js";
 import { downscale, VoiceRecorder, uploadSigned } from "../media.js";
 import { loader, go, openSheet, openModal, confirmAsk, groupReactions } from "../helpers.js";
@@ -14,7 +14,7 @@ export function viewJournal(content) {
   const c = clear(content);
   c.appendChild(h("div", { class: "section-title" },
     h("h1", { class: "t-h1" }, "دفتر ذكرياتنا"),
-    h("button", { class: "icon-btn", style: { marginInlineStart: "auto" }, onclick: () => openCompose({ onDone: () => { feedCache = null; if (jsub === "feed") renderFeed(pane); } }) }, "✍️")));
+    h("button", { class: "icon-btn", "aria-label": "اكتب لحظة", style: { marginInlineStart: "auto" }, onclick: () => openCompose({ onDone: () => { feedCache = null; if (jsub === "feed") renderFeed(pane); } }) }, "✍️")));
   c.appendChild(h("div", { class: "seg" },
     segBtn("feed", "📖 لحظاتنا"), segBtn("album", "🖼️ الألبوم"), segBtn("timeline", "📜 حكايتنا")));
   const pane = h("div", { class: "jpane" });
@@ -76,6 +76,8 @@ export function momentCard(e, opts = {}) {
   if (!opts.detail) {
     card.addEventListener("dblclick", (ev) => { heartFly(ev.clientX, ev.clientY); toggleReact(e, "❤️", card); });
     card.addEventListener("click", (ev) => { if (ev.target.closest("button,audio,a,.react-pill,.carousel-track")) return; go("moment/" + e.id); });
+    clickable(card, () => go("moment/" + e.id));
+    card.setAttribute("aria-label", "افتح هذه اللحظة");
   }
   return card;
 }
@@ -103,8 +105,8 @@ function carousel(photos) {
 function voicePill(m) {
   const audio = h("audio", { src: m.signed_url, preload: "none" });
   const bars = (m.meta && m.meta.bars) || Array.from({ length: 26 }, () => 0.3 + Math.random() * 0.5);
-  const wave = h("div", { class: "wave" }, ...bars.map((v) => { const i = h("i"); i.style.height = Math.max(12, v * 100) + "%"; return i; }));
-  const btn = h("button", { class: "play", onclick: () => { if (audio.paused) { audio.play(); btn.textContent = "⏸"; } else { audio.pause(); btn.textContent = "▶"; } } }, "▶");
+  const wave = h("div", { class: "wave" }, ...waveBars(bars));
+  const btn = h("button", { class: "play", "aria-label": "تشغيل الهمسة الصوتية", onclick: () => { if (audio.paused) { audio.play(); btn.textContent = "⏸"; } else { audio.pause(); btn.textContent = "▶"; } } }, "▶");
   audio.addEventListener("ended", () => (btn.textContent = "▶"));
   return h("div", { class: "voice-pill" }, btn, wave, audio, h("span", { class: "vd" }, arNum((m.meta && m.meta.duration) || 0) + "ث"));
 }
@@ -137,9 +139,9 @@ async function toggleReact(e, emoji, card) {
 export async function viewMoment(id) {
   const app = clear(document.getElementById("app"));
   app.appendChild(h("div", { class: "topbar" },
-    h("button", { class: "icon-btn", onclick: () => (history.length > 1 ? history.back() : go("journal")) }, "→"),
+    h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => (history.length > 1 ? history.back() : go("journal")) }, "→"),
     h("div", { class: "tb-title" }, "لحظة"),
-    h("button", { class: "icon-btn", onclick: () => delMoment(id) }, "🗑️")));
+    h("button", { class: "icon-btn", "aria-label": "حذف اللحظة", onclick: () => delMoment(id) }, "🗑️")));
   const content = h("div", { class: "view", style: { paddingTop: "6px" } }, h("div", { class: "empty" }, h("div", { class: "big" }, "🌙"), "نحمّل اللحظة…"));
   app.appendChild(content);
   const r = await api.moment(id);
@@ -203,11 +205,13 @@ async function renderTimeline(pane) {
     const my = monthYear(e.happened_at || e.created_at);
     if (my !== curMonth) { curMonth = my; list.appendChild(h("div", { class: "tl-month" }, my)); }
     const p = PEOPLE[e.author] || PEOPLE.him;
-    list.appendChild(h("div", { class: "tl-item " + p.cls, onclick: () => go("moment/" + e.id) },
+    const row = h("div", { class: "tl-item " + p.cls, "aria-label": "افتح اللحظة", onclick: () => go("moment/" + e.id) },
       h("span", { class: "tl-dot" }),
       h("div", { class: "tl-card" },
         h("div", { class: "m-head", style: { marginBottom: "4px" } }, personChip(e.author), moodChip(e.mood), h("span", { class: "when" }, fullDate(e.happened_at || e.created_at))),
-        h("div", { class: "tl-line" }, e.body || (e.media && e.media.length ? "📎 لحظة بالوسائط" : "…")))));
+        h("div", { class: "tl-line" }, e.body || (e.media && e.media.length ? "📎 لحظة بالوسائط" : "…"))));
+    clickable(row, () => go("moment/" + e.id));
+    list.appendChild(row);
   }
   const ded = store.config.dedication, reply = store.config.reply;
   if (ded) {
@@ -233,12 +237,12 @@ export function openCompose({ onDone } = {}) {
       let node;
       if (m.kind === "photo") node = h("img", { class: "m-photo", src: m.preview });
       else if (m.kind === "video") node = h("video", { class: "m-video", src: m.preview, controls: true, preload: "metadata", playsInline: true });
-      else if (m.kind === "voice") node = h("div", { class: "voice-pill" }, h("span", { class: "play" }, "🎙️"), h("div", { class: "wave" }, ...(m.meta.bars || []).map((v) => { const b = h("i"); b.style.height = Math.max(12, v * 100) + "%"; return b; })), h("span", { class: "vd" }, arNum(m.meta.duration) + "ث"));
+      else if (m.kind === "voice") node = h("div", { class: "voice-pill" }, h("span", { class: "play" }, "🎙️"), h("div", { class: "wave" }, ...waveBars(m.meta.bars)), h("span", { class: "vd" }, arNum(m.meta.duration) + "ث"));
       else node = h("div", { class: "song-pill" }, h("span", { class: "cassette" }, "🎵"), h("div", { class: "meta" }, h("b", {}, m.meta.title || "أغنية"), h("span", { class: "muted" }, m.meta.artist || "")));
-      previews.appendChild(h("div", { class: "prev-wrap" }, node, h("button", { class: "prev-x", onclick: () => { draft.media.splice(i, 1); renderPreviews(); } }, "✕")));
+      previews.appendChild(h("div", { class: "prev-wrap" }, node, h("button", { class: "prev-x", "aria-label": "إزالة", onclick: () => { draft.media.splice(i, 1); renderPreviews(); } }, "✕")));
     });
   }
-  const fileInput = h("input", { type: "file", accept: "image/*", class: "hidden", onchange: async (e) => { const f = e.target.files[0]; if (!f) return; e.target.value = ""; loader(true); const ds = await downscale(f); loader(false); draft.media.push({ kind: "photo", blob: ds.blob, contentType: "image/jpeg", preview: URL.createObjectURL(ds.blob) }); renderPreviews(); } });
+  const fileInput = h("input", { type: "file", accept: "image/*", multiple: true, class: "hidden", onchange: async (e) => { const files = [...e.target.files]; if (!files.length) return; e.target.value = ""; loader(true); for (const f of files) { const ds = await downscale(f); draft.media.push({ kind: "photo", blob: ds.blob, contentType: "image/jpeg", preview: URL.createObjectURL(ds.blob) }); } loader(false); renderPreviews(); } });
   const videoInput = h("input", { type: "file", accept: "video/*", class: "hidden", onchange: (e) => { const f = e.target.files[0]; if (!f) return; e.target.value = ""; if (f.size > 52428800) { toast("الفيديو كبير — الحد ٥٠ م.ب"); return; } draft.media.push({ kind: "video", blob: f, contentType: f.type || "video/mp4", preview: URL.createObjectURL(f) }); renderPreviews(); } });
   const rail = h("div", { class: "attach-rail" },
     h("button", { class: "attach", onclick: () => fileInput.click() }, "📷", h("span", {}, "صورة")),
@@ -261,13 +265,14 @@ export function openCompose({ onDone } = {}) {
       }
       const r = await api.addMoment({ body: t, mood: draft.mood || null, happened_at: dateInput.value || undefined, media });
       loader(false);
-      if (r.ok) { close(); sound.post(); sparkleAt(innerWidth / 2, innerHeight / 2, ["🤍", "🌙", "✨", "💗"]); toast("حُفظت لحظتكما 🤍"); onDone && onDone(); }
+      if (r.ok) { close(true); sound.post(); sparkleAt(innerWidth / 2, innerHeight / 2, ["🤍", "🌙", "✨", "💗"]); toast("حُفظت لحظتكما 🤍"); onDone && onDone(); }
       else err.textContent = r.data.detail || "تعذّر الحفظ";
     } catch { loader(false); err.textContent = "تعذّر رفع الوسائط"; }
   }
   const { close } = openSheet({
     title: "لحظةٌ جديدة 🌸",
     subtitle: "ستُحفظ باسم " + (PEOPLE[store.person]?.name || ""),
+    beforeClose: async () => (!body.value.trim() && !draft.media.length) ? true : await confirmAsk("تترك هذه اللحظة دون حفظ؟", { okText: "اترك", cancelText: "أكمل", danger: true }),
     body: [body, moods, rail, fileInput, videoInput, previews,
       h("label", { class: "lbl" }, "متى حدثت؟ (اختياري)"), dateInput, err,
       h("div", { class: "row-btns", style: { marginTop: "14px" } },
@@ -280,7 +285,7 @@ function recordVoice(draft, done) {
   const wave = h("div", { class: "wave big" });
   const timer = h("div", { class: "rec-timer" }, "٠ث");
   let running = false, t0 = 0, iv = null;
-  rec.onbars = (bars) => { clear(wave); bars.forEach((v) => { const i = h("i"); i.style.height = Math.max(12, v * 100) + "%"; wave.appendChild(i); }); };
+  rec.onbars = (bars) => { clear(wave); waveBars(bars).forEach((i) => wave.appendChild(i)); };
   const btn = h("button", { class: "btn", onclick: async () => {
     if (!running) { try { await rec.start(); } catch { toast("لا يمكن الوصول للميكروفون"); return; } running = true; t0 = Date.now(); btn.textContent = "⏹ إيقاف"; iv = setInterval(() => (timer.textContent = arNum(Math.round((Date.now() - t0) / 1000)) + "ث"), 250); }
     else { clearInterval(iv); const out = await rec.stop(); draft.media.push({ kind: "voice", blob: out.blob, contentType: out.mime, meta: { bars: out.bars, duration: out.duration } }); done(); close(); }

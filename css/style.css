@@ -4,9 +4,9 @@
 :root{
   --bg:#FDF2EC; --bg2:#FBE7DF;
   --surface:#FFFBF8; --surface-2:#FBF0EA; --sunk:#F6E7DF;
-  --ink:#4B3A37; --ink-2:#8B736E; --ink-3:#BBA69F;
+  --ink:#4B3A37; --ink-2:#6E5852; --ink-3:#907A72;
   --rose:#E28CA0; --rose-deep:#C96B80; --rose-soft:#FADEE4;
-  --gold:#E3BE86; --gold-soft:#F7EAD5;
+  --gold:#E3BE86; --gold-soft:#F7EAD5; --gold-ink:#A9741F;
   --him:#8CA7C6; --him-soft:#E7EEF6; --her:#E6A0B2; --her-soft:#FBE3EA;
   --line:#F0E0D8;
   --shadow:0 12px 34px rgba(198,126,133,.16);
@@ -22,9 +22,9 @@
   :root:not([data-theme="light"]){
     --bg:#241A20; --bg2:#2C2028;
     --surface:#2E2229; --surface-2:#271C22; --sunk:#20161B;
-    --ink:#F4E8E3; --ink-2:#C7ADA8; --ink-3:#8C7873;
+    --ink:#F4E8E3; --ink-2:#C7ADA8; --ink-3:#A08A84;
     --rose:#EB9DAD; --rose-deep:#F0AAB8; --rose-soft:#4A2E37;
-    --gold:#E7C793; --gold-soft:#3C2E22;
+    --gold:#E7C793; --gold-soft:#3C2E22; --gold-ink:#E7C793;
     --him:#9EB7D4; --him-soft:#26313E; --her:#EEA9BB; --her-soft:#40252E;
     --line:#3A2B32;
     --shadow:0 14px 36px rgba(0,0,0,.42); --shadow-sm:0 6px 18px rgba(0,0,0,.34);
@@ -33,9 +33,9 @@
 }
 :root[data-theme="dark"]{
   --bg:#241A20; --bg2:#2C2028; --surface:#2E2229; --surface-2:#271C22; --sunk:#20161B;
-  --ink:#F4E8E3; --ink-2:#C7ADA8; --ink-3:#8C7873;
+  --ink:#F4E8E3; --ink-2:#C7ADA8; --ink-3:#A08A84;
   --rose:#EB9DAD; --rose-deep:#F0AAB8; --rose-soft:#4A2E37;
-  --gold:#E7C793; --gold-soft:#3C2E22; --him:#9EB7D4; --him-soft:#26313E; --her:#EEA9BB; --her-soft:#40252E;
+  --gold:#E7C793; --gold-soft:#3C2E22; --gold-ink:#E7C793; --him:#9EB7D4; --him-soft:#26313E; --her:#EEA9BB; --her-soft:#40252E;
   --line:#3A2B32; --shadow:0 14px 36px rgba(0,0,0,.42); --shadow-sm:0 6px 18px rgba(0,0,0,.34); --shadow-rose:0 12px 30px rgba(0,0,0,.5);
 }
 
@@ -180,7 +180,7 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 
 .dua-card{text-align:center;background:linear-gradient(160deg,var(--gold-soft),var(--surface));border:1px solid var(--line)}
 .dua-card .dq{font-family:var(--font-quote);font-size:18px;line-height:2.1;color:var(--ink)}
-.dua-card .dl{color:var(--gold);font-weight:700;font-size:12px;margin-top:6px}
+.dua-card .dl{color:var(--gold-ink);font-weight:700;font-size:12px;margin-top:6px}
 
 .count-chip{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius);background:var(--surface);
   box-shadow:var(--shadow-sm);border:1px solid var(--line);margin-bottom:16px}
@@ -345,7 +345,7 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .chat-composer{display:flex;align-items:flex-end;gap:6px;padding:10px 2px calc(10px + env(safe-area-inset-bottom));background:var(--bg)}
 .c-att{width:42px;height:42px;flex:none;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);font-size:18px}
 .chat-input{flex:1;resize:none;max-height:120px;padding:11px 16px;border-radius:22px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font-size:15px;line-height:1.5;outline:none}
-.chat-input:focus{border-color:var(--rose)}
+.chat-input:focus{border-color:var(--rose);box-shadow:0 0 0 4px var(--rose-soft)}
 .c-send{width:46px;height:46px;flex:none;border-radius:50%;background:linear-gradient(135deg,var(--rose),var(--rose-deep));color:#fff;font-size:18px;box-shadow:var(--shadow-rose)}
 
 /* ---- play ---- */
@@ -453,7 +453,7 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .dua-text{font-family:var(--font-quote);font-size:17px;line-height:1.9;margin-bottom:10px}
 .dua-foot{display:flex;align-items:center;gap:8px;font-size:12px}
 .ameen-btn{margin-inline-start:auto;padding:6px 14px;border-radius:var(--pill);background:var(--surface-2);border:1px solid var(--line);font-weight:700;font-size:13px}
-.ameen-btn.on{background:var(--gold-soft);border-color:var(--gold);color:var(--gold)}
+.ameen-btn.on{background:var(--gold-soft);border-color:var(--gold);color:var(--gold-ink)}
 
 /* milestones */
 .ms-hero{text-align:center;background:linear-gradient(160deg,var(--rose-soft),var(--gold-soft));margin-bottom:16px}
@@ -486,4 +486,101 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .adder .field{flex:1}
 .adder .btn{width:auto;flex:none;padding:0 20px;font-size:20px}
 
-@media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important;transition-duration:.05s!important}}
+/* ======================================================================
+   v2 — fixes, delight primitives, a11y, new-feature components
+   ====================================================================== */
+/* the heart that flies from your finger (was referenced by JS, never defined) */
+.heart-fly{position:absolute;pointer-events:none;font-size:26px;will-change:transform,opacity;animation:hf .9s ease-out forwards}
+@keyframes hf{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}18%{opacity:1}100%{opacity:0;transform:translate(-50%,-165px) scale(1.35)}}
+/* confetti (celebrations) */
+.confetti-bit{position:absolute;top:-12vh;width:9px;height:14px;will-change:transform,opacity;animation:cf var(--dur,2s) var(--delay,0s) ease-in forwards}
+@keyframes cf{to{transform:translateY(118vh) rotate(var(--rx,360deg));opacity:.9}}
+
+/* empty/loading micro-states (was an unstyled bare class) */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;color:var(--ink-2);padding:32px 20px;font-size:15px;line-height:1.7}
+.empty .big{font-size:44px}
+.err-state{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:28px 20px;color:var(--ink-2)}
+.err-state .big{font-size:40px}
+.offline-banner{display:flex;align-items:center;gap:8px;justify-content:center;background:var(--gold-soft);color:var(--gold-ink);font-weight:700;font-size:13px;padding:8px 14px;border-radius:var(--pill);margin-bottom:12px}
+
+/* focus-visible for keyboard users (nothing existed) */
+:where(button,[role="button"],a,input,textarea,select,.hub-card,.q-tile,.game-tile,.tab,.moment,.tl-item,.letter,.album-cell,.seg-b,.juz,.dhikr-row):focus-visible{outline:3px solid var(--rose-deep);outline-offset:2px;border-radius:inherit}
+/* press feedback parity on dense controls */
+.seg-b,.react-pill,.foot-chip,.chip,.tab,.r,.accent-dot{transition:transform .12s, color .2s, background .2s}
+.seg-b:active,.react-pill:active,.foot-chip:active,.chip:active,.tab:active,.r:active,.accent-dot:active{transform:scale(.94)}
+
+/* per-paragraph bidi so mixed Arabic/Latin/number text reads correctly */
+.chat-text,.m-body,.note,.tl-line,.dua-text,.letter-body,.qa-q,.dq-q,.ans-b div,.reason-chip,.first-item div{unicode-bidi:plaintext}
+/* send glyph points the right way in RTL */
+.c-send{transform:scaleX(-1)}
+
+/* reserve image space (less layout shift) */
+.chat-img{aspect-ratio:4/3;object-fit:cover}
+.m-photo{aspect-ratio:4/3;object-fit:cover}
+.album-cell.sk{background:linear-gradient(90deg,var(--surface-2),var(--line),var(--surface-2));background-size:200% 100%;animation:sh 1.2s infinite}
+
+/* ---- home: new daily cards ---- */
+.head-meta{display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap;margin:2px 0 14px}
+.streak-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--pill);background:linear-gradient(135deg,#FFE1B0,#F6C177);color:#8a5a12;font-weight:800;font-size:13px;box-shadow:var(--shadow-sm)}
+:root:not([data-theme="light"]) .streak-chip,:root[data-theme="dark"] .streak-chip{color:#3a2a10}
+.home-card.act{cursor:pointer}
+.wait-card{display:flex;align-items:center;gap:12px}
+.wait-card .we{font-size:26px;flex:none}
+.wait-card .wb{flex:1;min-width:0}
+.wait-card .wb b{font-weight:700;display:block}
+.wait-card .wb span{font-size:12.5px;color:var(--ink-2)}
+.wait-card .go{color:var(--rose-deep);font-weight:800}
+.surprise-card{position:relative;text-align:center;cursor:pointer;overflow:hidden;background:linear-gradient(135deg,var(--rose),var(--rose-deep));color:#fff;border:none}
+.surprise-card::after{content:"🎁";position:absolute;inset-inline-start:-8px;bottom:-16px;font-size:80px;opacity:.16;transform:rotate(-10deg)}
+.surprise-card .st{font-family:var(--font-display);font-weight:700;font-size:20px;margin-bottom:4px}
+.surprise-card .ss{opacity:.92;font-size:13.5px}
+.surprise-open{font-family:var(--font-quote);font-size:19px;line-height:1.9}
+.celebrate-card{text-align:center;background:linear-gradient(160deg,var(--gold-soft),var(--rose-soft));border:1px solid var(--line)}
+.celebrate-card .ct{font-family:var(--font-display);font-weight:700;font-size:24px;color:var(--rose-deep)}
+.celebrate-card .cs{color:var(--ink-2);font-size:14px;margin-top:4px}
+.occasion-card{display:flex;align-items:center;gap:12px;background:linear-gradient(160deg,var(--gold-soft),var(--surface));border:1px solid var(--line)}
+.occasion-card .oe{font-size:30px;flex:none}
+.occasion-card .ob b{font-family:var(--font-display);font-weight:700;font-size:17px;display:block}
+.occasion-card .ob span{font-size:13px;color:var(--ink-2)}
+.occasion-card .ox{margin-inline-start:auto;color:var(--ink-3);font-size:18px}
+.sub .hijri{color:var(--gold-ink);font-weight:600}
+.quick-mood{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+
+/* ---- faith: dhikr goal ring, salah, adhkar deck, khatmah pace, streaks ---- */
+.dhikr-goal{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.ring{width:64px;height:64px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;background:conic-gradient(var(--gold) calc(var(--p,0)*1%),var(--surface-2) 0)}
+.ring i{width:50px;height:50px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;font-size:16px;font-style:normal;color:var(--gold-ink)}
+.dhikr-goal .gb{flex:1}
+.dhikr-goal .gb b{font-weight:700}
+.dhikr-goal .gb .muted{font-size:12.5px}
+.salah-row{display:flex;gap:6px;margin-top:6px}
+.salah-cell{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 2px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--ink-2);transition:.15s}
+.salah-cell .sc-tick{font-size:14px;opacity:.35}
+.salah-cell.on{background:var(--gold-soft);border-color:var(--gold);color:var(--gold-ink)}
+.salah-cell.on .sc-tick{opacity:1}
+.streak-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--pill);background:var(--rose-soft);color:var(--rose-deep);font-weight:800;font-size:13px;margin-bottom:10px}
+.adhkar-progress{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.adhkar-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:22px 18px;text-align:center;min-height:180px;display:flex;flex-direction:column;justify-content:center;gap:12px}
+.adhkar-card.done{background:linear-gradient(160deg,var(--gold-soft),var(--surface))}
+.adhkar-txt{font-family:var(--font-quote);font-size:22px;line-height:2;color:var(--ink)}
+.adhkar-ref{font-size:12px;color:var(--ink-3)}
+.adhkar-rep{display:inline-flex;align-items:center;justify-content:center;min-width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--rose),var(--rose-deep));color:#fff;font-family:var(--font-display);font-weight:700;font-size:22px;margin:0 auto}
+.adhkar-nav{display:flex;gap:10px;margin-top:12px}
+.pace-line{display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0;padding:10px 12px;border-radius:var(--radius-sm);background:var(--surface-2)}
+.pace-line.ahead{color:#3E8E7E}.pace-line.behind{color:var(--rose-deep)}
+.dua-nudge{background:linear-gradient(160deg,var(--her-soft),var(--surface));border:1px solid var(--line);margin-bottom:12px}
+.dua-nudge .dn-t{font-family:var(--font-quote);font-size:17px;line-height:1.9;margin-bottom:8px}
+.dua-chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.dua-chip{padding:8px 14px;border-radius:var(--pill);background:var(--her-soft);border:1px solid var(--line);font-size:13px;font-weight:600;text-align:start}
+
+.juz.today{outline:2px solid var(--rose);outline-offset:1px}
+.chat-msg.failed{opacity:.7}
+
+/* settings: story editor */
+.story-field{margin-bottom:10px}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001s!important;transition-duration:.05s!important;animation-iteration-count:1!important}
+  .spinner{animation-duration:.9s!important;animation-iteration-count:infinite!important}
+  .lock .heart{animation:none!important}
+}

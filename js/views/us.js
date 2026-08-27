@@ -1,14 +1,35 @@
 // يومياتنا — نحن: the "us" hub. Reasons jar, firsts, goals, mood, letters,
 // countdowns, faith corner, songs, milestones, gratitude, settings.
-import { h, clear, arNum, toast, fullDate, relTime, sparkleAt, heartFly } from "../ui.js";
+import { h, clear, arNum, toast, fullDate, relTime, sparkleAt, heartFly, confetti, clickable } from "../ui.js";
 import { api } from "../api.js";
 import { store } from "../store.js";
 import { sound } from "../sound.js";
-import { PEOPLE, other, MOODS, moodEmoji, BADGES, DUA } from "../config.js";
-import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent } from "../helpers.js";
+import { PEOPLE, other, MOODS, moodEmoji, BADGES, DUA, DUA_FOR_SPOUSE } from "../config.js";
+import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, hashPin } from "../helpers.js";
+import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
+import { MARRIAGE_KHALWA } from "../games.js";
 
 const sub = () => (location.hash || "").replace(/^#\//, "").split("/")[1] || "";
 const dayStr = () => new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10);
+const yesterdayStr = () => new Date(Date.now() + 180 * 60000 - 86400000).toISOString().slice(0, 10);
+const dayIdx = () => Math.floor((Date.now() + 180 * 60000) / 86400000);
+const weekIdx = () => Math.floor(dayIdx() / 7);
+const hourLocal = () => new Date(Date.now() + 180 * 60000).getUTCHours();
+
+// per-device daily streak helpers (client-side)
+function bumpStreak(kLast, kStreak) {
+  const today = dayStr(), last = localStorage.getItem(kLast);
+  let s = Number(localStorage.getItem(kStreak) || 0);
+  if (last === today) return s;
+  s = last === yesterdayStr() ? s + 1 : 1;
+  localStorage.setItem(kLast, today); localStorage.setItem(kStreak, String(s));
+  return s;
+}
+function curStreak(kLast, kStreak) {
+  const last = localStorage.getItem(kLast);
+  if (last === dayStr() || last === yesterdayStr()) return Number(localStorage.getItem(kStreak) || 0);
+  return 0;
+}
 
 export function viewUs(content) {
   const s = sub();
@@ -28,6 +49,8 @@ const SECTIONS = {
   letters:    { title: "رسائل الغد", render: (p) => lettersSection(p) },
   calendar:   { title: "التقويم والعدّاد", render: (p) => calendarSection(p) },
   faith:      { title: "ركن الإيمان", render: (p) => faithSection(p) },
+  adhkar:     { title: "أذكارنا", render: (p) => adhkarSection(p) },
+  sadaqah:    { title: "جرّة الصدقة", render: (p) => sadaqahSection(p) },
   songs:      { title: "أغانينا", render: (p) => songsSection(p) },
   milestones: { title: "إنجازاتنا", render: (p) => milestonesSection(p) },
   gratitude:  { title: "امتناننا", render: (p) => gratitudeSection(p) },
@@ -46,6 +69,8 @@ function renderHub(pane) {
     hubCard("💌", "رسائل الغد", "رسائل تُفتح لاحقًا", "letters", "her"),
     hubCard("⏳", "التقويم والعدّاد", "مواعيدنا القادمة", "calendar", "him"),
     hubCard("🕌", "ركن الإيمان", "ذكر وختمة ودعاء", "faith", "gold"),
+    hubCard("🌅", "أذكارنا", "الصباح والمساء", "adhkar", "gold"),
+    hubCard("🫙", "جرّة الصدقة", "نعطي معًا", "sadaqah", "rose"),
     hubCard("🎵", "أغانينا", "قائمة أغانينا", "songs", "rose"),
     hubCard("🏆", "إنجازاتنا", "أوسمة رحلتنا", "milestones", "gold"),
     hubCard("🤲", "امتناننا", "شكرٌ كل يوم", "gratitude", "her"),
@@ -82,7 +107,7 @@ async function jarSection(pane) {
     items.forEach((it) => list.appendChild(h("div", { class: "reason-chip", onclick: async () => { if (await confirmAsk("حذف هذا السبب؟", { okText: "حذف", danger: true })) { await api.delItem(it.id); const i = items.indexOf(it); items.splice(i, 1); paintList(); paintJar(); } } }, "💛 " + it.text)));
   }
   paintJar(); paintList();
-  c.appendChild(adder(__g("لأنك…", "لأنك…"), async (text) => { const r = await api.addItem(l.id, text); if (r.ok) { items.push(r.data.item || { id: r.data.id || "t" + Date.now(), text }); paintList(); paintJar(); sound.post(); } }));
+  c.appendChild(adder(__g("لأنك…", "لأنك…"), async (text) => { const r = await api.addItem(l.id, text); if (r.ok) { sound.post(); jarSection(pane); } else toast("تعذّر الحفظ"); }));
 }
 
 /* ---------------- firsts shelf ---------------- */
@@ -98,7 +123,7 @@ async function firstsSection(pane) {
     items.forEach((it) => shelf.appendChild(h("div", { class: "first-item card", onclick: async () => { if (await confirmAsk("حذف هذا الأول؟", { okText: "حذف", danger: true })) { await api.delItem(it.id); items.splice(items.indexOf(it), 1); paint(); } } }, h("span", { class: "fi-star" }, "✨"), h("div", {}, it.text))));
   }
   paint();
-  c.appendChild(adder("أول…", async (text) => { const r = await api.addItem(l.id, text); if (r.ok) { items.push(r.data.item || { id: r.data.id || "t" + Date.now(), text }); paint(); sound.post(); } }));
+  c.appendChild(adder("أول…", async (text) => { const r = await api.addItem(l.id, text); if (r.ok) { sound.post(); firstsSection(pane); } else toast("تعذّر الحفظ"); }));
 }
 
 /* ---------------- goals / bucket list ---------------- */
@@ -119,7 +144,7 @@ async function goalsSection(pane) {
       h("button", { class: "goal-x", onclick: async () => { if (await confirmAsk("حذف هذا الحلم؟", { okText: "حذف", danger: true })) { await api.delItem(it.id); items.splice(items.indexOf(it), 1); paint(); } } }, "✕"))));
   }
   paint();
-  c.appendChild(adder(__g("نتمنى أن…", "نتمنى أن…"), async (text) => { const r = await api.addItem(l.id, text); if (r.ok) { items.push(r.data.item || { id: r.data.id || "t" + Date.now(), text, done: false }); paint(); sound.post(); } }));
+  c.appendChild(adder(__g("نتمنى أن…", "نتمنى أن…"), async (text) => { const r = await api.addItem(l.id, text); if (r.ok) { sound.post(); goalsSection(pane); } else toast("تعذّر الحفظ"); }));
 }
 
 /* ---------------- mood tracker ---------------- */
@@ -167,14 +192,16 @@ async function lettersSection(pane) {
   items.forEach((L) => {
     const locked = new Date(L.unlock_at).getTime() > now;
     const p = PEOPLE[L.author] || PEOPLE.him;
-    box.appendChild(h("div", { class: "letter card " + (locked ? "locked" : "open"), onclick: async () => {
+    const openLetter = async () => {
       if (locked) { toast("تُفتح في " + fullDate(L.unlock_at)); return; }
       const rr = await api.openLetter(L.id);
       const body = (rr.ok && rr.data.letter && rr.data.letter.body) || L.body || "";
       openModal({ title: "💌 رسالة من " + p.name, body: [h("div", { class: "letter-body" }, body), h("div", { class: "muted", style: { textAlign: "center", marginTop: "10px", fontSize: "12px" } }, fullDate(L.unlock_at))] });
-    } },
+    };
+    const card = h("div", { class: "letter card " + (locked ? "locked" : "open"), "aria-label": locked ? "رسالة مختومة" : "افتح الرسالة", onclick: openLetter },
       h("span", { class: "letter-ic" }, locked ? "🔒" : "💌"),
-      h("div", { class: "letter-meta" }, h("b", {}, locked ? "رسالة مختومة" : "رسالة مفتوحة"), h("span", { class: "muted" }, "من " + p.name + " · " + (locked ? "تُفتح " + fullDate(L.unlock_at) : "افتحاها")))));
+      h("div", { class: "letter-meta" }, h("b", {}, locked ? "رسالة مختومة" : "رسالة مفتوحة"), h("span", { class: "muted" }, "من " + p.name + " · " + (locked ? "تُفتح " + fullDate(L.unlock_at) : "افتحاها"))));
+    box.appendChild(clickable(card, openLetter));
   });
 
   function compose() {
@@ -234,65 +261,225 @@ async function calendarSection(pane) {
 
 /* ---------------- faith corner ---------------- */
 const ADHKAR = [["subhanallah", "سبحان الله"], ["alhamdulillah", "الحمد لله"], ["allahuakbar", "الله أكبر"], ["lailahaillallah", "لا إله إلا الله"], ["astaghfirullah", "أستغفر الله"], ["salaala", "اللهم صلِّ على محمد"]];
+function safeJSON(k, dflt) { try { return JSON.parse(localStorage.getItem(k)) ?? dflt; } catch { return dflt; } }
 async function faithSection(pane) {
   const c = clear(pane);
-  // dhikr
-  c.appendChild(h("div", { class: "t-h2", style: { margin: "2px 4px 10px" } }, "مسبحتنا 📿"));
-  const dbox = h("div", { class: "dhikr-box card" }, h("div", { class: "muted", style: { textAlign: "center", padding: "10px" } }, "…")); c.appendChild(dbox);
-  // khatmah
-  c.appendChild(h("div", { class: "t-h2", style: { margin: "16px 4px 10px" } }, "ختمتنا 📖"));
-  const kbox = h("div", { class: "card" }, h("div", { class: "muted", style: { textAlign: "center", padding: "10px" } }, "…")); c.appendChild(kbox);
-  // du'a wall
-  c.appendChild(h("div", { class: "t-h2", style: { margin: "16px 4px 10px" } }, "جدار الدعاء 🤲"));
+  const [dk, kh, du] = await Promise.all([api.getDhikr(), api.getKhatmah(), api.listDuas()]);
+
+  // ---- daily dhikr goal ring + tasbeeh ----
+  c.appendChild(h("h2", { class: "t-h2", style: { margin: "2px 4px 10px" } }, "مسبحتنا 📿"));
+  const dbox = h("div", { class: "card dhikr-box" }); c.appendChild(dbox);
+  renderDhikr(dbox);
+
+  // ---- salah check-in ----
+  c.appendChild(h("h2", { class: "t-h2", style: { margin: "16px 4px 10px" } }, "صلواتنا 🕌"));
+  c.appendChild(salahCard());
+
+  // ---- khatmah ----
+  c.appendChild(h("h2", { class: "t-h2", style: { margin: "16px 4px 10px" } }, "ختمتنا 📖"));
+  const kbox = h("div", { class: "card" }); c.appendChild(kbox);
+  renderKhatmah(kbox);
+
+  // ---- du'a for spouse + wall ----
+  c.appendChild(h("h2", { class: "t-h2", style: { margin: "16px 4px 10px" } }, "جدار الدعاء 🤲"));
+  c.appendChild(duaNudge());
   c.appendChild(h("button", { class: "btn soft sm", style: { marginBottom: "10px" }, onclick: () => addDua() }, "＋ أضف دعوة"));
   const wbox = h("div", {}); c.appendChild(wbox);
+  renderDuas(wbox);
 
-  const [dk, kh, du] = await Promise.all([api.getDhikr(), api.getKhatmah(), api.listDuas()]);
-  // dhikr render
-  const counts = (dk.ok && dk.data.counts) || {};
-  clear(dbox);
-  dbox.appendChild(h("div", { class: "dhikr-total" }, "المجموع: " + arNum((dk.ok && dk.data.total) || 0)));
-  ADHKAR.forEach(([key, label]) => {
-    const cnt = h("span", { class: "dh-count" }, arNum(counts[key] || 0));
-    dbox.appendChild(h("button", { class: "dhikr-row", onclick: async () => { const cur = (counts[key] || 0) + 1; counts[key] = cur; cnt.textContent = arNum(cur); if (navigator.vibrate) navigator.vibrate(15); sound.react(); await api.incDhikr(key, 1); } },
-      h("span", { class: "dh-label" }, label), cnt));
-  });
-  // khatmah render
-  clear(kbox);
-  const K = kh.ok ? kh.data.khatmah : null;
-  const logs = (kh.ok && kh.data.logs) || [];
-  if (!K) { kbox.appendChild(h("button", { class: "btn", onclick: async () => { await api.newKhatmah("ختمتنا", 30); faithSection(pane); } }, "ابدآ ختمة (٣٠ جزء)")); }
-  else {
+  // ---- weekly marriage khalwa ----
+  const kw = MARRIAGE_KHALWA[weekIdx() % MARRIAGE_KHALWA.length];
+  c.appendChild(h("h2", { class: "t-h2", style: { margin: "16px 4px 10px" } }, "خلوة الأسبوع 🤍"));
+  c.appendChild(h("div", { class: "card weekly-card" }, h("div", { class: "wk-t" }, kw.theme),
+    h("div", { class: "muted", style: { fontFamily: "var(--font-quote)", fontSize: "15px", lineHeight: "1.9", marginBottom: "10px" } }, kw.source),
+    h("div", { class: "wk-d" }, kw.prompt),
+    h("div", { class: "muted", style: { marginTop: "10px", fontSize: "13px" } }, "خطوةٌ هذا الأسبوع: " + kw.action)));
+
+  function renderDhikr(box) {
+    clear(box);
+    const counts = (dk.ok && dk.data.counts) || {};
+    const goal = Number(localStorage.getItem("yn_dhikr_goal") || 100);
+    let rec = safeJSON("yn_dhikr_day", {}); if (rec.date !== dayStr()) rec = { date: dayStr(), count: 0 };
+    const pct = () => Math.min(100, Math.round((rec.count / goal) * 100));
+    const ring = h("div", { class: "ring", style: { "--p": pct() } }, h("i", {}, arNum(rec.count)));
+    const gstreak = curStreak("yn_dhikr_last", "yn_dhikr_streak");
+    box.appendChild(h("div", { class: "dhikr-goal" }, ring,
+      h("div", { class: "gb" }, h("b", {}, "هدف اليوم: " + arNum(goal)),
+        h("div", { class: "muted" }, "المجموع الكلّي: " + arNum((dk.ok && dk.data.total) || 0) + (gstreak ? " · 🔥 " + arNum(gstreak) + " يوم" : "")),
+        h("button", { class: "btn ghost sm", style: { marginTop: "6px" }, onclick: setGoal }, "تغيير الهدف"))));
+    ADHKAR.forEach(([key, label]) => {
+      const cnt = h("span", { class: "dh-count" }, arNum(counts[key] || 0));
+      box.appendChild(h("button", { class: "dhikr-row", onclick: async () => {
+        counts[key] = (counts[key] || 0) + 1; cnt.textContent = arNum(counts[key]);
+        rec.count++; localStorage.setItem("yn_dhikr_day", JSON.stringify(rec));
+        ring.style.setProperty("--p", pct()); ring.querySelector("i").textContent = arNum(rec.count);
+        if (rec.count === goal) { const s = bumpStreak("yn_dhikr_last", "yn_dhikr_streak"); confetti(); sound.post(); toast("أتممتما هدف اليوم! 🔥 " + arNum(s)); }
+        if (navigator.vibrate) navigator.vibrate(15); sound.react();
+        await api.incDhikr(key, 1);
+      } }, h("span", { class: "dh-label" }, label), cnt));
+    });
+    function setGoal() {
+      const inp = h("input", { class: "field", type: "number", value: goal, inputmode: "numeric" });
+      const { close } = openModal({ title: "هدف الذكر اليومي 📿", body: [inp, h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"), h("button", { class: "btn", onclick: () => { localStorage.setItem("yn_dhikr_goal", String(Number(inp.value) || 100)); close(); faithSection(pane); } }, "حفظ"))] });
+    }
+  }
+
+  function salahCard() {
+    const key = "yn_salah_" + dayStr();
+    const prayed = safeJSON(key, []);
+    const NAMES = [["fajr", "الفجر"], ["dhuhr", "الظهر"], ["asr", "العصر"], ["maghrib", "المغرب"], ["isha", "العشاء"]];
+    const streak = curStreak("yn_salah_last", "yn_salah_streak");
+    const row = h("div", { class: "salah-row" });
+    NAMES.forEach(([k, label]) => {
+      const cell = h("button", { class: "salah-cell" + (prayed.includes(k) ? " on" : ""), "aria-pressed": prayed.includes(k) ? "true" : "false", onclick: () => {
+        const i = prayed.indexOf(k); if (i >= 0) prayed.splice(i, 1); else prayed.push(k);
+        localStorage.setItem(key, JSON.stringify(prayed));
+        const on = prayed.includes(k); cell.classList.toggle("on", on); cell.setAttribute("aria-pressed", on ? "true" : "false"); cell.querySelector(".sc-tick").textContent = on ? "✓" : "○";
+        if (prayed.length === 5) { const s = bumpStreak("yn_salah_last", "yn_salah_streak"); sound.post(); sparkleAt(innerWidth / 2, innerHeight / 2, ["🕌", "✨", "🤍"]); toast("خمسٌ اليوم 🤍 🔥 " + arNum(s)); }
+      } }, h("span", { class: "sc-tick" }, prayed.includes(k) ? "✓" : "○"), label);
+      row.appendChild(cell);
+    });
+    return h("div", { class: "card" }, streak ? h("div", { class: "streak-badge" }, "🔥 " + arNum(streak) + " يومًا كاملة") : null, row, h("div", { class: "muted", style: { fontSize: "12px", marginTop: "8px", textAlign: "center" } }, "سجّلا صلواتكما اليوم"));
+  }
+
+  function renderKhatmah(box) {
+    clear(box);
+    const K = kh.ok ? kh.data.khatmah : null;
+    const logs = (kh.ok && kh.data.logs) || [];
+    if (!K) { box.appendChild(h("button", { class: "btn", onclick: async () => { await api.newKhatmah("ختمتنا", 30); faithSection(pane); } }, "ابدآ ختمة (٣٠ جزء)")); return; }
     const marked = new Set(logs.map((l) => Number(l.unit)));
-    kbox.appendChild(h("div", { style: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" } }, h("b", {}, K.name), h("span", { class: "muted", style: { marginInlineStart: "auto" } }, arNum(marked.size) + " / " + arNum(K.total))));
-    kbox.appendChild(h("div", { class: "gp-bar", style: { marginBottom: "12px" } }, h("i", { style: { width: (marked.size / K.total) * 100 + "%" } })));
+    let todayJuz = 0; for (let j = 1; j <= K.total; j++) if (!marked.has(j)) { todayJuz = j; break; }
+    box.appendChild(h("div", { style: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" } }, h("b", {}, K.name), h("span", { class: "muted khcount", style: { marginInlineStart: "auto" } }, arNum(marked.size) + " / " + arNum(K.total))));
+    box.appendChild(h("div", { class: "gp-bar", style: { marginBottom: "12px" } }, h("i", { style: { width: (marked.size / K.total) * 100 + "%" } })));
+    const target = localStorage.getItem("yn_khatmah_target");
+    if (target) {
+      const daysLeft = Math.ceil((new Date(target).getTime() - Date.now()) / 86400000);
+      const remaining = K.total - marked.size;
+      if (remaining === 0) box.appendChild(h("div", { class: "pace-line ahead" }, "🎉 أتممتما الختمة — تقبّل الله"));
+      else if (daysLeft <= 0) box.appendChild(h("div", { class: "pace-line behind" }, "انتهى الموعد — بقي " + arNum(remaining) + " جزء"));
+      else box.appendChild(h("div", { class: "pace-line" }, "⏳ بقي " + arNum(daysLeft) + " يوم · اقرآ ~" + arNum(Math.ceil(remaining / daysLeft)) + " جزء يوميًا"));
+    } else {
+      box.appendChild(h("button", { class: "btn ghost sm", style: { marginBottom: "8px" }, onclick: () => { const inp = h("input", { class: "field", type: "date" }); const { close } = openModal({ title: "موعد ختمتكما 📖", body: [inp, h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"), h("button", { class: "btn", onclick: () => { if (inp.value) localStorage.setItem("yn_khatmah_target", inp.value); close(); faithSection(pane); } }, "حفظ"))] }); } }, "＋ حدّدا موعد الختمة"));
+    }
+    if (todayJuz) box.appendChild(h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "جزء اليوم: الجزء " + arNum(todayJuz)));
     const grid = h("div", { class: "juz-grid" });
     for (let j = 1; j <= K.total; j++) {
-      const on = marked.has(j);
-      grid.appendChild(h("button", { class: "juz" + (on ? " on" : ""), onclick: async () => { if (on) return; marked.add(j); sound.react(); await api.markJuz(K.id, j); faithSection(pane); } }, arNum(j)));
+      const cell = h("button", { class: "juz" + (marked.has(j) ? " on" : "") + (j === todayJuz ? " today" : ""), onclick: async () => {
+        if (cell.classList.contains("on")) return;
+        cell.classList.add("on"); cell.classList.remove("today"); marked.add(j);
+        box.querySelector(".gp-bar i").style.width = (marked.size / K.total) * 100 + "%";
+        const cnt = box.querySelector(".khcount"); if (cnt) cnt.textContent = arNum(marked.size) + " / " + arNum(K.total);
+        sound.react(); sparkleAt(innerWidth / 2, innerHeight / 2, ["📖", "✨", "🤍"]);
+        await api.markJuz(K.id, j);
+        if (marked.size === K.total) { confetti(); toast("أتممتما ختمة القرآن 🤍 تقبّل الله"); }
+      } }, arNum(j));
+      grid.appendChild(cell);
     }
-    kbox.appendChild(grid);
+    box.appendChild(grid);
   }
-  // du'a wall render
-  clear(wbox);
-  const duas = du.ok ? du.data.items : [];
-  if (!duas.length) wbox.appendChild(h("div", { class: "muted", style: { padding: "8px 4px" } }, "أضيفا أول دعوة… ويؤمّن عليها الآخر."));
-  duas.forEach((d) => {
-    const ameenArr = Array.isArray(d.ameen) ? d.ameen : [];
-    const mineAmeen = ameenArr.includes(store.person);
-    const p = PEOPLE[d.author] || PEOPLE.him;
-    wbox.appendChild(h("div", { class: "dua-item card" },
-      h("div", { class: "dua-text" }, d.body),
-      h("div", { class: "dua-foot" }, h("span", { class: "muted" }, p.name + (d.for_whom ? " · لِ" + d.for_whom : "")),
-        h("button", { class: "ameen-btn" + (mineAmeen ? " on" : ""), onclick: async (e) => { heartFly(e.clientX, e.clientY); sound.react(); await api.ameen(d.id); faithSection(pane); } }, "🤲 آمين " + (ameenArr.length ? arNum(ameenArr.length) : "")))));
-  });
+
+  function duaNudge() {
+    const partner = other(store.person);
+    const line = DUA_FOR_SPOUSE[dayIdx() % DUA_FOR_SPOUSE.length];
+    return h("div", { class: "card dua-nudge" }, h("div", { class: "dn-t" }, line),
+      h("button", { class: "btn sm", style: { width: "auto" }, onclick: async () => { const r = await api.addDua(line, PEOPLE[partner].name); if (r.ok) { sound.post(); toast("أضيفت للجدار 🤲"); faithSection(pane); } else toast("تعذّر"); } }, "ادعُ لِ" + PEOPLE[partner].name + " اليوم 🤲"));
+  }
+
+  function renderDuas(box) {
+    clear(box);
+    const duas = du.ok ? du.data.items : [];
+    if (!duas.length) { box.appendChild(h("div", { class: "muted", style: { padding: "8px 4px" } }, "أضيفا أول دعوة… ويؤمّن عليها الآخر.")); return; }
+    duas.forEach((d) => {
+      const ameenArr = Array.isArray(d.ameen) ? d.ameen : [];
+      const p = PEOPLE[d.author] || PEOPLE.him;
+      const btn = h("button", { class: "ameen-btn" + (ameenArr.includes(store.person) ? " on" : ""), onclick: async (e) => {
+        heartFly(e.clientX, e.clientY); sound.react();
+        const add = !btn.classList.contains("on"); btn.classList.toggle("on", add);
+        const set = new Set(Array.isArray(d.ameen) ? d.ameen : []); add ? set.add(store.person) : set.delete(store.person);
+        d.ameen = [...set]; btn.textContent = "🤲 آمين " + (d.ameen.length ? arNum(d.ameen.length) : "");
+        await api.ameen(d.id);
+      } }, "🤲 آمين " + (ameenArr.length ? arNum(ameenArr.length) : ""));
+      box.appendChild(h("div", { class: "dua-item card" }, h("div", { class: "dua-text" }, d.body),
+        h("div", { class: "dua-foot" }, h("span", { class: "muted" }, p.name + (d.for_whom ? " · لِ" + d.for_whom : "")), btn)));
+    });
+  }
 
   function addDua() {
+    const partner = other(store.person);
     const body = h("textarea", { class: "field", rows: 3, placeholder: "اللهم…" });
     const forWhom = h("input", { class: "field", placeholder: "لِمن؟ (اختياري)" });
-    const { close } = openModal({ title: "دعوة 🤲", body: [body, h("label", { class: "lbl" }, "لِمن"), forWhom,
+    const chips = h("div", { class: "dua-chip-row" }, ...DUA_FOR_SPOUSE.slice(0, 6).map((t) => h("button", { class: "dua-chip", onclick: () => { body.value = t; forWhom.value = PEOPLE[partner].name; } }, t.length > 34 ? t.slice(0, 34) + "…" : t)));
+    const { close } = openModal({ title: "دعوة 🤲", body: [h("div", { class: "muted", style: { fontSize: "12px", marginBottom: "6px" } }, "أو اختر دعوةً لشريكك:"), chips, body, h("label", { class: "lbl" }, "لِمن"), forWhom,
       h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"),
         h("button", { class: "btn", onclick: async () => { if (!body.value.trim()) return; await api.addDua(body.value.trim(), forWhom.value.trim() || null); close(); sound.post(); faithSection(pane); } }, "أضف"))] });
+  }
+}
+
+/* ---------------- adhkar (morning / evening) ---------------- */
+function adhkarSection(pane) {
+  const c = clear(pane);
+  c.appendChild(h("div", { class: "muted intro" }, "أذكار الصباح والمساء — أتمّاها معًا كل يوم 🌅"));
+  let evening = hourLocal() >= 16 || hourLocal() < 4;
+  let i = 0, remaining = 0;
+  const streak = curStreak("yn_adhkar_last", "yn_adhkar_streak");
+  const seg = h("div", { class: "seg" },
+    segA("الصباح", false), segA("المساء", true));
+  c.appendChild(seg);
+  const progress = h("div", { class: "adhkar-progress" });
+  const bar = h("div", { class: "gp-bar" }, h("i", { style: { width: "0%" } }));
+  progress.appendChild(bar); progress.appendChild(h("span", { class: "muted", id: "adh-count" }, ""));
+  if (streak) c.appendChild(h("div", { class: "streak-badge" }, "🔥 " + arNum(streak) + " يومًا متتالية"));
+  c.appendChild(progress);
+  const stage = h("div", {}); c.appendChild(stage);
+  draw();
+
+  function segA(label, ev) {
+    return h("button", { class: "seg-b" + (evening === ev ? " on" : ""), onclick: () => { evening = ev; i = 0; seg.querySelectorAll(".seg-b").forEach((b) => b.classList.remove("on")); seg.querySelectorAll(".seg-b")[ev ? 1 : 0].classList.add("on"); draw(); } }, label);
+  }
+  function set() { return evening ? EVENING_ADHKAR : MORNING_ADHKAR; }
+  function draw() {
+    const list = set();
+    clear(stage);
+    if (i >= list.length) {
+      const s = bumpStreak("yn_adhkar_last", "yn_adhkar_streak");
+      bar.firstChild.style.width = "100%"; document.getElementById("adh-count") && (document.getElementById("adh-count").textContent = arNum(list.length) + " / " + arNum(list.length));
+      confetti(); sound.post();
+      stage.appendChild(h("div", { class: "adhkar-card done" }, h("div", { class: "adhkar-txt" }, evening ? "تقبّل الله أذكار مسائكما 🌙" : "تقبّل الله أذكار صباحكما 🌅"), h("div", { class: "muted" }, "🔥 سلسلة " + arNum(s) + " يومًا"), h("button", { class: "btn", style: { marginTop: "8px" }, onclick: () => { i = 0; draw(); } }, "من جديد ↻")));
+      return;
+    }
+    const item = list[i];
+    remaining = item.repeat;
+    const cnt = document.getElementById("adh-count"); if (cnt) cnt.textContent = arNum(i) + " / " + arNum(list.length);
+    bar.firstChild.style.width = (i / list.length) * 100 + "%";
+    const rep = h("button", { class: "adhkar-rep", onclick: () => { remaining--; if (remaining <= 0) { i++; sound.react(); draw(); } else rep.textContent = arNum(remaining); } }, arNum(remaining));
+    stage.appendChild(h("div", { class: "adhkar-card" },
+      h("div", { class: "adhkar-txt" }, item.text),
+      h("div", { class: "adhkar-ref" }, item.ref + (item.repeat > 1 ? " · " + arNum(item.repeat) + " مرات" : "")),
+      rep,
+      h("div", { class: "adhkar-nav" },
+        h("button", { class: "btn ghost", onclick: () => { if (i > 0) { i--; draw(); } } }, "السابق"),
+        h("button", { class: "btn soft", onclick: () => { i++; draw(); } }, "تخطّي ›"))));
+  }
+}
+
+/* ---------------- sadaqah jar (reuses jn_lists) ---------------- */
+async function sadaqahSection(pane) {
+  const c = clear(pane);
+  c.appendChild(h("div", { class: "muted intro" }, "نعطي معًا… «وما أنفقتم من شيء فهو يخلفه» 🤍"));
+  const box = h("div", {}); c.appendChild(box);
+  box.appendChild(h("div", { class: "muted", style: { textAlign: "center", padding: "12px" } }, "…"));
+  const l = await ensureList("sadaqah", "جرّة الصدقة", "🫙");
+  const items = (l && l.items) || [];
+  const goal = Number(localStorage.getItem("yn_sadaqah_goal") || 0);
+  clear(box);
+  if (goal > 0) box.appendChild(h("div", { class: "goal-progress" }, h("div", { class: "gp-bar" }, h("i", { style: { width: Math.min(100, (items.length / goal) * 100) + "%" } })), h("span", { class: "muted" }, arNum(items.length) + " / " + arNum(goal) + " هذا الشهر")));
+  box.appendChild(h("button", { class: "btn soft sm", style: { margin: "6px 0 12px" }, onclick: setGoal }, goal > 0 ? "تغيير الهدف الشهري" : "＋ حدّدا هدفًا شهريًا"));
+  if (!items.length) box.appendChild(h("div", { class: "empty-card card" }, h("div", { class: "big" }, "🫙"), h("div", { class: "muted" }, "سجّلا أول صدقة لكما.")));
+  items.forEach((it) => box.appendChild(h("div", { class: "first-item card" }, h("span", { class: "fi-star" }, "🤲"), h("div", { style: { flex: 1 } }, it.text), h("button", { class: "goal-x", "aria-label": "حذف", onclick: async () => { if (await confirmAsk("حذف؟", { okText: "حذف", danger: true })) { await api.delItem(it.id); sadaqahSection(pane); } } }, "✕"))));
+  c.appendChild(adder("تصدّقنا بـ… (وصف اختياري)", async (text) => { const r = await api.addItem(l.id, text || "صدقة 🤲"); if (r.ok) { sound.post(); sparkleAt(innerWidth / 2, innerHeight / 2, ["🤲", "✨", "🤍"]); sadaqahSection(pane); } else toast("تعذّر"); }, "تصدّقنا اليوم 🤲"));
+  function setGoal() {
+    const inp = h("input", { class: "field", type: "number", value: goal || "", inputmode: "numeric", placeholder: "عدد الصدقات هذا الشهر" });
+    const { close } = openModal({ title: "هدف الصدقة الشهري 🫙", body: [inp, h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"), h("button", { class: "btn", onclick: () => { localStorage.setItem("yn_sadaqah_goal", String(Number(inp.value) || 0)); close(); sadaqahSection(pane); } }, "حفظ"))] });
   }
 }
 
@@ -353,7 +540,9 @@ async function milestonesSection(pane) {
 async function gratitudeSection(pane) {
   const c = clear(pane);
   c.appendChild(h("div", { class: "muted intro" }, "ثلاثة أشياء نشكر الله عليها اليوم 🤲"));
-  c.appendChild(adder(__g("أنا ممتنّ لـ…", "أنا ممتنّة لـ…"), async (text) => { const r = await api.addGratitude(text); if (r.ok) { sound.post(); toast("تُقبل شكركما 🤍"); gratitudeSection(pane); } }));
+  const gstreak = curStreak("yn_grat_last", "yn_grat_streak");
+  if (gstreak) c.appendChild(h("div", { class: "streak-badge" }, "🔥 امتنانكما " + arNum(gstreak) + " يومًا متتالية"));
+  c.appendChild(adder(__g("أنا ممتنّ لـ…", "أنا ممتنّة لـ…"), async (text) => { const r = await api.addGratitude(text); if (r.ok) { bumpStreak("yn_grat_last", "yn_grat_streak"); sound.post(); toast("تُقبل شكركما 🤍"); gratitudeSection(pane); } else toast("تعذّر"); }));
   const box = h("div", { style: { marginTop: "12px" } }); c.appendChild(box);
   const rt = await api.ritualsToday();
   const g = (rt.ok && rt.data.gratitude) || { mine: [], theirs: [] };
@@ -383,11 +572,28 @@ function settingsSection(pane) {
   // app lock
   const lockOn = localStorage.getItem("yn_applock") === "on";
   c.appendChild(settingCard("قفل التطبيق 🔒", [
-    h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "رمزٌ إضافي يُطلب عند فتح التطبيق على هذا الجهاز."),
+    h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "رمزٌ إضافي يُطلب عند فتح التطبيق — يمنع الفضول العابر على هذا الجهاز."),
     toggle(lockOn, async (on) => {
-      if (on) { const pin = await promptPin("اختر رمزًا من ٤ أرقام"); if (!pin) { settingsSection(pane); return; } localStorage.setItem("yn_applock", "on"); localStorage.setItem("yn_applock_pin", pin); toast("فُعّل القفل 🔒"); }
-      else { localStorage.removeItem("yn_applock"); localStorage.removeItem("yn_applock_pin"); toast("أُلغي القفل"); }
+      if (on) { const pin = await promptPin("اختر رمزًا من ٤ أرقام"); if (!pin) { settingsSection(pane); return; } const salt = Math.random().toString(36).slice(2, 12); localStorage.setItem("yn_applock", "on"); localStorage.setItem("yn_applock_salt", salt); localStorage.setItem("yn_applock_hash", await hashPin(pin, salt)); localStorage.removeItem("yn_applock_pin"); toast("فُعّل القفل 🔒"); }
+      else { ["yn_applock", "yn_applock_pin", "yn_applock_salt", "yn_applock_hash"].forEach((k) => localStorage.removeItem(k)); toast("أُلغي القفل"); }
     })]));
+  // our story editor (anniversary + dedication + reply → set_config)
+  const annIn = h("input", { class: "field story-field", type: "date", value: store.config.anniversary_date || "" });
+  const dedIn = h("textarea", { class: "field story-field", rows: 3, placeholder: "إهداءٌ منك…", value: store.config.dedication || "" });
+  const repIn = h("textarea", { class: "field story-field", rows: 3, placeholder: "ردُّها…", value: store.config.reply || "" });
+  c.appendChild(settingCard("قصّتنا 🤍", [
+    h("label", { class: "lbl" }, "تاريخ بدايتنا"), annIn,
+    h("label", { class: "lbl" }, "الإهداء"), dedIn,
+    h("label", { class: "lbl" }, "ردُّها"), repIn,
+    h("button", { class: "btn sm", style: { marginTop: "12px", width: "auto" }, onclick: async () => {
+      loader(true);
+      const upd = {};
+      if (annIn.value !== (store.config.anniversary_date || "")) { await api.setConfig("anniversary_date", annIn.value || null); upd.anniversary_date = annIn.value || null; }
+      if (dedIn.value !== (store.config.dedication || "")) { await api.setConfig("dedication", dedIn.value); upd.dedication = dedIn.value; }
+      if (repIn.value !== (store.config.reply || "")) { await api.setConfig("reply", repIn.value); upd.reply = repIn.value; }
+      store.setConfig(upd); loader(false); sound.post(); toast("حُفظت قصّتكما 🤍");
+    } }, "احفظ 🤍")]));
+
   // about + logout
   c.appendChild(settingCard("نحن 🤍", [
     h("div", { class: "muted", style: { fontSize: "14px", lineHeight: "1.9" } }, "بدأنا في " + (store.config.anniversary_date ? fullDate(store.config.anniversary_date) : "—")),
@@ -430,9 +636,11 @@ function urlB64ToU8(base64) {
 }
 
 /* ---------------- shared adder ---------------- */
-function adder(placeholder, onAdd) {
+function adder(placeholder, onAdd, quickLabel) {
   const inp = h("input", { class: "field", placeholder });
-  const submit = async () => { const t = inp.value.trim(); if (!t) return; inp.value = ""; await onAdd(t); };
+  const submit = async () => { const t = inp.value.trim(); if (!t && !quickLabel) return; inp.value = ""; await onAdd(t); };
   inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
-  return h("div", { class: "adder" }, inp, h("button", { class: "btn sm", onclick: submit }, "＋"));
+  const row = h("div", { class: "adder" }, inp, h("button", { class: "btn sm", "aria-label": "إضافة", onclick: submit }, "＋"));
+  if (quickLabel) return h("div", {}, row, h("button", { class: "btn soft sm", style: { marginTop: "8px", width: "100%" }, onclick: () => onAdd("") }, quickLabel));
+  return row;
 }

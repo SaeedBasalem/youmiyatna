@@ -10,7 +10,7 @@ export async function downscale(file, maxDim = 1600, quality = 0.85) {
   const cv = document.createElement("canvas"); cv.width = w; cv.height = h0;
   cv.getContext("2d").drawImage(img, 0, 0, w, h0);
   const blob = await new Promise((res) => cv.toBlob(res, "image/jpeg", quality));
-  return { blob, width: w, height: h0, dataUrl: cv.toDataURL("image/jpeg", 0.6) };
+  return { blob, width: w, height: h0 };
 }
 function loadImage(fileOrBlob) {
   return new Promise((res, rej) => {

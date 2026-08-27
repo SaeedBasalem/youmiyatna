@@ -25,6 +25,20 @@ function append(e, kids) {
 }
 export const $ = (s, r = document) => r.querySelector(s);
 export const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); return n; };
+export const noMotion = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
+
+// make a non-button node keyboard-operable (Enter/Space) with button semantics
+export function clickable(node, onActivate) {
+  node.setAttribute("role", "button");
+  node.tabIndex = 0;
+  node.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onActivate(e); } });
+  return node;
+}
+
+// shared waveform bar builder (was duplicated in 4 places)
+export function waveBars(bars) {
+  return (bars || []).map((v) => { const i = h("i"); i.style.height = Math.max(12, v * 100) + "%"; return i; });
+}
 
 // ---- people ----
 export function avatar(personKey, cls = "") {
@@ -44,7 +58,7 @@ export function moodChip(mood) {
 let toastT;
 export function toast(msg) {
   let t = $("#toast");
-  if (!t) { t = h("div", { id: "toast", class: "toast" }); document.body.appendChild(t); }
+  if (!t) { t = h("div", { id: "toast", class: "toast", role: "status", "aria-live": "polite" }); document.body.appendChild(t); }
   clear(t); t.appendChild(document.createTextNode(msg));
   t.classList.add("show"); clearTimeout(toastT);
   toastT = setTimeout(() => t.classList.remove("show"), 2200);
@@ -52,6 +66,7 @@ export function toast(msg) {
 
 // ---- confetti + sparkle ----
 export function confetti() {
+  if (noMotion()) return;
   const host = confHost();
   const colors = ["#FFC93C", "#38D9A9", "#FF6B4A", "#4DA3FF", "#FF7EB6", "#B79CFF"];
   for (let i = 0; i < 46; i++) {
@@ -67,6 +82,7 @@ export function confetti() {
   }
 }
 export function sparkleAt(x, y, marks = ["✦", "❤️", "🌙", "✨", "💫", "🤍"]) {
+  if (noMotion()) return;
   const host = confHost();
   for (let i = 0; i < 18; i++) {
     const s = h("span", { class: "sp" }, marks[i % marks.length]);
@@ -81,6 +97,7 @@ export function sparkleAt(x, y, marks = ["✦", "❤️", "🌙", "✨", "💫",
   }
 }
 export function heartFly(x, y) {
+  if (noMotion()) return;
   const host = confHost();
   const s = h("span", { class: "heart-fly" }, "❤️");
   s.style.left = x + "px"; s.style.top = y + "px";
@@ -112,3 +129,16 @@ export function monthYear(iso) {
   catch { return String(iso).slice(0, 7); }
 }
 export const arNum = (n) => (n == null ? "" : Number(n).toLocaleString("ar-EG"));
+
+// ---- Hijri (Umm al-Qura) ----
+export function hijriDate(d = new Date()) {
+  try { return new Intl.DateTimeFormat("ar-SA-u-ca-islamic-umalqura", { timeZone: "Asia/Riyadh", day: "numeric", month: "long", year: "numeric" }).format(d); }
+  catch { return ""; }
+}
+export function hijriParts(d = new Date()) {
+  try {
+    const p = new Intl.DateTimeFormat("en-US-u-ca-islamic-umalqura", { timeZone: "Asia/Riyadh", day: "numeric", month: "numeric", year: "numeric" }).formatToParts(d);
+    const g = (t) => Number(p.find((x) => x.type === t)?.value);
+    return { day: g("day"), month: g("month"), year: g("year") };
+  } catch { return null; }
+}
