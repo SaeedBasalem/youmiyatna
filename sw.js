@@ -1,5 +1,5 @@
 // يومياتنا — service worker: offline shell (network-first) + web-push display.
-const CACHE = "yn-r4";
+const CACHE = "yn-r5";
 const ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23FBF3E4'/%3E%3Ctext y='.9em' font-size='78'%3E🤍%3C/text%3E%3C/svg%3E";
 const CORE = [
   "./", "index.html", "manifest.webmanifest", "css/style.css", "fonts/fonts.css",
@@ -10,21 +10,23 @@ const CORE = [
 self.addEventListener("install", (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE).catch(() => {}))); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 
-// same-origin GET → stale-while-revalidate (instant repeat loads; background refresh).
-// A shipped update installs a new CACHE, activates (skipWaiting+claim), and app.js reloads once.
+// Fonts/woff2 are immutable → cache-first. Code + shell (html/js/css) → NETWORK-FIRST, so an
+// online open always runs the latest code (no stale-blank), with cache as the offline fallback.
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return; // supabase / signed media → network only
-  e.respondWith((async () => {
-    const cache = await caches.open(CACHE);
-    const cached = await cache.match(req);
-    const network = fetch(req).then((res) => { if (res && res.ok) cache.put(req, res.clone()); return res; }).catch(() => null);
-    if (cached) { e.waitUntil(network); return cached; }
-    const res = await network;
-    return res || (await cache.match("index.html")) || Response.error();
-  })());
+  const immutable = url.pathname.includes("/fonts/") || url.pathname.endsWith(".woff2");
+  if (immutable) {
+    e.respondWith(caches.open(CACHE).then((c) => c.match(req).then((hit) => hit ||
+      fetch(req).then((res) => { if (res && res.ok) c.put(req, res.clone()); return res; }))));
+    return;
+  }
+  e.respondWith(
+    fetch(req).then((res) => { if (res && res.ok) caches.open(CACHE).then((c) => c.put(req, res.clone())); return res; })
+      .catch(() => caches.open(CACHE).then((c) => c.match(req).then((r) => r || c.match("index.html")))),
+  );
 });
 
 // ---- web push ----
