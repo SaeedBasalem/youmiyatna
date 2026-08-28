@@ -5,7 +5,7 @@ import { api } from "../api.js";
 import { store } from "../store.js";
 import { sound } from "../sound.js";
 import { PEOPLE, other, MOODS, moodEmoji, BADGES, DUA, DUA_FOR_SPOUSE } from "../config.js";
-import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, applyBackground, BG_PRESETS, safeUrl, hashPin } from "../helpers.js";
+import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, applyBackground, BG_PRESETS, safeUrl, hashPin, encryptWithPin } from "../helpers.js";
 import { downscale, uploadSigned } from "../media.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
 import { MARRIAGE_KHALWA } from "../games.js";
@@ -606,12 +606,23 @@ async function settingsSection(pane) {
     !emailEnabled ? h("div", { class: "acct-hint" }, "ℹ️ حفظ البريد يعمل الآن. لتفعيل رسائل التأكيد والتنبيهات بالبريد أضِف مفتاح Resend مجاني — أخبرني لأفعّله لكما.") : null,
     (emailEnabled && mine.email && !mine.verified) ? h("div", { class: "acct-hint" }, "لم يصل الرمز؟ خدمة البريد المجانية تسمح مؤقتًا بالإرسال إلى بريد صاحب حساب Resend فقط، حتى توثيق نطاق خاص بكما. التنبيهات على الجوّال تعمل للاثنين بلا قيد 🔔") : null]));
   // app lock
-  const lockOn = localStorage.getItem("yn_applock") === "on";
+  const lockOn = localStorage.getItem("yn_applock") === "on" || store.sealed;
   c.appendChild(settingCard("قفل التطبيق 🔒", [
-    h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "رمزٌ إضافي يُطلب عند فتح التطبيق — يمنع الفضول العابر على هذا الجهاز."),
+    h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "رمزٌ يُطلب عند فتح التطبيق. عند تفعيله تُشفَّر جلستكما على هذا الجهاز، فلا تُفتح يومياتكما إلا برمزكما — ويُقفل تلقائيًا بعد تركه مفتوحًا في الخلفية."),
     toggle(lockOn, async (on) => {
-      if (on) { const pin = await promptPin("اختر رمزًا من ٤ أرقام"); if (!pin) { settingsSection(pane); return; } const salt = Math.random().toString(36).slice(2, 12); localStorage.setItem("yn_applock", "on"); localStorage.setItem("yn_applock_salt", salt); localStorage.setItem("yn_applock_hash", await hashPin(pin, salt)); localStorage.removeItem("yn_applock_pin"); toast("فُعّل القفل 🔒"); }
-      else { ["yn_applock", "yn_applock_pin", "yn_applock_salt", "yn_applock_hash"].forEach((k) => localStorage.removeItem(k)); toast("أُلغي القفل"); }
+      if (on) {
+        const pin = await promptPin("اختر رمزًا من ٤ أرقام");
+        if (!pin) { settingsSection(pane); return; }
+        if (!store.token) { toast("تعذّر — أعيدا الدخول"); settingsSection(pane); return; }
+        try { store.sealToken(await encryptWithPin(store.token, pin)); } catch { toast("تعذّر التشفير"); settingsSection(pane); return; }
+        localStorage.setItem("yn_applock", "on");
+        ["yn_applock_pin", "yn_applock_salt", "yn_applock_hash"].forEach((k) => localStorage.removeItem(k));
+        toast("فُعّل القفل 🔒 — جلستكما مشفّرة");
+      } else {
+        store.unsealToken();
+        ["yn_applock", "yn_applock_pin", "yn_applock_salt", "yn_applock_hash"].forEach((k) => localStorage.removeItem(k));
+        toast("أُلغي القفل");
+      }
     })]));
   // our story editor (anniversary + dedication + reply → set_config)
   const annIn = h("input", { class: "field story-field", type: "date", value: store.config.anniversary_date || "" });

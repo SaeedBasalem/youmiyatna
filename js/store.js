@@ -3,6 +3,7 @@ import { api, setToken } from "./api.js";
 
 const K = {
   token: "yn_token",
+  tokenEnc: "yn_token_enc",
   person: "yn_person",
   sound: "yn_sound",
   feed: "yn_feed_cache",
@@ -22,7 +23,15 @@ export const store = {
     if (person) localStorage.setItem(K.person, person); else localStorage.removeItem(K.person);
     setToken(token);
   },
-  clearAuth() { this.setAuth(null, null); },
+  clearAuth() { this.setAuth(null, null); localStorage.removeItem(K.tokenEnc); },
+
+  // ---- app-lock: token encrypted at rest ----
+  // When sealed, nothing usable is on disk; the PIN decrypts it into memory for the session.
+  get sealed() { return !!localStorage.getItem(K.tokenEnc); },
+  sealedBundle() { return readJSON(K.tokenEnc, null); },
+  useToken(token) { this.token = token; setToken(token); },              // session-only, never written
+  sealToken(bundle) { writeJSON(K.tokenEnc, bundle); localStorage.removeItem(K.token); },
+  unsealToken() { localStorage.removeItem(K.tokenEnc); if (this.token) localStorage.setItem(K.token, this.token); },
 
   setConfig(cfg) { this.config = { ...this.config, ...cfg }; writeJSON(K.config, this.config); },
 

@@ -4,7 +4,7 @@ import { store } from "./store.js";
 import { sound } from "./sound.js";
 import { h, $, clear, avatar, toast, arNum, relTime, fullDate, moodChip, hijriDate, hijriParts, confetti, sparkleAt, clickable } from "./ui.js";
 import { PEOPLE, other, MOODS, moodEmoji, DUA, DUA_FOR_SPOUSE } from "./config.js";
-import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk } from "./helpers.js";
+import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk, encryptWithPin, decryptWithPin } from "./helpers.js";
 import { SWEET_LINES, DATE_IDEAS, CONVO_DECK } from "./games.js";
 import { viewJournal, viewMoment, openCompose } from "./views/journal.js";
 import { viewChat } from "./views/chat.js";
@@ -40,10 +40,18 @@ let slideDir = "";
 
 (function boot() {
   const start = () => { if (store.token && store.person) { if (!location.hash) location.hash = "#/home"; renderRoute(); } else if (store.token) go("who"); else go("lock"); if (!location.hash) renderRoute(); };
-  const lockSet = localStorage.getItem("yn_applock") === "on" && (localStorage.getItem("yn_applock_hash") || localStorage.getItem("yn_applock_pin"));
-  if (store.token && store.person && lockSet) appLockGate(start);
+  const legacyLock = localStorage.getItem("yn_applock") === "on" && (localStorage.getItem("yn_applock_hash") || localStorage.getItem("yn_applock_pin"));
+  if (store.person && store.sealed) appLockGate(start);              // token encrypted at rest — PIN required
+  else if (store.token && store.person && legacyLock) appLockGate(start);
   else start();
 })();
+
+// auto-relock: after a spell in the background the in-memory token is dropped
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (store.sealed && hiddenAt && Date.now() - hiddenAt > 5 * 60 * 1000) location.reload();
+});
 
 function navTo(route) { const seq = TABS.map((t) => t.key); const i = seq.indexOf(currentRoute()), j = seq.indexOf(route); if (i >= 0 && j >= 0 && i !== j) slideDir = j > i ? "slide-l" : "slide-r"; go(route); }
 function currentRoute() { return (location.hash || "#/home").replace(/^#\//, "").split("/")[0]; }
@@ -95,8 +103,17 @@ function appLockGate(onOk) {
   const pin = h("input", { class: "field pin", type: "password", inputmode: "numeric", maxLength: 4, placeholder: "····", autocomplete: "off" });
   let fails = 0;
   const submit = async () => {
-    const salt = localStorage.getItem("yn_applock_salt"), hash = localStorage.getItem("yn_applock_hash"), raw = localStorage.getItem("yn_applock_pin");
-    const ok = hash ? (await hashPin(pin.value, salt)) === hash : pin.value === raw;
+    const entered = pin.value;
+    let ok = false;
+    if (store.sealed) {
+      const tok = await decryptWithPin(store.sealedBundle(), entered);   // wrong PIN => null, token stays unusable
+      if (tok) { store.useToken(tok); ok = true; }
+    } else {
+      const salt = localStorage.getItem("yn_applock_salt"), hash = localStorage.getItem("yn_applock_hash"), raw = localStorage.getItem("yn_applock_pin");
+      ok = hash ? (await hashPin(entered, salt)) === hash : entered === raw;
+      // upgrade an older screen-only lock to real encryption now that the PIN is known
+      if (ok && store.token) { try { store.sealToken(await encryptWithPin(store.token, entered)); ["yn_applock_hash", "yn_applock_salt", "yn_applock_pin"].forEach((k) => localStorage.removeItem(k)); } catch {} }
+    }
     if (ok) { sound.unlock(); onOk(); return; }
     fails++; sound.error(); pin.value = "";
     const b = $(".lock .box"); b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake");
@@ -109,7 +126,7 @@ function appLockGate(onOk) {
     h("div", { class: "brand", style: { fontSize: "clamp(38px,12vw,58px)" } }, "يومياتنا"),
     h("div", { class: "tag" }, "أدخلا رمز القفل"),
     h("div", { class: "box" }, pin, h("button", { class: "btn", onclick: submit }, "فتح"), err),
-    h("button", { class: "btn ghost sm", style: { marginTop: "14px" }, onclick: async () => { if (await confirmAsk("نسيتما الرمز؟ سنعيدكما إلى كلمة الفتح.", { okText: "متابعة" })) { ["yn_applock", "yn_applock_pin", "yn_applock_salt", "yn_applock_hash"].forEach((k) => localStorage.removeItem(k)); store.clearAuth(); go("lock"); location.reload(); } } }, "نسيتما الرمز؟")));
+    h("button", { class: "btn ghost sm", style: { marginTop: "14px" }, onclick: async () => { if (await confirmAsk("نسيتما الرمز؟ سنعيدكما إلى كلمة الفتح.", { okText: "متابعة" })) { ["yn_applock", "yn_applock_pin", "yn_applock_salt", "yn_applock_hash", "yn_token_enc"].forEach((k) => localStorage.removeItem(k)); store.clearAuth(); go("lock"); location.reload(); } } }, "نسيتما الرمز؟")));
   setTimeout(() => pin.focus(), 60);
 }
 

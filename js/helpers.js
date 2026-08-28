@@ -108,6 +108,32 @@ export async function ensureSigned(paths = []) {
 // tiny helper: labelled input
 export function field(props) { return h("input", { class: "field", ...props }); }
 
+// ---- app-lock crypto: the token is encrypted AT REST with the PIN ----
+// A wrong PIN cannot derive the key, so AES-GCM decryption fails and the session
+// token stays unusable — the lock actually protects data, not just the screen.
+const b64 = (bytes) => btoa(String.fromCharCode(...bytes));
+const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+async function pinKey(pin, saltB64) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt: unb64(saltB64), iterations: 150000, hash: "SHA-256" },
+    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+export async function encryptWithPin(text, pin) {
+  const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+  const ivBytes = crypto.getRandomValues(new Uint8Array(12));
+  const key = await pinKey(pin, salt);
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv: ivBytes }, key, new TextEncoder().encode(text));
+  return { v: 1, salt, iv: b64(ivBytes), ct: b64(new Uint8Array(ct)) };
+}
+export async function decryptWithPin(bundle, pin) {
+  try {
+    if (!bundle || !bundle.salt || !bundle.iv || !bundle.ct) return null;
+    const key = await pinKey(pin, bundle.salt);
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(bundle.iv) }, key, unb64(bundle.ct));
+    return new TextDecoder().decode(pt);
+  } catch { return null; }   // wrong PIN (or tampered data) — indistinguishable, by design
+}
+
 // salted SHA-256 of an app-lock PIN (so the PIN is not stored in cleartext)
 export async function hashPin(pin, salt) {
   try {
