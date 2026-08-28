@@ -5,7 +5,7 @@ import { api } from "../api.js";
 import { store } from "../store.js";
 import { sound } from "../sound.js";
 import { PEOPLE, other, MOODS, moodEmoji, BADGES, DUA, DUA_FOR_SPOUSE } from "../config.js";
-import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, applyBackground, BG_PRESETS, safeUrl, hashPin, encryptWithPin } from "../helpers.js";
+import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, applyBackground, BG_PRESETS, safeUrl, hashPin, encryptWithPin, commit, errorState } from "../helpers.js";
 import { downscale, uploadSigned } from "../media.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
 import { MARRIAGE_KHALWA } from "../games.js";
@@ -143,7 +143,7 @@ async function goalsSection(pane) {
     if (items.length) box.appendChild(h("div", { class: "goal-progress" }, h("div", { class: "gp-bar" }, h("i", { style: { width: (items.length ? (done / items.length) * 100 : 0) + "%" } })), h("span", { class: "muted" }, `${arNum(done)} / ${arNum(items.length)} تحقّق`)));
     if (!items.length) box.appendChild(h("div", { class: "empty-card card" }, h("div", { class: "big" }, "🎯"), h("div", { class: "muted" }, "أضيفا أول حلم.")));
     items.forEach((it) => box.appendChild(h("div", { class: "goal-item card" + (it.done ? " done" : "") },
-      h("button", { class: "goal-check", onclick: async () => { await api.toggleItem(it.id); it.done = !it.done; if (it.done) { sound.post(); sparkleAt(innerWidth / 2, innerHeight / 2, ["🎉", "✨", "🎯"]); } paint(); } }, it.done ? "✓" : ""),
+      h("button", { class: "goal-check", onclick: async () => { const was = it.done; it.done = !it.done; if (it.done) { sound.post(); sparkleAt(innerWidth / 2, innerHeight / 2, ["🎉", "✨", "🎯"]); } paint(); await commit(() => api.toggleItem(it.id), () => { it.done = was; paint(); }); } }, it.done ? "✓" : ""),
       h("div", { class: "goal-text" }, it.text),
       h("button", { class: "goal-x", onclick: async () => { if (await confirmAsk("حذف هذا الحلم؟", { okText: "حذف", danger: true })) { await api.delItem(it.id); items.splice(items.indexOf(it), 1); paint(); } } }, "✕"))));
   }
@@ -190,7 +190,8 @@ async function lettersSection(pane) {
   box.appendChild(h("div", { class: "muted", style: { textAlign: "center", padding: "16px" } }, "…"));
   const r = await api.listLetters();
   clear(box);
-  const items = r.ok ? r.data.items : [];
+  if (!r.ok) { box.appendChild(errorState(() => lettersSection(pane), { offline: r.offline })); return; }
+  const items = r.data.items || [];
   if (!items.length) { box.appendChild(h("div", { class: "empty-card card" }, h("div", { class: "big" }, "💌"), h("div", { class: "muted" }, "لا رسائل بعد."))); return; }
   const now = Date.now();
   items.forEach((L) => {
@@ -319,7 +320,11 @@ async function faithSection(pane) {
         ring.style.setProperty("--p", pct()); ring.querySelector("i").textContent = arNum(rec.count);
         if (rec.count === goal) { const s = bumpStreak("yn_dhikr_last", "yn_dhikr_streak"); confetti(); sound.post(); toast("أتممتما هدف اليوم! 🔥 " + arNum(s)); }
         if (navigator.vibrate) navigator.vibrate(15); sound.react();
-        await api.incDhikr(key, 1);
+        await commit(() => api.incDhikr(key, 1), () => {
+          counts[key] = Math.max(0, (counts[key] || 1) - 1); cnt.textContent = arNum(counts[key]);
+          rec.count = Math.max(0, rec.count - 1); localStorage.setItem("yn_dhikr_day", JSON.stringify(rec));
+          ring.style.setProperty("--p", pct()); ring.querySelector("i").textContent = arNum(rec.count);
+        });
       } }, h("span", { class: "dh-label" }, label), cnt));
     });
     function setGoal() {
@@ -374,8 +379,12 @@ async function faithSection(pane) {
         box.querySelector(".gp-bar i").style.width = (marked.size / K.total) * 100 + "%";
         const cnt = box.querySelector(".khcount"); if (cnt) cnt.textContent = arNum(marked.size) + " / " + arNum(K.total);
         sound.react(); sparkleAt(innerWidth / 2, innerHeight / 2, ["📖", "✨", "🤍"]);
-        await api.markJuz(K.id, j);
-        if (marked.size === K.total) { confetti(); toast("أتممتما ختمة القرآن 🤍 تقبّل الله"); }
+        const saved = await commit(() => api.markJuz(K.id, j), () => {
+          cell.classList.remove("on"); if (j === todayJuz) cell.classList.add("today"); marked.delete(j);
+          box.querySelector(".gp-bar i").style.width = (marked.size / K.total) * 100 + "%";
+          const c2 = box.querySelector(".khcount"); if (c2) c2.textContent = arNum(marked.size) + " / " + arNum(K.total);
+        });
+        if (saved && marked.size === K.total) { confetti(); toast("أتممتما ختمة القرآن 🤍 تقبّل الله"); }
       } }, arNum(j));
       grid.appendChild(cell);
     }
@@ -401,7 +410,11 @@ async function faithSection(pane) {
         const add = !btn.classList.contains("on"); btn.classList.toggle("on", add);
         const set = new Set(Array.isArray(d.ameen) ? d.ameen : []); add ? set.add(store.person) : set.delete(store.person);
         d.ameen = [...set]; btn.textContent = "🤲 آمين " + (d.ameen.length ? arNum(d.ameen.length) : "");
-        await api.ameen(d.id);
+        await commit(() => api.ameen(d.id), () => {
+          btn.classList.toggle("on", !add);
+          const back = new Set(d.ameen); add ? back.delete(store.person) : back.add(store.person);
+          d.ameen = [...back]; btn.textContent = "🤲 آمين " + (d.ameen.length ? arNum(d.ameen.length) : "");
+        });
       } }, "🤲 آمين " + (ameenArr.length ? arNum(ameenArr.length) : ""));
       box.appendChild(h("div", { class: "dua-item card" }, h("div", { class: "dua-text" }, d.body),
         h("div", { class: "dua-foot" }, h("span", { class: "muted" }, p.name + (d.for_whom ? " · لِ" + d.for_whom : "")), btn)));
@@ -496,7 +509,8 @@ async function songsSection(pane) {
   box.appendChild(h("div", { class: "muted", style: { textAlign: "center", padding: "16px" } }, "…"));
   const r = await api.listPlaylist();
   clear(box);
-  const items = r.ok ? r.data.items : [];
+  if (!r.ok) { box.appendChild(errorState(() => songsSection(pane), { offline: r.offline })); return; }
+  const items = r.data.items || [];
   if (!items.length) { box.appendChild(h("div", { class: "empty-card card" }, h("div", { class: "big" }, "🎵"), h("div", { class: "muted" }, "أضيفا أول أغنية لكما."))); return; }
   items.forEach((s) => {
     const p = PEOPLE[s.added_by] || PEOPLE.him;
@@ -522,7 +536,7 @@ async function milestonesSection(pane) {
   c.appendChild(h("div", { class: "muted", style: { textAlign: "center", padding: "16px" } }, "…"));
   const r = await api.milestones();
   clear(c);
-  if (!r.ok) { c.appendChild(h("div", { class: "empty" }, "تعذّر التحميل")); return; }
+  if (!r.ok) { c.appendChild(errorState(() => milestonesSection(pane), { offline: r.offline })); return; }
   const d = r.data;
   c.appendChild(h("div", { class: "ms-hero card" },
     h("div", { class: "ms-big" }, arNum(d.days_together || 0)),
@@ -576,7 +590,7 @@ async function settingsSection(pane) {
     document.body.appendChild(inp); inp.click();
   }
   const swatches = h("div", { class: "bg-swatches" },
-    ...Object.entries(BG_PRESETS).map(([key, p]) => h("button", { class: "bg-swatch" + ((curBg === "preset:" + key || (!curBg && key === "default")) ? " on" : ""), "aria-label": p.name, title: p.name, style: { background: p.dot }, onclick: async () => { await api.setConfig("bg_" + store.person, "preset:" + key); store.setConfig({ ["bg_" + store.person]: "preset:" + key }); applyBackground(); sound.tab(); settingsSection(pane); } })),
+    ...Object.entries(BG_PRESETS).map(([key, p]) => h("button", { class: "bg-swatch" + ((curBg === "preset:" + key || (!curBg && key === "default")) ? " on" : ""), "aria-label": p.name, title: p.name, style: { background: p.dot }, onclick: async () => { const prev = store.config["bg_" + store.person] || ""; store.setConfig({ ["bg_" + store.person]: "preset:" + key }); applyBackground(); sound.tab(); await commit(() => api.setConfig("bg_" + store.person, "preset:" + key), () => { store.setConfig({ ["bg_" + store.person]: prev }); applyBackground(); }); settingsSection(pane); } })),
     h("button", { class: "bg-swatch photo" + ((curBg && !curBg.startsWith("preset:")) ? " on" : ""), "aria-label": "صورتنا", title: "صورتنا", onclick: pickBg }));
   c.appendChild(settingCard("الخلفية 🌄", [h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "خلفيةٌ لكلٍّ منكما — اختر لونًا أو صورةً لكما 📷."), swatches]));
   // sound
@@ -601,7 +615,7 @@ async function settingsSection(pane) {
     h("div", { class: "row-btns", style: { marginTop: "10px" } },
       h("button", { class: "btn sm", onclick: async () => { const em = emailIn.value.trim(); if (!em) return; loader(true); const r = await api.setEmail(em); loader(false); if (!r.ok) { toast(r.data.error === "bad_email" ? "بريد غير صحيح" : "تعذّر"); return; } if (r.data.provider && r.data.sent) { toast("أرسلنا الرمز إلى بريدك 📧"); promptVerify(); } else if (r.data.provider) { toast("حُفظ البريد — لكن لم يصل الرمز"); } else toast("حُفظ بريدكما 📧"); settingsSection(pane); } }, "حفظ البريد"),
       (mine.email && !mine.verified && emailEnabled) ? h("button", { class: "btn ghost sm", onclick: () => promptVerify() }, "أدخل الرمز") : null),
-    mine.email ? rowToggle("تنبيهات عبر البريد", mine.notify_email !== false, async (on) => { await api.setEmailNotify(on); }) : null,
+    mine.email ? rowToggle("تنبيهات عبر البريد", mine.notify_email !== false, async (on) => { await commit(() => api.setEmailNotify(on), null, "تعذّر تغيير التنبيهات"); }) : null,
     theirs.email ? h("div", { class: "acct-hint" }, "بريد " + PEOPLE[partner].name + ": " + theirs.email + (theirs.verified ? " ✓" : " (غير مؤكَّد)")) : null,
     !emailEnabled ? h("div", { class: "acct-hint" }, "ℹ️ حفظ البريد يعمل الآن. لتفعيل رسائل التأكيد والتنبيهات بالبريد أضِف مفتاح Resend مجاني — أخبرني لأفعّله لكما.") : null,
     (emailEnabled && mine.email && !mine.verified) ? h("div", { class: "acct-hint" }, "لم يصل الرمز؟ خدمة البريد المجانية تسمح مؤقتًا بالإرسال إلى بريد صاحب حساب Resend فقط، حتى توثيق نطاق خاص بكما. التنبيهات على الجوّال تعمل للاثنين بلا قيد 🔔") : null]));
@@ -635,10 +649,11 @@ async function settingsSection(pane) {
     h("button", { class: "btn sm", style: { marginTop: "12px", width: "auto" }, onclick: async () => {
       loader(true);
       const upd = {};
-      if (annIn.value !== (store.config.anniversary_date || "")) { await api.setConfig("anniversary_date", annIn.value || null); upd.anniversary_date = annIn.value || null; }
-      if (dedIn.value !== (store.config.dedication || "")) { await api.setConfig("dedication", dedIn.value); upd.dedication = dedIn.value; }
-      if (repIn.value !== (store.config.reply || "")) { await api.setConfig("reply", repIn.value); upd.reply = repIn.value; }
-      store.setConfig(upd); loader(false); sound.post(); toast("حُفظت قصّتكما 🤍");
+      let allOk = true;
+      if (annIn.value !== (store.config.anniversary_date || "")) { if (await commit(() => api.setConfig("anniversary_date", annIn.value || null))) upd.anniversary_date = annIn.value || null; else allOk = false; }
+      if (dedIn.value !== (store.config.dedication || "")) { if (await commit(() => api.setConfig("dedication", dedIn.value))) upd.dedication = dedIn.value; else allOk = false; }
+      if (repIn.value !== (store.config.reply || "")) { if (await commit(() => api.setConfig("reply", repIn.value))) upd.reply = repIn.value; else allOk = false; }
+      store.setConfig(upd); loader(false); if (allOk) { sound.post(); toast("حُفظت قصّتكما 🤍"); }
     } }, "احفظ 🤍")]));
 
   // about + logout

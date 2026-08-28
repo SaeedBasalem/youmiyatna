@@ -1,5 +1,5 @@
 // يومياتنا — shared UI helpers used across the tab views (sheets, modals, loader, reactions).
-import { h, $, clear } from "./ui.js";
+import { h, $, clear, toast } from "./ui.js";
 import { store } from "./store.js";
 import { api } from "./api.js";
 
@@ -68,6 +68,17 @@ export function errorState(retry, { offline = false } = {}) {
     h("div", { class: "big" }, offline ? "🌙" : "😔"),
     h("div", {}, offline ? "أنتما دون اتصال بالإنترنت" : "تعذّر التحميل"),
     retry ? h("button", { class: "btn soft sm", onclick: retry }, "أعد المحاولة ↻") : null);
+}
+
+// Run an optimistic write. If the server rejects it (or we are offline), undo the
+// local change and say so — a journal must never look saved when it was not.
+export async function commit(call, revert, failMsg) {
+  let r;
+  try { r = await call(); } catch { r = null; }
+  if (r && r.ok) return true;
+  try { revert && revert(); } catch {}
+  toast(r && r.offline ? "لا اتصال — لم يُحفظ" : (failMsg || "تعذّر الحفظ"));
+  return false;
 }
 
 // pretty confirm dialog → Promise<boolean>

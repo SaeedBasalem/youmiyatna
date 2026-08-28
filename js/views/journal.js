@@ -5,7 +5,7 @@ import { sound } from "../sound.js";
 import { h, $, clear, avatar, personChip, moodChip, heartFly, relTime, fullDate, monthYear, arNum, toast, sparkleAt, waveBars, clickable } from "../ui.js";
 import { PEOPLE, MOODS, REACTIONS, moodEmoji } from "../config.js";
 import { downscale, VoiceRecorder, uploadSigned } from "../media.js";
-import { loader, go, openSheet, openModal, confirmAsk, groupReactions, safeUrl } from "../helpers.js";
+import { loader, go, openSheet, openModal, confirmAsk, groupReactions, safeUrl, errorState } from "../helpers.js";
 
 let jsub = "feed";          // feed | album | timeline
 let feedCache = null;
@@ -42,12 +42,17 @@ async function renderFeed(pane) {
   if (feedCache) paint(feedCache);
   else list.appendChild(skeletonCard());
   const [f, otd] = await Promise.all([api.feed(), api.onThisDay()]);
-  feedCache = f.ok ? f.data.items : [];
   const flash = otd.ok && otd.data.items[0];
-  paint(feedCache, flash);
+  if (f.ok) { feedCache = f.data.items; store.cacheFeed(feedCache); paint(feedCache, flash); }
+  else {
+    const cached = store.cachedFeed();
+    if (cached.length) { feedCache = cached; paint(cached, flash, true); }
+    else { clear(list); list.appendChild(errorState(() => renderFeed(pane), { offline: f.offline })); }
+  }
 
-  function paint(items, flashback) {
+  function paint(items, flashback, stale) {
     clear(list);
+    if (stale) list.appendChild(h("div", { class: "offline-banner" }, "🌙 أنتما دون اتصال — نعرض آخر ما حُفظ"));
     if (flashback) list.appendChild(momentCard(flashback, { flashback: true }));
     if (!items.length && !flashback) {
       list.appendChild(h("div", { class: "empty-card card" },
@@ -134,6 +139,7 @@ async function toggleReact(e, emoji, card) {
   sound.react();
   const r = await api.react(e.id, emoji);
   if (r.ok) { e.reactions = r.data.reactions || []; const row = card && card.querySelector(".react-row"); if (row) renderReacts(row, e, card); }
+  else toast(r.offline ? "لا اتصال — لم يُحفظ" : "تعذّر");
 }
 
 /* ---------------- moment detail (route: moment/:id) ---------------- */
@@ -200,7 +206,8 @@ async function renderTimeline(pane) {
   list.appendChild(h("div", { class: "empty", style: { padding: "18px" } }, "نحمّل القصة…"));
   const r = await api.timeline();
   clear(list);
-  const items = r.ok ? r.data.items : [];
+  if (!r.ok) { list.appendChild(errorState(() => renderTimeline(pane), { offline: r.offline })); return; }
+  const items = r.data.items || [];
   let curMonth = null;
   for (const e of items) {
     const my = monthYear(e.happened_at || e.created_at);
