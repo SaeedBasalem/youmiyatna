@@ -599,11 +599,12 @@ async function settingsSection(pane) {
     h("div", { class: "acct-row" }, "📧 " + __g("بريدك", "بريدكِ"), mine.email ? h("span", { class: "acct-badge " + (mine.verified ? "ok" : "no") }, mine.verified ? "مؤكَّد ✓" : "غير مؤكَّد") : null),
     emailIn,
     h("div", { class: "row-btns", style: { marginTop: "10px" } },
-      h("button", { class: "btn sm", onclick: async () => { const em = emailIn.value.trim(); if (!em) return; loader(true); const r = await api.setEmail(em); loader(false); if (!r.ok) { toast(r.data.error === "bad_email" ? "بريد غير صحيح" : "تعذّر"); return; } if (r.data.provider && r.data.sent) promptVerify(); else toast("حُفظ بريدكما 📧"); settingsSection(pane); } }, "حفظ البريد"),
+      h("button", { class: "btn sm", onclick: async () => { const em = emailIn.value.trim(); if (!em) return; loader(true); const r = await api.setEmail(em); loader(false); if (!r.ok) { toast(r.data.error === "bad_email" ? "بريد غير صحيح" : "تعذّر"); return; } if (r.data.provider && r.data.sent) { toast("أرسلنا الرمز إلى بريدك 📧"); promptVerify(); } else if (r.data.provider) { toast("حُفظ البريد — لكن لم يصل الرمز"); } else toast("حُفظ بريدكما 📧"); settingsSection(pane); } }, "حفظ البريد"),
       (mine.email && !mine.verified && emailEnabled) ? h("button", { class: "btn ghost sm", onclick: () => promptVerify() }, "أدخل الرمز") : null),
     mine.email ? rowToggle("تنبيهات عبر البريد", mine.notify_email !== false, async (on) => { await api.setEmailNotify(on); }) : null,
     theirs.email ? h("div", { class: "acct-hint" }, "بريد " + PEOPLE[partner].name + ": " + theirs.email + (theirs.verified ? " ✓" : " (غير مؤكَّد)")) : null,
-    !emailEnabled ? h("div", { class: "acct-hint" }, "ℹ️ حفظ البريد يعمل الآن. لتفعيل رسائل التأكيد والتنبيهات بالبريد أضِف مفتاح Resend مجاني — أخبرني لأفعّله لكما.") : null]));
+    !emailEnabled ? h("div", { class: "acct-hint" }, "ℹ️ حفظ البريد يعمل الآن. لتفعيل رسائل التأكيد والتنبيهات بالبريد أضِف مفتاح Resend مجاني — أخبرني لأفعّله لكما.") : null,
+    (emailEnabled && mine.email && !mine.verified) ? h("div", { class: "acct-hint" }, "لم يصل الرمز؟ خدمة البريد المجانية تسمح مؤقتًا بالإرسال إلى بريد صاحب حساب Resend فقط، حتى توثيق نطاق خاص بكما. التنبيهات على الجوّال تعمل للاثنين بلا قيد 🔔") : null]));
   // app lock
   const lockOn = localStorage.getItem("yn_applock") === "on";
   c.appendChild(settingCard("قفل التطبيق 🔒", [
