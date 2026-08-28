@@ -1,5 +1,5 @@
 // يومياتنا — single network module to the `journal` edge-function gate.
-import { FN, FN2, ANON } from "./config.js";
+import { FN, FN2, FN3, ANON } from "./config.js";
 
 let TOKEN = null;
 let onAuthFail = null;
@@ -31,6 +31,15 @@ async function call2(action, extra = {}) {
   } catch (e) { return { ok: false, status: 0, offline: true, data: {} }; }
   try { data = await res.json(); } catch { data = {}; }
   if (res.status === 401 && onAuthFail) onAuthFail();
+  return { ok: res.ok, status: res.status, data };
+}
+
+// third gate (per-person passcodes), same token scheme
+async function call3(action, extra = {}) {
+  let res, data = {};
+  try { res = await fetch(FN3, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action, token: TOKEN, ...extra }) }); }
+  catch (e) { return { ok: false, status: 0, offline: true, data: {} }; }
+  try { data = await res.json(); } catch { data = {}; }
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -104,6 +113,11 @@ export const api = {
   subscribePush: (subscription, ua) => call("subscribe_push", { subscription, ua }),
   unsubscribePush:(endpoint)      => call("unsubscribe_push", { endpoint }),
   testPush:      ()               => call("test_push"),
+  // per-person passcodes (journal3)
+  unlockPersonal:(pass)           => call3("unlock_personal", { pass }),
+  setPasscode:   (pass)           => call3("set_passcode", { pass }),
+  clearPasscode: ()               => call3("clear_passcode"),
+  getPasscodes:  ()               => call3("get_passcodes"),
   // accounts / email
   getAccount:    ()               => call("get_account"),
   setEmail:      (email)          => call("set_email", { email }),

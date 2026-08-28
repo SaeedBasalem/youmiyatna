@@ -4,8 +4,9 @@ import { store } from "./store.js";
 import { sound } from "./sound.js";
 import { h, $, clear, avatar, toast, arNum, relTime, fullDate, moodChip, hijriDate, hijriParts, confetti, sparkleAt, clickable } from "./ui.js";
 import { PEOPLE, other, MOODS, moodEmoji, DUA, DUA_FOR_SPOUSE } from "./config.js";
-import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk, encryptWithPin, decryptWithPin } from "./helpers.js";
+import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk, encryptWithPin, decryptWithPin, bioEnrolled, bioUnlock, bioForget } from "./helpers.js";
 import { SWEET_LINES, DATE_IDEAS, CONVO_DECK } from "./games.js";
+import { attachSwipe, attachPullToRefresh } from "./gestures.js";
 import { viewJournal, viewMoment, openCompose } from "./views/journal.js";
 import { viewChat } from "./views/chat.js";
 import { viewPlay } from "./views/play.js";
@@ -81,6 +82,13 @@ function shell(active, viewFn) {
   app.appendChild(content);
   app.appendChild(tabbar(active));
   viewFn(content);
+  // swipe between tabs, and pull down at the top to refresh
+  const seq = TABS.map((t) => t.key), i = seq.indexOf(active);
+  attachSwipe(content, {
+    onLeft: () => { if (i >= 0 && i < seq.length - 1) { sound.tab(); navTo(seq[i + 1]); } },
+    onRight: () => { if (i > 0) { sound.tab(); navTo(seq[i - 1]); } },
+  });
+  attachPullToRefresh(content, async () => { sound.tab(); if (active === "home") homeData = null; renderRoute(); await new Promise((r) => setTimeout(r, 400)); });
 }
 function tabbar(active) {
   const nav = h("nav", { class: "tabbar", "aria-label": "التنقّل" }, ...TABS.map((t) => {
@@ -126,7 +134,15 @@ function appLockGate(onOk) {
     h("div", { class: "brand", style: { fontSize: "clamp(38px,12vw,58px)" } }, "يومياتنا"),
     h("div", { class: "tag" }, "أدخلا رمز القفل"),
     h("div", { class: "box" }, pin, h("button", { class: "btn", onclick: submit }, "فتح"), err),
-    h("button", { class: "btn ghost sm", style: { marginTop: "14px" }, onclick: async () => { if (await confirmAsk("نسيتما الرمز؟ سنعيدكما إلى كلمة الفتح.", { okText: "متابعة" })) { ["yn_applock", "yn_applock_pin", "yn_applock_salt", "yn_applock_hash", "yn_token_enc"].forEach((k) => localStorage.removeItem(k)); store.clearAuth(); go("lock"); location.reload(); } } }, "نسيتما الرمز؟")));
+    bioEnrolled() ? h("button", { class: "btn soft", style: { marginTop: "12px", maxWidth: "340px" }, onclick: () => bioTry(true) }, "👆 افتح ببصمتك") : null,
+    h("button", { class: "btn ghost sm", style: { marginTop: "14px" }, onclick: async () => { if (await confirmAsk("نسيتما الرمز؟ سنعيدكما إلى كلمة الفتح.", { okText: "متابعة" })) { ["yn_applock", "yn_applock_pin", "yn_applock_salt", "yn_applock_hash", "yn_token_enc", "yn_bio"].forEach((k) => localStorage.removeItem(k)); store.clearAuth(); go("lock"); location.reload(); } } }, "نسيتما الرمز؟")));
+  async function bioTry(explicit) {
+    err.textContent = "";
+    const tok = await bioUnlock();
+    if (tok) { store.useToken(tok); sound.unlock(); onOk(); }
+    else if (explicit) { err.textContent = "تعذّرت البصمة — استخدما الرمز"; sound.error(); }
+  }
+  if (bioEnrolled()) setTimeout(() => bioTry(false), 250);   // offer it straight away; silent if dismissed
   setTimeout(() => pin.focus(), 60);
 }
 
@@ -139,7 +155,11 @@ function viewLock() {
     sound.resume();
     const pass = pin.value.trim(); err.textContent = "";
     if (!pass) { err.textContent = __g("اكتب كلمة الفتح", "اكتبي كلمة الفتح"); return; }
-    loader(true); const r = await api.unlock(pass); loader(false);
+    loader(true);
+    // a personal code proves who is entering — straight in, no "who are you?"
+    const mine = await api.unlockPersonal(pass);
+    if (mine.ok && mine.data.token) { store.setAuth(mine.data.token, mine.data.person); loader(false); sound.unlock(); go("home"); return; }
+    const r = await api.unlock(pass); loader(false);
     if (r.ok && r.data.token) { store.setAuth(r.data.token, null); sound.unlock(); go("who"); }
     else if (r.status === 429) { err.textContent = "محاولاتٌ كثيرة — انتظرا قليلًا"; sound.error(); }
     else { err.textContent = "كلمة الفتح غير صحيحة"; sound.error(); const b = $(".lock .box"); b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); }

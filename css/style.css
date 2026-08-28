@@ -604,3 +604,18 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
   .spinner{animation-duration:.9s!important;animation-iteration-count:infinite!important}
   .lock .heart{animation:none!important}
 }
+
+/* ---- gestures ---- */
+.pull-ind{position:absolute;top:-40px;left:50%;margin-inline-start:-18px;width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--rose-deep);
+  background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-sm);pointer-events:none;z-index:5}
+.pull-ind.ready{background:var(--rose-soft);color:var(--rose-deep)}
+.pull-ind.spin{animation:spin .9s linear infinite}
+.view{position:relative}
+.sheet .grab{touch-action:none}
+
+/* ---- pinned hub cards ---- */
+.hub-card{position:relative}
+.hub-card.pinned::after{content:"⭐";position:absolute;top:10px;inset-inline-end:10px;font-size:14px;opacity:.95}
+.hub-card.pinned{box-shadow:0 0 0 2px var(--rose), var(--shadow-sm)}
+.hub-hint{font-size:12px;color:var(--ink-3);text-align:center;margin:-6px 4px 12px;line-height:1.7}

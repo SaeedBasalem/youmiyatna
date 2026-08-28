@@ -1,5 +1,6 @@
 // يومياتنا — shared UI helpers used across the tab views (sheets, modals, loader, reactions).
 import { h, $, clear, toast } from "./ui.js";
+import { attachSheetDrag } from "./gestures.js";
 import { store } from "./store.js";
 import { api } from "./api.js";
 
@@ -45,6 +46,7 @@ export function openSheet({ title, subtitle, body = [], wide = false, beforeClos
   scrim.addEventListener("click", (e) => { if (e.target === scrim) close(); });
   document.body.appendChild(scrim);
   const restore = wireDialog(scrim, sheet, close, titleNode);
+  attachSheetDrag(sheet, close);
   return { close, sheet };
 }
 
@@ -143,6 +145,71 @@ export async function decryptWithPin(bundle, pin) {
     const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(bundle.iv) }, key, unb64(bundle.ct));
     return new TextDecoder().decode(pt);
   } catch { return null; }   // wrong PIN (or tampered data) — indistinguishable, by design
+}
+
+// ---- biometric unlock (Face ID / fingerprint) ----
+// The key comes from the authenticator itself via the WebAuthn PRF extension, so the
+// token stays genuinely encrypted. Devices without PRF are told plainly, not faked.
+const PRF_SALT = new TextEncoder().encode("youmiyatna-prf-v1");
+export async function bioAvailable() {
+  try {
+    if (!window.PublicKeyCredential || !navigator.credentials) return false;
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch { return false; }
+}
+async function aesKeyFromSecret(bytes) {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+async function prfSecret(rawId) {
+  const assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      allowCredentials: [{ id: rawId, type: "public-key" }],
+      userVerification: "required", timeout: 60000,
+      extensions: { prf: { eval: { first: PRF_SALT } } },
+    },
+  });
+  const out = assertion && assertion.getClientExtensionResults && assertion.getClientExtensionResults().prf;
+  const first = out && out.results && out.results.first;
+  return first ? new Uint8Array(first) : null;
+}
+// Register this device's biometric and stash the token encrypted under it.
+export async function bioEnroll(token) {
+  const cred = await navigator.credentials.create({
+    publicKey: {
+      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      rp: { name: "يومياتنا" },
+      user: { id: crypto.getRandomValues(new Uint8Array(16)), name: "youmiyatna", displayName: "يومياتنا" },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "preferred" },
+      timeout: 60000,
+      extensions: { prf: {} },
+    },
+  });
+  if (!cred) throw new Error("cancelled");
+  const ext = cred.getClientExtensionResults ? cred.getClientExtensionResults() : {};
+  if (!ext.prf || ext.prf.enabled === false) throw new Error("no_prf");
+  const rawId = new Uint8Array(cred.rawId);
+  const secret = await prfSecret(rawId);
+  if (!secret) throw new Error("no_prf");
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await aesKeyFromSecret(secret), new TextEncoder().encode(token));
+  localStorage.setItem("yn_bio", JSON.stringify({ v: 1, credId: b64(rawId), iv: b64(iv), ct: b64(new Uint8Array(ct)) }));
+  return true;
+}
+export const bioEnrolled = () => !!localStorage.getItem("yn_bio");
+export function bioForget() { localStorage.removeItem("yn_bio"); }
+// Prompt for the biometric and return the decrypted token (or null).
+export async function bioUnlock() {
+  try {
+    const rec = JSON.parse(localStorage.getItem("yn_bio") || "null");
+    if (!rec) return null;
+    const secret = await prfSecret(unb64(rec.credId));
+    if (!secret) return null;
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(rec.iv) }, await aesKeyFromSecret(secret), unb64(rec.ct));
+    return new TextDecoder().decode(pt);
+  } catch { return null; }
 }
 
 // salted SHA-256 of an app-lock PIN (so the PIN is not stored in cleartext)

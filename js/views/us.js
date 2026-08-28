@@ -5,7 +5,7 @@ import { api } from "../api.js";
 import { store } from "../store.js";
 import { sound } from "../sound.js";
 import { PEOPLE, other, MOODS, moodEmoji, BADGES, DUA, DUA_FOR_SPOUSE } from "../config.js";
-import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, applyBackground, BG_PRESETS, safeUrl, hashPin, encryptWithPin, commit, errorState } from "../helpers.js";
+import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, applyBackground, BG_PRESETS, safeUrl, hashPin, encryptWithPin, commit, errorState, bioAvailable, bioEnroll, bioEnrolled, bioForget } from "../helpers.js";
 import { downscale, uploadSigned } from "../media.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
 import { MARRIAGE_KHALWA } from "../games.js";
@@ -65,7 +65,8 @@ const SECTIONS = {
 function renderHub(pane) {
   const c = clear(pane);
   c.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "كل ما يجمعنا")));
-  c.appendChild(h("div", { class: "hub" },
+  c.appendChild(h("div", { class: "hub-hint" }, "اضغطا مطوّلًا على أي بطاقة لتثبيتها في الأعلى ⭐"));
+  const grid = h("div", { class: "hub" },
     hubCard("💛", "لماذا أحبّك", "جرّة أسبابنا", "jar", "her"),
     hubCard("✨", "أوّليّاتنا", "أول كل شيء", "firsts", "gold"),
     hubCard("🎯", "أحلامنا", "قائمة الأمنيات", "goals", "him"),
@@ -78,11 +79,50 @@ function renderHub(pane) {
     hubCard("🎵", "أغانينا", "قائمة أغانينا", "songs", "rose"),
     hubCard("🏆", "إنجازاتنا", "أوسمة رحلتنا", "milestones", "gold"),
     hubCard("🤲", "امتناننا", "شكرٌ كل يوم", "gratitude", "her"),
-    hubCard("⚙️", "الإعدادات", "المظهر والتنبيهات", "settings", "him")));
+    hubCard("⚙️", "الإعدادات", "المظهر والتنبيهات", "settings", "him"));
+  // favourites float to the top (order kept in store.hubOrder)
+  const pinned = store.hubOrder || [];
+  const cards = [...grid.children];
+  cards.sort((a, b) => {
+    const ia = pinned.indexOf(a.dataset.route), ib = pinned.indexOf(b.dataset.route);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+  cards.forEach((el) => { el.classList.toggle("pinned", pinned.includes(el.dataset.route)); grid.appendChild(el); });
+  c.appendChild(grid);
 }
 function hubCard(emoji, title, sub, route, tone) {
-  return h("button", { class: "hub-card tone-" + tone, onclick: () => { sound.tab(); usDir = "in"; go("us/" + route); } },
+  const card = h("button", { class: "hub-card tone-" + tone, dataset: { route },
+    onclick: () => { if (card._held) { card._held = false; return; } sound.tab(); usDir = "in"; go("us/" + route); } },
     h("span", { class: "hub-e" }, emoji), h("span", { class: "hub-t" }, title), h("span", { class: "hub-s" }, sub));
+  // long-press pins/unpins (avoids nesting a button inside a button)
+  let timer = null;
+  const begin = () => { timer = setTimeout(() => { card._held = true; togglePin(route, card); }, 500); };
+  const cancel = () => { clearTimeout(timer); };
+  card.addEventListener("touchstart", begin, { passive: true });
+  card.addEventListener("touchend", cancel);
+  card.addEventListener("touchmove", cancel, { passive: true });
+  card.addEventListener("mousedown", begin);
+  card.addEventListener("mouseup", cancel);
+  card.addEventListener("mouseleave", cancel);
+  card.addEventListener("contextmenu", (e) => { e.preventDefault(); card._held = true; togglePin(route, card); });
+  return card;
+}
+let pinSuppress = 0;
+document.addEventListener("click", (e) => {
+  if (Date.now() < pinSuppress) { e.stopPropagation(); e.preventDefault(); }
+}, true);
+function togglePin(route, card) {
+  pinSuppress = Date.now() + 700;
+  const list = store.hubOrder || [];
+  const i = list.indexOf(route);
+  if (i >= 0) { list.splice(i, 1); toast("أُزيل التثبيت"); }
+  else { list.unshift(route); toast("ثُبّتت في الأعلى ⭐"); }
+  store.hubOrder = list;
+  sound.react();
+  if (navigator.vibrate) navigator.vibrate(12);
+  card.classList.toggle("pinned", list.includes(route));
+  const grid = card.parentElement;
+  if (grid) { const cards = [...grid.children]; cards.sort((a, b) => { const ia = list.indexOf(a.dataset.route), ib = list.indexOf(b.dataset.route); return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib); }); cards.forEach((el) => grid.appendChild(el)); }
 }
 
 /* ---------------- lists helpers (jar / firsts / goals reuse jn_lists) ---------------- */
@@ -573,7 +613,10 @@ async function gratitudeSection(pane) {
 /* ---------------- settings ---------------- */
 async function settingsSection(pane) {
   const c = clear(pane);
-  const acct = await api.getAccount().catch(() => ({ ok: false, data: {} }));
+  const [acct, pcs] = await Promise.all([
+    api.getAccount().catch(() => ({ ok: false, data: {} })),
+    api.getPasscodes().catch(() => ({ ok: false, data: {} })),
+  ]);
   // theme
   c.appendChild(settingCard("المظهر 🎨", [
     h("div", { class: "seg" }, ...[["system", "تلقائي"], ["light", "نهار"], ["dark", "ليل"]].map(([v, l]) =>
@@ -619,6 +662,28 @@ async function settingsSection(pane) {
     theirs.email ? h("div", { class: "acct-hint" }, "بريد " + PEOPLE[partner].name + ": " + theirs.email + (theirs.verified ? " ✓" : " (غير مؤكَّد)")) : null,
     !emailEnabled ? h("div", { class: "acct-hint" }, "ℹ️ حفظ البريد يعمل الآن. لتفعيل رسائل التأكيد والتنبيهات بالبريد أضِف مفتاح Resend مجاني — أخبرني لأفعّله لكما.") : null,
     (emailEnabled && mine.email && !mine.verified) ? h("div", { class: "acct-hint" }, "لم يصل الرمز؟ خدمة البريد المجانية تسمح مؤقتًا بالإرسال إلى بريد صاحب حساب Resend فقط، حتى توثيق نطاق خاص بكما. التنبيهات على الجوّال تعمل للاثنين بلا قيد 🔔") : null]));
+  // personal passcode — proves identity at the front door
+  const hasMine = !!(pcs.ok && pcs.data.has && pcs.data.has[store.person]);
+  const hasTheirs = !!(pcs.ok && pcs.data.has && pcs.data.has[other(store.person)]);
+  c.appendChild(settingCard("رمز الدخول الخاص بك 🔑", [
+    h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } },
+      "رمزٌ يخصّك وحدك: حين تدخل به يعرف التطبيق أنك أنت، فتُنسب كل لحظة وهمسة لصاحبها بلا اختيار. كلمة الفتح المشتركة تبقى تعمل."),
+    h("div", { class: "acct-row" }, "🔑 " + __g("رمزك", "رمزكِ"),
+      h("span", { class: "acct-badge " + (hasMine ? "ok" : "no") }, hasMine ? "مُفعّل ✓" : "غير مُعيَّن")),
+    hasTheirs ? h("div", { class: "acct-hint" }, PEOPLE[other(store.person)].name + " ضبطت رمزها الخاص ✓") : null,
+    h("div", { class: "row-btns", style: { marginTop: "10px" } },
+      h("button", { class: "btn sm", onclick: async () => {
+        const code = await promptCode(hasMine ? "رمزٌ جديد (٤ أرقام أو أكثر)" : "اختر رمزك الخاص");
+        if (!code) return;
+        loader(true); const r = await api.setPasscode(code); loader(false);
+        if (r.ok) { sound.post(); toast("صار لك رمزك الخاص 🔑"); settingsSection(pane); }
+        else toast(r.data.error === "taken" ? "هذا الرمز مستخدم" : r.data.error === "same_as_shared" ? "لا تستخدم كلمة الفتح المشتركة" : r.data.error === "too_short" ? "٤ أرقام على الأقل" : "تعذّر");
+      } }, hasMine ? "غيّر الرمز" : "اضبط رمزك"),
+      hasMine ? h("button", { class: "btn ghost sm", onclick: async () => {
+        if (!(await confirmAsk("إلغاء رمزك الخاص؟ ستدخل بكلمة الفتح المشتركة.", { okText: "إلغاء الرمز", danger: true }))) return;
+        loader(true); const r = await api.clearPasscode(); loader(false);
+        if (r.ok) { toast("أُلغي رمزك"); settingsSection(pane); } else toast("تعذّر");
+      } }, "ألغِ الرمز") : null)]));
   // app lock
   const lockOn = localStorage.getItem("yn_applock") === "on" || store.sealed;
   c.appendChild(settingCard("قفل التطبيق 🔒", [
@@ -632,12 +697,35 @@ async function settingsSection(pane) {
         localStorage.setItem("yn_applock", "on");
         ["yn_applock_pin", "yn_applock_salt", "yn_applock_hash"].forEach((k) => localStorage.removeItem(k));
         toast("فُعّل القفل 🔒 — جلستكما مشفّرة");
+        settingsSection(pane); return;                 // re-render so the biometric option appears
       } else {
-        store.unsealToken();
+        store.unsealToken(); bioForget();
         ["yn_applock", "yn_applock_pin", "yn_applock_salt", "yn_applock_hash"].forEach((k) => localStorage.removeItem(k));
         toast("أُلغي القفل");
+        settingsSection(pane); return;
       }
     })]));
+  if (lockOn) {
+    const bioBox = h("div", { class: "acct-hint" }, "…");
+    c.appendChild(settingCard("فتحٌ بالبصمة 👆", [
+      h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "افتحا التطبيق ببصمتكما أو وجهكما بدل كتابة الرمز — والرمز يبقى بديلًا دائمًا."),
+      bioBox]));
+    (async () => {
+      const can = await bioAvailable();
+      if (!can) { clear(bioBox); bioBox.appendChild(h("span", {}, "هذا الجهاز لا يدعم الفتح بالبصمة.")); return; }
+      const on = bioEnrolled();
+      const t = toggle(on, async (want) => {
+        if (want) {
+          if (!store.token) { toast("تعذّر — أعيدا الدخول"); settingsSection(pane); return; }
+          try { await bioEnroll(store.token); toast("فُعّلت البصمة 👆"); }
+          catch (e) { toast(String(e && e.message) === "no_prf" ? "متصفحكما لا يدعم مفاتيح البصمة" : "أُلغيت العملية"); }
+        } else { bioForget(); toast("أُلغيت البصمة"); }
+        settingsSection(pane);
+      });
+      t.style.marginInlineStart = "auto";
+      bioBox.replaceWith(h("div", { class: "acct-row" }, h("span", {}, on ? "مُفعّلة على هذا الجهاز ✓" : "غير مُفعّلة"), t));
+    })();
+  }
   // our story editor (anniversary + dedication + reply → set_config)
   const annIn = h("input", { class: "field story-field", type: "date", value: store.config.anniversary_date || "" });
   const dedIn = h("textarea", { class: "field story-field", rows: 3, placeholder: "إهداءٌ منك…", value: store.config.dedication || "" });
@@ -667,6 +755,15 @@ function toggle(on, onchange) {
   return t;
 }
 function rowToggle(label, on, cb) { const t = toggle(on, cb); t.style.marginInlineStart = "auto"; return h("div", { class: "acct-row" }, h("span", {}, label), t); }
+function promptCode(title) {
+  return new Promise((resolve) => {
+    const inp = h("input", { class: "field pin", type: "password", inputmode: "numeric", maxLength: 12, placeholder: "••••" });
+    const { close } = openModal({ title, body: [inp, h("div", { class: "row-btns", style: { marginTop: "14px" } },
+      h("button", { class: "btn ghost", onclick: () => { close(); resolve(null); } }, "إلغاء"),
+      h("button", { class: "btn", onclick: () => { const v = inp.value.trim(); if (v.length < 4) { toast("٤ أرقام على الأقل"); return; } close(); resolve(v); } }, "تم"))] });
+    setTimeout(() => inp.focus(), 50);
+  });
+}
 function promptPin(title) {
   return new Promise((resolve) => {
     const inp = h("input", { class: "field pin", type: "password", inputmode: "numeric", maxLength: 4, placeholder: "····" });
