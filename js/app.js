@@ -27,13 +27,6 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   navigator.serviceWorker.register("sw.js").then((reg) => { try { reg.update(); } catch {} setInterval(() => { try { reg.update(); } catch {} }, 30 * 60 * 1000); }).catch(() => {});
 }
 
-(function boot() {
-  const start = () => { if (store.token && store.person) { if (!location.hash) location.hash = "#/home"; renderRoute(); } else if (store.token) go("who"); else go("lock"); if (!location.hash) renderRoute(); };
-  const lockSet = localStorage.getItem("yn_applock") === "on" && (localStorage.getItem("yn_applock_hash") || localStorage.getItem("yn_applock_pin"));
-  if (store.token && store.person && lockSet) appLockGate(start);
-  else start();
-})();
-
 const TABS = [
   { key: "home", ic: "🏡", label: "البيت" },
   { key: "journal", ic: "📖", label: "يومياتنا" },
@@ -42,6 +35,14 @@ const TABS = [
   { key: "us", ic: "💛", label: "نحن" },
 ];
 let slideDir = "";
+
+(function boot() {
+  const start = () => { if (store.token && store.person) { if (!location.hash) location.hash = "#/home"; renderRoute(); } else if (store.token) go("who"); else go("lock"); if (!location.hash) renderRoute(); };
+  const lockSet = localStorage.getItem("yn_applock") === "on" && (localStorage.getItem("yn_applock_hash") || localStorage.getItem("yn_applock_pin"));
+  if (store.token && store.person && lockSet) appLockGate(start);
+  else start();
+})();
+
 function navTo(route) { const seq = TABS.map((t) => t.key); const i = seq.indexOf(currentRoute()), j = seq.indexOf(route); if (i >= 0 && j >= 0 && i !== j) slideDir = j > i ? "slide-l" : "slide-r"; go(route); }
 function currentRoute() { return (location.hash || "#/home").replace(/^#\//, "").split("/")[0]; }
 function routeArg() { return (location.hash || "").replace(/^#\//, "").split("/")[1] || ""; }
