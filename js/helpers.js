@@ -152,3 +152,30 @@ export function applyTheme() {
   const m = document.querySelector('meta[name="theme-color"]');
   if (m) m.setAttribute("content", getComputedStyle(document.body).backgroundColor || "#FDF2EC");
 }
+
+// ---- backgrounds (preset gradients + your own photo, per person) ----
+export const BG_PRESETS = {
+  default:  { name: "الأصل", dot: "linear-gradient(135deg,#FDF2EC,#FADEE4)", css: "" },
+  blush:    { name: "وردة", dot: "#FADEE4", css: "radial-gradient(120% 85% at 18% 0%,#FBE7DF,transparent 55%),radial-gradient(120% 85% at 92% 8%,#FADEE4,transparent 48%),#FDF2EC" },
+  dawn:     { name: "فجر", dot: "#F6C177", css: "linear-gradient(160deg,#FCE9D6,#FADEE4 60%,#F3D9E6)" },
+  lavender: { name: "خزامى", dot: "#C9B6EC", css: "linear-gradient(160deg,#EFE7FA,#F5DEEA)" },
+  ocean:    { name: "بحر", dot: "#8FCFD6", css: "linear-gradient(160deg,#DDF1F1,#EAF3F6 60%,#F3E9EC)" },
+  gold:     { name: "ذهب", dot: "#E3BE86", css: "radial-gradient(120% 80% at 50% 0%,#F7EAD5,transparent 60%),linear-gradient(160deg,#FBF3E4,#F7E3E9)" },
+  night:    { name: "ليل", dot: "#3A2A38", css: "radial-gradient(1.5px 1.5px at 18% 24%,#ffffffaa,transparent),radial-gradient(1.5px 1.5px at 68% 40%,#ffffff88,transparent),radial-gradient(1.5px 1.5px at 42% 72%,#ffffff77,transparent),radial-gradient(1.5px 1.5px at 82% 66%,#ffffff66,transparent),linear-gradient(165deg,#241A26,#3A2A3C)" },
+};
+function ensureBgEl() { let el = document.getElementById("bg"); if (!el) { el = h("div", { id: "bg" }); document.body.insertBefore(el, document.body.firstChild); } return el; }
+export async function applyBackground() {
+  const el = ensureBgEl();
+  const val = (store.config && store.config["bg_" + (store.person || "him")]) || "";
+  if (!val || val === "preset:default") { el.style.background = ""; return; }
+  if (val.startsWith("preset:")) { const p = BG_PRESETS[val.slice(7)]; el.style.background = p ? p.css : ""; return; }
+  try {
+    const r = await api.signDownload([val]);
+    const url = r.ok && r.data.urls && r.data.urls[val];
+    if (url) { const scrim = themeIsDark() ? "rgba(28,20,25,.62)" : "rgba(253,242,236,.55)"; el.style.background = `linear-gradient(${scrim},${scrim}), url("${url}") center/cover no-repeat`; }
+    else el.style.background = "";
+  } catch { el.style.background = ""; }
+}
+
+// accept only real http(s) links (blocks javascript:/data: in user-supplied URLs)
+export function safeUrl(u) { const s = String(u || "").trim(); return /^https?:\/\//i.test(s) ? s : null; }

@@ -579,6 +579,26 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 /* settings: story editor */
 .story-field{margin-bottom:10px}
 
+/* ---- backgrounds ---- */
+#bg{position:fixed;inset:0;z-index:-1;background-size:cover;background-position:center;pointer-events:none;transition:opacity .4s}
+.bg-swatches{display:flex;gap:10px;flex-wrap:wrap}
+.bg-swatch{width:46px;height:46px;border-radius:14px;border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line);background-size:cover;background-position:center;position:relative}
+.bg-swatch.on{box-shadow:0 0 0 3px var(--rose)}
+.bg-swatch.photo::after{content:"📷";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px}
+
+/* ---- us: page transitions (hub → section feels like a real page) ---- */
+.page-in{animation:pgin .32s cubic-bezier(.2,.8,.2,1)}
+.page-out{animation:pgout .32s cubic-bezier(.2,.8,.2,1)}
+@keyframes pgin{from{opacity:.2;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes pgout{from{opacity:.2;transform:translateX(-28px)}to{opacity:1;transform:none}}
+
+/* ---- account / email card ---- */
+.acct-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:14px}
+.acct-badge{margin-inline-start:auto;font-size:12px;font-weight:700;padding:4px 12px;border-radius:var(--pill)}
+.acct-badge.ok{background:var(--gold-soft);color:var(--gold-ink)}
+.acct-badge.no{background:var(--rose-soft);color:var(--rose-deep)}
+.acct-hint{font-size:12px;color:var(--ink-2);line-height:1.7;margin-top:8px}
+
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001s!important;transition-duration:.05s!important;animation-iteration-count:1!important}
   .spinner{animation-duration:.9s!important;animation-iteration-count:infinite!important}

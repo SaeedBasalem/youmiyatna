@@ -5,7 +5,8 @@ import { api } from "../api.js";
 import { store } from "../store.js";
 import { sound } from "../sound.js";
 import { PEOPLE, other, MOODS, moodEmoji, BADGES, DUA, DUA_FOR_SPOUSE } from "../config.js";
-import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, hashPin } from "../helpers.js";
+import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, applyBackground, BG_PRESETS, safeUrl, hashPin } from "../helpers.js";
+import { downscale, uploadSigned } from "../media.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
 import { MARRIAGE_KHALWA } from "../games.js";
 
@@ -31,13 +32,16 @@ function curStreak(kLast, kStreak) {
   return 0;
 }
 
+let usDir = "";
 export function viewUs(content) {
   const s = sub();
   const c = clear(content);
   if (s) c.appendChild(h("div", { class: "sub-head" },
-    h("button", { class: "icon-btn", onclick: () => go("us") }, "→"),
+    h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => { usDir = "out"; go("us"); } }, "→"),
     h("div", { class: "sh-title" }, SECTIONS[s]?.title || "نحن")));
-  const pane = h("div", {}); c.appendChild(pane);
+  const pane = h("div", { class: usDir === "in" ? "page-in" : usDir === "out" ? "page-out" : "" });
+  usDir = "";
+  c.appendChild(pane);
   (SECTIONS[s]?.render || renderHub)(pane);
 }
 
@@ -77,7 +81,7 @@ function renderHub(pane) {
     hubCard("⚙️", "الإعدادات", "المظهر والتنبيهات", "settings", "him")));
 }
 function hubCard(emoji, title, sub, route, tone) {
-  return h("button", { class: "hub-card tone-" + tone, onclick: () => { sound.tab(); go("us/" + route); } },
+  return h("button", { class: "hub-card tone-" + tone, onclick: () => { sound.tab(); usDir = "in"; go("us/" + route); } },
     h("span", { class: "hub-e" }, emoji), h("span", { class: "hub-t" }, title), h("span", { class: "hub-s" }, sub));
 }
 
@@ -499,7 +503,8 @@ async function songsSection(pane) {
     const inner = h("div", { class: "song-item card" }, h("span", { class: "cassette" }, "🎵"),
       h("div", { class: "meta" }, h("b", {}, s.title), h("span", { class: "muted" }, (s.artist || "") + " · " + p.name)),
       h("button", { class: "goal-x", onclick: async (e) => { e.stopPropagation(); e.preventDefault(); if (await confirmAsk("حذف الأغنية؟", { okText: "حذف", danger: true })) { await api.delSong(s.id); songsSection(pane); } } }, "✕"));
-    box.appendChild(s.url ? h("a", { href: s.url, target: "_blank", rel: "noreferrer", style: { textDecoration: "none" } }, inner) : inner);
+    const su = safeUrl(s.url);
+    box.appendChild(su ? h("a", { href: su, target: "_blank", rel: "noreferrer", style: { textDecoration: "none" } }, inner) : inner);
   });
   function add() {
     const title = h("input", { class: "field", placeholder: "اسم الأغنية" });
@@ -552,8 +557,9 @@ async function gratitudeSection(pane) {
 }
 
 /* ---------------- settings ---------------- */
-function settingsSection(pane) {
+async function settingsSection(pane) {
   const c = clear(pane);
+  const acct = await api.getAccount().catch(() => ({ ok: false, data: {} }));
   // theme
   c.appendChild(settingCard("المظهر 🎨", [
     h("div", { class: "seg" }, ...[["system", "تلقائي"], ["light", "نهار"], ["dark", "ليل"]].map(([v, l]) =>
@@ -563,12 +569,41 @@ function settingsSection(pane) {
   const dots = h("div", { class: "accent-row" }, ...Object.entries(ACCENT_PRESETS).map(([key, p]) =>
     h("button", { class: "accent-dot" + (store.accent === key ? " on" : ""), style: { background: p.dot }, title: p.name, onclick: (e) => { store.accent = key; applyAccent(); dots.querySelectorAll(".accent-dot").forEach((x) => x.classList.remove("on")); e.currentTarget.classList.add("on"); } })));
   c.appendChild(settingCard("لون البشرة 🌸", [dots]));
+  // background (presets + own photo, per person)
+  const curBg = store.config["bg_" + store.person] || "";
+  function pickBg() {
+    const inp = h("input", { type: "file", accept: "image/*", class: "hidden", onchange: async (e) => { const f = e.target.files[0]; if (!f) { inp.remove(); return; } loader(true); try { const ds = await downscale(f, 1400); const su = await api.signUpload("photo", "image/jpeg"); if (su.ok) { await uploadSigned(su.data.signedUrl, ds.blob, "image/jpeg"); await api.setConfig("bg_" + store.person, su.data.path); store.setConfig({ ["bg_" + store.person]: su.data.path }); applyBackground(); toast("خلفيتكما جاهزة 🌄"); } } catch { toast("تعذّر"); } loader(false); inp.remove(); settingsSection(pane); } });
+    document.body.appendChild(inp); inp.click();
+  }
+  const swatches = h("div", { class: "bg-swatches" },
+    ...Object.entries(BG_PRESETS).map(([key, p]) => h("button", { class: "bg-swatch" + ((curBg === "preset:" + key || (!curBg && key === "default")) ? " on" : ""), "aria-label": p.name, title: p.name, style: { background: p.dot }, onclick: async () => { await api.setConfig("bg_" + store.person, "preset:" + key); store.setConfig({ ["bg_" + store.person]: "preset:" + key }); applyBackground(); sound.tab(); settingsSection(pane); } })),
+    h("button", { class: "bg-swatch photo" + ((curBg && !curBg.startsWith("preset:")) ? " on" : ""), "aria-label": "صورتنا", title: "صورتنا", onclick: pickBg }));
+  c.appendChild(settingCard("الخلفية 🌄", [h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "خلفيةٌ لكلٍّ منكما — اختر لونًا أو صورةً لكما 📷."), swatches]));
   // sound
   c.appendChild(settingCard("الصوت 🔊", [toggle(store.soundOn, (on) => { store.soundOn = on; if (on) sound.tab(); })]));
   // notifications
   c.appendChild(settingCard("التنبيهات 🔔", [
-    h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "لتصلكما همسات بعضكما حتى والتطبيق مغلق."),
-    h("button", { class: "btn soft sm", onclick: enableNotifications }, store.pushOn ? "التنبيهات مفعّلة ✓ — إرسال تجربة" : "تفعيل التنبيهات")]));
+    h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "لتصلكما همسات بعضكما وإشعاراتكما على الجوّال حتى والتطبيق مغلق. (على الآيفون: أضيفا التطبيق للشاشة الرئيسية أولًا.)"),
+    h("button", { class: "btn soft sm", onclick: enableNotifications }, store.pushOn ? "التنبيهات مفعّلة ✓ — إرسال تجربة" : "تفعيل التنبيهات على هذا الجهاز")]));
+  // account / email
+  const ac = (acct.ok && acct.data.accounts) ? acct.data.accounts : {};
+  const mine = ac[store.person] || {}, partner = other(store.person), theirs = ac[partner] || {};
+  const emailEnabled = acct.ok && acct.data.email_enabled;
+  const emailIn = h("input", { class: "field", type: "email", inputmode: "email", placeholder: "بريدك الإلكتروني", value: mine.email || "" });
+  function promptVerify() {
+    const codeIn = h("input", { class: "field pin", inputmode: "numeric", maxLength: 6, placeholder: "••••••" });
+    const { close } = openModal({ title: "رمز التأكيد", body: [h("div", { class: "muted", style: { textAlign: "center", fontSize: "13px", marginBottom: "8px" } }, "أرسلنا رمزًا إلى بريدك — ينتهي خلال ١٥ دقيقة"), codeIn, h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"), h("button", { class: "btn", onclick: async () => { const r = await api.verifyEmail(codeIn.value.trim()); if (r.ok) { close(); toast("تأكّد بريدك ✓"); settingsSection(pane); } else toast(r.data.error === "expired" ? "انتهى الرمز" : "رمز غير صحيح"); } }, "تأكيد"))] });
+    setTimeout(() => codeIn.focus(), 50);
+  }
+  c.appendChild(settingCard("حساباتنا وبريدنا 📧", [
+    h("div", { class: "acct-row" }, "📧 " + __g("بريدك", "بريدكِ"), mine.email ? h("span", { class: "acct-badge " + (mine.verified ? "ok" : "no") }, mine.verified ? "مؤكَّد ✓" : "غير مؤكَّد") : null),
+    emailIn,
+    h("div", { class: "row-btns", style: { marginTop: "10px" } },
+      h("button", { class: "btn sm", onclick: async () => { const em = emailIn.value.trim(); if (!em) return; loader(true); const r = await api.setEmail(em); loader(false); if (!r.ok) { toast(r.data.error === "bad_email" ? "بريد غير صحيح" : "تعذّر"); return; } if (r.data.provider && r.data.sent) promptVerify(); else toast("حُفظ بريدكما 📧"); settingsSection(pane); } }, "حفظ البريد"),
+      (mine.email && !mine.verified && emailEnabled) ? h("button", { class: "btn ghost sm", onclick: () => promptVerify() }, "أدخل الرمز") : null),
+    mine.email ? rowToggle("تنبيهات عبر البريد", mine.notify_email !== false, async (on) => { await api.setEmailNotify(on); }) : null,
+    theirs.email ? h("div", { class: "acct-hint" }, "بريد " + PEOPLE[partner].name + ": " + theirs.email + (theirs.verified ? " ✓" : " (غير مؤكَّد)")) : null,
+    !emailEnabled ? h("div", { class: "acct-hint" }, "ℹ️ حفظ البريد يعمل الآن. لتفعيل رسائل التأكيد والتنبيهات بالبريد أضِف مفتاح Resend مجاني — أخبرني لأفعّله لكما.") : null]));
   // app lock
   const lockOn = localStorage.getItem("yn_applock") === "on";
   c.appendChild(settingCard("قفل التطبيق 🔒", [
@@ -601,9 +636,10 @@ function settingsSection(pane) {
 }
 function settingCard(title, body, cls = "") { return h("div", { class: "card set-card " + cls }, h("div", { class: "t-h2", style: { marginBottom: "12px" } }, title), ...body); }
 function toggle(on, onchange) {
-  const t = h("button", { class: "toggle" + (on ? " on" : ""), onclick: () => { const nv = !t.classList.contains("on"); t.classList.toggle("on", nv); onchange(nv); } }, h("span", { class: "knob" }));
+  const t = h("button", { class: "toggle" + (on ? " on" : ""), role: "switch", "aria-checked": on ? "true" : "false", onclick: () => { const nv = !t.classList.contains("on"); t.classList.toggle("on", nv); t.setAttribute("aria-checked", nv ? "true" : "false"); onchange(nv); } }, h("span", { class: "knob" }));
   return t;
 }
+function rowToggle(label, on, cb) { const t = toggle(on, cb); t.style.marginInlineStart = "auto"; return h("div", { class: "acct-row" }, h("span", {}, label), t); }
 function promptPin(title) {
   return new Promise((resolve) => {
     const inp = h("input", { class: "field pin", type: "password", inputmode: "numeric", maxLength: 4, placeholder: "····" });
@@ -620,9 +656,9 @@ async function enableNotifications() {
     if (perm !== "granted") { toast("لم تُمنح الأذونات"); return; }
     const reg = await navigator.serviceWorker.ready;
     const vr = await api.getVapid();
-    if (!vr.ok || !vr.data.publicKey) { toast("تعذّر الإعداد"); return; }
+    if (!vr.ok || !vr.data.key) { toast("تعذّر الإعداد"); return; }
     let subx = await reg.pushManager.getSubscription();
-    if (!subx) subx = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToU8(vr.data.publicKey) });
+    if (!subx) subx = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToU8(vr.data.key) });
     const r = await api.subscribePush(subx.toJSON(), navigator.userAgent);
     if (r.ok) { store.pushOn = true; toast("فُعّلت التنبيهات 🔔"); await api.testPush(); } else toast("تعذّر التفعيل");
   } catch { toast("تعذّر تفعيل التنبيهات"); }

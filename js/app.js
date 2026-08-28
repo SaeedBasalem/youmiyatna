@@ -4,7 +4,7 @@ import { store } from "./store.js";
 import { sound } from "./sound.js";
 import { h, $, clear, avatar, toast, arNum, relTime, fullDate, moodChip, hijriDate, hijriParts, confetti, sparkleAt, clickable } from "./ui.js";
 import { PEOPLE, other, MOODS, moodEmoji, DUA, DUA_FOR_SPOUSE } from "./config.js";
-import { loader, go, applyTheme, applyAccent, openSheet, openModal, hashPin, confirmAsk } from "./helpers.js";
+import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk } from "./helpers.js";
 import { SWEET_LINES, DATE_IDEAS, CONVO_DECK } from "./games.js";
 import { viewJournal, viewMoment, openCompose } from "./views/journal.js";
 import { viewChat } from "./views/chat.js";
@@ -15,7 +15,7 @@ const APP = () => document.getElementById("app");
 
 /* ---------------- boot + router ---------------- */
 let homeData = null;
-store.init(); applyTheme(); applyAccent();
+store.init(); applyTheme(); applyBackground();
 setAuthFailHandler(() => { store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("pointerdown", () => sound.resume(), { once: true });
@@ -24,6 +24,8 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   let refreshing = false;
   // when a new service worker takes control (an update shipped), reload once to pick up fresh assets
   navigator.serviceWorker.addEventListener("controllerchange", () => { if (refreshing || !hadController) return; refreshing = true; location.reload(); });
+  // a tapped notification asks us to open a specific screen
+  navigator.serviceWorker.addEventListener("message", (e) => { const u = e.data && e.data.nav; if (typeof u === "string") { location.hash = u.includes("#") ? u.slice(u.indexOf("#")) : "#/home"; } });
   navigator.serviceWorker.register("sw.js").then((reg) => { try { reg.update(); } catch {} setInterval(() => { try { reg.update(); } catch {} }, 30 * 60 * 1000); }).catch(() => {});
 }
 
@@ -162,7 +164,7 @@ async function viewHome(content) {
   renderHome(content, homeData, true);
   const [boot, rt, feed, otd, ms, letters, playlist] = await Promise.all([
     api.bootstrap(), api.ritualsToday(), api.feed(), api.onThisDay(), api.milestones(), api.listLetters(), api.listPlaylist()]);
-  if (boot.ok) store.setConfig(boot.data.config || {});
+  if (boot.ok) { store.setConfig(boot.data.config || {}); applyBackground(); }
   if (feed.ok) store.cacheFeed(feed.data.items);
   homeData = {
     rt: rt.ok ? rt.data : null,

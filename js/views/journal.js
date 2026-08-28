@@ -5,7 +5,7 @@ import { sound } from "../sound.js";
 import { h, $, clear, avatar, personChip, moodChip, heartFly, relTime, fullDate, monthYear, arNum, toast, sparkleAt, waveBars, clickable } from "../ui.js";
 import { PEOPLE, MOODS, REACTIONS, moodEmoji } from "../config.js";
 import { downscale, VoiceRecorder, uploadSigned } from "../media.js";
-import { loader, go, openSheet, openModal, confirmAsk, groupReactions } from "../helpers.js";
+import { loader, go, openSheet, openModal, confirmAsk, groupReactions, safeUrl } from "../helpers.js";
 
 let jsub = "feed";          // feed | album | timeline
 let feedCache = null;
@@ -114,7 +114,8 @@ function songPill(m) {
   const meta = m.meta || {};
   const inner = h("div", { class: "song-pill" }, h("span", { class: "cassette" }, "🎵"),
     h("div", { class: "meta" }, h("b", {}, meta.title || "أغنية اللحظة"), h("span", { class: "muted" }, meta.artist || "")));
-  return m.url ? h("a", { href: m.url, target: "_blank", rel: "noreferrer", style: { textDecoration: "none" } }, inner) : inner;
+  const u = safeUrl(m.url);
+  return u ? h("a", { href: u, target: "_blank", rel: "noreferrer", style: { textDecoration: "none" } }, inner) : inner;
 }
 function momentFoot(e, card) {
   const foot = h("div", { class: "m-foot" });

@@ -9,7 +9,6 @@ export function h(tag, props = {}, ...kids) {
     if (k === "class") e.className = v;
     else if (k === "style" && typeof v === "object") Object.assign(e.style, v);
     else if (k === "dataset") Object.assign(e.dataset, v);
-    else if (k === "html") e.innerHTML = v;                 // used only with trusted strings
     else if (k.startsWith("on") && typeof v === "function") e.addEventListener(k.slice(2).toLowerCase(), v);
     else if (k in e && k !== "list") { try { e[k] = v; } catch { e.setAttribute(k, v); } }
     else e.setAttribute(k, v);

@@ -104,4 +104,9 @@ export const api = {
   subscribePush: (subscription, ua) => call("subscribe_push", { subscription, ua }),
   unsubscribePush:(endpoint)      => call("unsubscribe_push", { endpoint }),
   testPush:      ()               => call("test_push"),
+  // accounts / email
+  getAccount:    ()               => call("get_account"),
+  setEmail:      (email)          => call("set_email", { email }),
+  verifyEmail:   (code)           => call("verify_email", { code }),
+  setEmailNotify:(on)             => call("set_email_notify", { on }),
 };
