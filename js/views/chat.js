@@ -7,11 +7,10 @@ import { store } from "../store.js";
 import { sound } from "../sound.js";
 import { PEOPLE, other } from "../config.js";
 import { downscale, VoiceRecorder, uploadSigned } from "../media.js";
-import { openModal, ensureSigned } from "../helpers.js";
+import { openModal, openSheet, ensureSigned } from "../helpers.js";
 import { openLightbox } from "../lightbox.js";
 import { attachLongPress } from "../gestures.js";
 import { haptic } from "../haptics.js";
-import { openSheet } from "../helpers.js";
 
 let msgs = [], scroller = null, pollTimer = null, seen = new Set(), lastSig = "";
 // Our own most recent reaction state per message, with the moment we set it.
