@@ -10,6 +10,7 @@ import { attachSwipe, attachPullToRefresh } from "./gestures.js";
 import { icon } from "./icons.js";
 import { haptic } from "./haptics.js";
 import { maybeWelcome } from "./onboarding.js";
+import { applySkin } from "./skins.js";
 import { startLiving, greetingFor, phaseNow, PHASE_AR } from "./living.js";
 import { viewJournal, viewMoment, openCompose } from "./views/journal.js";
 import { viewChat } from "./views/chat.js";
@@ -24,7 +25,7 @@ const APP = () => document.getElementById("app");
 
 /* ---------------- boot + router ---------------- */
 let homeData = null;
-store.init(); applyTheme(); applyBackground(); startLiving();
+store.init(); applyTheme(); applySkin(); applyBackground(); startLiving();
 setAuthFailHandler(() => { store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("pointerdown", () => sound.resume(), { once: true });

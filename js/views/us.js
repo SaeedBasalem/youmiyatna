@@ -8,6 +8,7 @@ import { PEOPLE, other, MOODS, moodEmoji, BADGES, DUA } from "../config.js";
 import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, applyBackground, BG_PRESETS, safeUrl, hashPin, encryptWithPin, commit, errorState, bioAvailable, bioEnroll, bioEnrolled, bioForget } from "../helpers.js";
 import { downscale, uploadSigned } from "../media.js";
 import { haptic } from "../haptics.js";
+import { SKINS, applySkin } from "../skins.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
 import { khalwa as genKhalwa, duaForSpouse } from "../generate.js";
 
@@ -59,6 +60,7 @@ const SECTIONS = {
   songs:      { title: "أغانينا", render: (p) => songsSection(p) },
   milestones: { title: "إنجازاتنا", render: (p) => milestonesSection(p) },
   gratitude:  { title: "امتناننا", render: (p) => gratitudeSection(p) },
+  studio:     { title: "مظهرنا", render: (p) => studioSection(p) },
   settings:   { title: "الإعدادات", render: (p) => settingsSection(p) },
 };
 
@@ -798,6 +800,33 @@ function urlB64ToU8(base64) {
   const raw = atob(b64); const arr = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
   return arr;
+}
+
+/* ---------------- theme studio ---------------- */
+function studioSection(pane) {
+  const c = clear(pane);
+  c.appendChild(h("div", { class: "muted intro" }, "خمسُ شخصياتٍ كاملة لبيتكما — اختارا ما يشبه مزاجكما اليوم، ولكلٍّ منكما ذوقه على جهازه 🎨"));
+  const grid = h("div", { class: "studio-grid stagger" });
+  c.appendChild(grid);
+  paint();
+  function paint() {
+    clear(grid);
+    for (const [key, sk] of Object.entries(SKINS)) {
+      const on = store.skin === key;
+      const card = h("button", { class: "studio-card" + (on ? " on" : ""), onclick: () => {
+        if (store.skin === key) return;
+        store.skin = key; applySkin(); sound.chime(); haptic.pick();
+        toast("لُبس المظهر: " + sk.name + " ✨");
+        paint();
+      } },
+        h("span", { class: "studio-swatch" }, ...sk.chip.map((col) => { const i = h("i"); i.style.background = col; return i; })),
+        h("div", { class: "studio-meta" }, h("b", {}, sk.name), h("span", {}, sk.desc)),
+        on ? h("span", { class: "studio-tick" }, "✓") : null);
+      grid.appendChild(card);
+    }
+    grid.appendChild(h("div", { class: "acct-hint", style: { textAlign: "center" } },
+      "المظهر يُحفظ على هذا الجهاز فقط — الوضع الليلي والألوان والخلفية تعمل فوقه."));
+  }
 }
 
 /* ---------------- shared adder ---------------- */

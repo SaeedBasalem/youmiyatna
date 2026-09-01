@@ -47,6 +47,8 @@ export const store = {
   set pushOn(v) { localStorage.setItem("yn_push", v ? "on" : "off"); },
   get theme() { return localStorage.getItem("yn_theme") || "system"; },   // system|light|dark
   set theme(v) { localStorage.setItem("yn_theme", v); },
+  get skin() { return localStorage.getItem("yn_skin") || "warm"; },
+  set skin(v) { localStorage.setItem("yn_skin", v); },
   get accent() { return localStorage.getItem("yn_accent") || "default"; },
   set accent(v) { localStorage.setItem("yn_accent", v); },
 
