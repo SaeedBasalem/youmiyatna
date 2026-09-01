@@ -158,7 +158,7 @@ function openReactPicker(m) {
   haptic.soft();
   const map = m.reactions || {};
   const { close } = openSheet({
-    title: "كيف وصلتكما؟",
+    title: __g("كيف وصلتك؟", "كيف وصلتكِ؟"),
     subtitle: "لمسةٌ صغيرة تقول الكثير 🤍",
     body: [h("div", { class: "react-picker" }, ...REACTS.map((e) =>
       h("button", {
