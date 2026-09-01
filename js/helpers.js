@@ -281,5 +281,25 @@ export async function applyBackground() {
   } catch { el.style.background = ""; }
 }
 
+// fetch both avatars and cache their signed urls (~50 min, under the 1h signature)
+export async function refreshAvatars() {
+  try {
+    const r = await api.getProfile();
+    if (!r.ok) return;
+    const prof = r.data.profiles || {};
+    const paths = ["him", "her"].map((k) => prof[k] && prof[k].avatar).filter(Boolean);
+    let urls = {};
+    if (paths.length) { const sr = await api.signDownload(paths); urls = (sr.ok && sr.data.urls) || {}; }
+    const exp = Date.now() + 50 * 60 * 1000;
+    const map = {};
+    for (const k of ["him", "her"]) {
+      const path = prof[k] && prof[k].avatar;
+      if (path && urls[path]) map[k] = { url: urls[path], exp };
+    }
+    store.setAvatars(map);
+    store.profiles = prof;              // abouts, for the profile screen
+  } catch { /* best-effort */ }
+}
+
 // accept only real http(s) links (blocks javascript:/data: in user-supplied URLs)
 export function safeUrl(u) { const s = String(u || "").trim(); return /^https?:\/\//i.test(s) ? s : null; }

@@ -8,6 +8,7 @@ import { sound } from "../sound.js";
 import { PEOPLE, other } from "../config.js";
 import { downscale, VoiceRecorder, uploadSigned } from "../media.js";
 import { openModal, ensureSigned } from "../helpers.js";
+import { openLightbox } from "../lightbox.js";
 
 let msgs = [], scroller = null, pollTimer = null, seen = new Set(), lastSig = "";
 
@@ -89,7 +90,7 @@ function bubble(m) {
   const mine = m.sender === store.person;
   const think = m.kind === "text" && m.body && m.body.startsWith("💭");
   const b = h("div", { class: "chat-msg " + (mine ? "mine" : "theirs") + " " + m.sender + (m._pending ? " pending" : "") + (m._failed ? " failed" : "") + (think ? " think" : "") });
-  if (m.kind === "image" && m.signed_url) b.appendChild(h("img", { class: "chat-img", src: m.signed_url, loading: "lazy", alt: "صورة", onclick: () => openModal({ body: [h("img", { src: m.signed_url, alt: "", style: { borderRadius: "14px", width: "100%" } })], wide: true }) }));
+  if (m.kind === "image" && m.signed_url) b.appendChild(h("img", { class: "chat-img", src: m.signed_url, loading: "lazy", alt: "صورة", onclick: () => openLightbox([{ url: m.signed_url }]) }));
   else if (m.kind === "voice" && m.signed_url) b.appendChild(voiceMini(m));
   else b.appendChild(h("div", { class: "chat-text" }, m.body));
   const tick = mine ? (m._failed ? " ⚠︎" : m.read_at ? " ✓✓" : " ✓") : "";

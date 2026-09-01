@@ -118,6 +118,8 @@ export const api = {
   setPasscode:   (pass)           => call3("set_passcode", { pass }),
   clearPasscode: ()               => call3("clear_passcode"),
   getPasscodes:  ()               => call3("get_passcodes"),
+  getProfile:    ()               => call3("get_profile"),
+  setProfile:    (patch)          => call3("set_profile", patch),
   // accounts / email
   getAccount:    ()               => call("get_account"),
   setEmail:      (email)          => call("set_email", { email }),

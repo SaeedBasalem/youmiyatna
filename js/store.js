@@ -47,6 +47,10 @@ export const store = {
   set pushOn(v) { localStorage.setItem("yn_push", v ? "on" : "off"); },
   get theme() { return localStorage.getItem("yn_theme") || "system"; },   // system|light|dark
   set theme(v) { localStorage.setItem("yn_theme", v); },
+  avatars: readJSON("yn_avatars", {}),          // { him:{url,exp}, her:{url,exp} }
+  avatarUrl(p) { const a = this.avatars && this.avatars[p]; return (a && a.exp > Date.now()) ? a.url : null; },
+  setAvatars(map) { this.avatars = map || {}; writeJSON("yn_avatars", this.avatars); },
+
   get skin() { return localStorage.getItem("yn_skin") || "warm"; },
   set skin(v) { localStorage.setItem("yn_skin", v); },
   get accent() { return localStorage.getItem("yn_accent") || "default"; },

@@ -1,5 +1,6 @@
 // يومياتنا — DOM builder + shared UI bits (no innerHTML; safe by construction).
 import { PEOPLE, moodEmoji } from "./config.js";
+import { store } from "./store.js";
 
 // hyperscript: h('div', {class:'x', onclick, dataset:{id}}, child, [children])
 export function h(tag, props = {}, ...kids) {
@@ -42,6 +43,8 @@ export function waveBars(bars) {
 // ---- people ----
 export function avatar(personKey, cls = "") {
   const p = PEOPLE[personKey] || PEOPLE.him;
+  const url = store.avatarUrl ? store.avatarUrl(p.key) : null;
+  if (url) return h("span", { class: `avatar ${p.cls} ${cls} photo` }, h("img", { src: url, alt: p.name }));
   return h("span", { class: `avatar ${p.cls} ${cls}` }, p.initial);
 }
 export function personChip(personKey) {

@@ -1,5 +1,5 @@
 // يومياتنا — service worker: offline shell (network-first) + web-push display.
-const CACHE = "yn-r15";
+const CACHE = "yn-r16";
 const ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23FBF3E4'/%3E%3Ctext y='.9em' font-size='78'%3E🤍%3C/text%3E%3C/svg%3E";
 const CORE = [
   "./", "index.html", "manifest.webmanifest", "css/style.css", "fonts/fonts.css",
@@ -7,6 +7,7 @@ const CORE = [
   "js/helpers.js", "js/generate.js", "js/media.js", "js/adhkar.js", "js/gestures.js",
   "js/icons.js", "js/art.js", "js/living.js", "js/haptics.js", "js/onboarding.js", "js/doodle.js", "js/skins.js",
   "js/views/search.js", "js/views/book.js", "js/views/wrapped.js", "js/views/map.js",
+  "js/lightbox.js", "js/views/story.js", "js/views/pulse.js", "js/views/profile.js",
   "js/views/journal.js", "js/views/chat.js", "js/views/play.js", "js/views/us.js",
 ];
 self.addEventListener("install", (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE).catch(() => {}))); });

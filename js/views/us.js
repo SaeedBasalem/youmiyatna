@@ -83,6 +83,7 @@ function renderHub(pane) {
     hubCard("🗺️", "خريطتنا", "أماكن تعنينا", "__map", "him"),
     hubCard("📖", "كتابنا", "صفحاتنا مجلّدة", "__book", "rose"),
     hubCard("✨", "حصادنا", "قصّتنا بالأرقام", "__wrapped", "gold"),
+    hubCard("📈", "نبضنا", "إيقاعنا برسوم", "__pulse", "him"),
     hubCard("🏆", "إنجازاتنا", "أوسمة رحلتنا", "milestones", "gold"),
     hubCard("🤲", "امتناننا", "شكرٌ كل يوم", "gratitude", "her"),
     hubCard("⚙️", "الإعدادات", "المظهر والتنبيهات", "settings", "him"));

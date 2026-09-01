@@ -4,7 +4,7 @@ import { store } from "./store.js";
 import { sound } from "./sound.js";
 import { h, $, clear, avatar, toast, arNum, relTime, fullDate, moodChip, hijriDate, hijriParts, confetti, sparkleAt, clickable } from "./ui.js";
 import { PEOPLE, other, MOODS, moodEmoji, DUA } from "./config.js";
-import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk, encryptWithPin, decryptWithPin, bioEnrolled, bioUnlock, bioForget } from "./helpers.js";
+import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk, encryptWithPin, decryptWithPin, bioEnrolled, bioUnlock, bioForget, refreshAvatars } from "./helpers.js";
 import { sweetLine, convoCard, dateIdea, duaForSpouse } from "./generate.js";
 import { attachSwipe, attachPullToRefresh } from "./gestures.js";
 import { icon } from "./icons.js";
@@ -20,6 +20,9 @@ import { viewSearch } from "./views/search.js";
 import { viewBook } from "./views/book.js";
 import { viewWrapped } from "./views/wrapped.js";
 import { viewMap } from "./views/map.js";
+import { viewStory } from "./views/story.js";
+import { viewPulse } from "./views/pulse.js";
+import { viewProfile } from "./views/profile.js";
 
 const APP = () => document.getElementById("app");
 
@@ -83,6 +86,9 @@ function renderRoute() {
     case "book": return shell("us", viewBook);
     case "wrapped": return shell("us", viewWrapped);
     case "map": return shell("us", viewMap);
+    case "story": return viewStory();
+    case "pulse": return shell("us", viewPulse);
+    case "profile": return shell("us", (c) => viewProfile(c, routeArg()));
     case "moment": return viewMoment(routeArg());
     default: return go("home");
   }
@@ -215,6 +221,7 @@ async function viewHome(content) {
   const [boot, rt, feed, otd, ms, letters, playlist] = await Promise.all([
     api.bootstrap(), api.ritualsToday(), api.feed(), api.onThisDay(), api.milestones(), api.listLetters(), api.listPlaylist()]);
   if (boot.ok) { store.setConfig(boot.data.config || {}); applyBackground(); }
+  refreshAvatars().then(() => { const heads = $(".avatars"); if (heads) { clear(heads); heads.append(avatar("him"), avatar("her")); } });
   if (feed.ok) store.cacheFeed(feed.data.items);
   maybeWelcome();
   homeData = {
@@ -240,7 +247,9 @@ function renderHome(content, d, loading) {
     h("div", { class: "greet" },
       h("h1", { class: "hello", style: { margin: 0 } }, greetWord() + " يا " + meName + " " + greetIcon()),
       h("div", { class: "sub" }, fullDate(new Date().toISOString()), " · ", h("span", { class: "hijri" }, hijriDate()))),
-    h("div", { class: "avatars" }, avatar("him"), avatar("her"))));
+    h("div", { class: "avatars" },
+      clickable(h("span", { onclick: () => go("profile/him"), style: { display: "inline-flex" } }, avatar("him")), () => go("profile/him")),
+      clickable(h("span", { onclick: () => go("profile/her"), style: { display: "inline-flex" } }, avatar("her")), () => go("profile/her")))));
 
   // together + streak
   const dt = daysTogether();

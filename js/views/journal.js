@@ -6,6 +6,7 @@ import { h, $, clear, avatar, personChip, moodChip, heartFly, relTime, fullDate,
 import { PEOPLE, MOODS, REACTIONS, moodEmoji } from "../config.js";
 import { downscale, VoiceRecorder, uploadSigned } from "../media.js";
 import { openDoodle } from "../doodle.js";
+import { openLightbox, photosOf } from "../lightbox.js";
 import { loader, go, openSheet, openModal, confirmAsk, groupReactions, safeUrl, errorState } from "../helpers.js";
 import { icon } from "../icons.js";
 import { haptic } from "../haptics.js";
@@ -18,7 +19,8 @@ export function viewJournal(content) {
   const c = clear(content);
   c.appendChild(h("div", { class: "section-title" },
     h("h1", { class: "t-h1" }, "دفتر ذكرياتنا"),
-    h("button", { class: "icon-btn", "aria-label": "بحث", style: { marginInlineStart: "auto" }, onclick: () => go("search") }, icon("search")),
+    h("button", { class: "icon-btn", "aria-label": "شغّلا حكايتكما", style: { marginInlineStart: "auto" }, onclick: () => go("story") }, icon("play")),
+    h("button", { class: "icon-btn", "aria-label": "بحث", onclick: () => go("search") }, icon("search")),
     h("button", { class: "icon-btn", "aria-label": "اكتب لحظة", onclick: () => openCompose({ onDone: () => { feedCache = null; if (jsub === "feed") renderFeed(pane); } }) }, icon("plus"))));
   c.appendChild(h("div", { class: "seg" },
     segBtn("feed", "📖 لحظاتنا"), segBtn("album", "🖼️ الألبوم"), segBtn("timeline", "📜 حكايتنا")));
@@ -85,7 +87,7 @@ export function momentCard(e, opts = {}) {
   card.appendChild(momentFoot(e, card));
   if (!opts.detail) {
     card.addEventListener("dblclick", (ev) => { heartFly(ev.clientX, ev.clientY); toggleReact(e, "❤️", card); });
-    card.addEventListener("click", (ev) => { if (ev.target.closest("button,audio,a,.react-pill,.carousel-track")) return; go("moment/" + e.id); });
+    card.addEventListener("click", (ev) => { if (ev.target.closest("button,audio,a,.react-pill,.carousel-track,.m-photo")) return; go("moment/" + e.id); });
     clickable(card, () => go("moment/" + e.id));
     card.setAttribute("aria-label", "افتح هذه اللحظة");
   }
@@ -95,8 +97,9 @@ function mediaBlock(media) {
   if (!media || !media.length) return null;
   const box = h("div", { class: "m-media" });
   const photos = media.filter((m) => m.kind === "photo" && m.signed_url);
-  if (photos.length === 1) box.appendChild(h("img", { class: "m-photo", src: photos[0].signed_url, loading: "lazy", alt: "" }));
-  else if (photos.length > 1) box.appendChild(carousel(photos));
+  const openAt = (i) => (ev) => { ev.stopPropagation(); openLightbox(photosOf(media), i); };
+  if (photos.length === 1) box.appendChild(h("img", { class: "m-photo", src: photos[0].signed_url, loading: "lazy", alt: "", onclick: openAt(0) }));
+  else if (photos.length > 1) box.appendChild(carousel(photos, openAt));
   for (const m of media) {
     if (m.kind === "video" && m.signed_url) box.appendChild(h("video", { class: "m-video", src: m.signed_url, controls: true, preload: "metadata", playsInline: true }));
     else if (m.kind === "voice" && m.signed_url) box.appendChild(voicePill(m));
@@ -104,9 +107,9 @@ function mediaBlock(media) {
   }
   return box;
 }
-function carousel(photos) {
+function carousel(photos, openAt) {
   const track = h("div", { class: "carousel-track" });
-  photos.forEach((p) => track.appendChild(h("img", { class: "carousel-img", src: p.signed_url, loading: "lazy", alt: "" })));
+  photos.forEach((p, i) => track.appendChild(h("img", { class: "carousel-img", src: p.signed_url, loading: "lazy", alt: "", onclick: openAt ? openAt(i) : null })));
   const dots = h("div", { class: "carousel-dots" });
   photos.forEach((_, i) => dots.appendChild(h("span", { class: "cdot" + (i === 0 ? " on" : "") })));
   track.addEventListener("scroll", () => { const idx = Math.round(Math.abs(track.scrollLeft) / track.clientWidth); dots.querySelectorAll(".cdot").forEach((d, i) => d.classList.toggle("on", i === idx)); });
