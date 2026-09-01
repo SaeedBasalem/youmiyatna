@@ -1,5 +1,5 @@
 // يومياتنا — single network module to the `journal` edge-function gate.
-import { FN, FN2, FN3, ANON } from "./config.js";
+import { FN, FN2, FN3, FN4, ANON } from "./config.js";
 
 let TOKEN = null;
 let onAuthFail = null;
@@ -40,6 +40,16 @@ async function call3(action, extra = {}) {
   try { res = await fetch(FN3, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action, token: TOKEN, ...extra }) }); }
   catch (e) { return { ok: false, status: 0, offline: true, data: {} }; }
   try { data = await res.json(); } catch { data = {}; }
+  return { ok: res.ok, status: res.status, data };
+}
+
+// fourth gate (scheduled nudges + whisper reactions), same token scheme
+async function call4(action, extra = {}) {
+  let res, data = {};
+  try { res = await fetch(FN4, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action, token: TOKEN, ...extra }) }); }
+  catch (e) { return { ok: false, status: 0, offline: true, data: {} }; }
+  try { data = await res.json(); } catch { data = {}; }
+  if (res.status === 401 && onAuthFail) onAuthFail();
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -125,4 +135,6 @@ export const api = {
   setEmail:      (email)          => call("set_email", { email }),
   verifyEmail:   (code)           => call("verify_email", { code }),
   setEmailNotify:(on)             => call("set_email_notify", { on }),
+  // whisper reactions (journal4)
+  reactMessage:  (id, emoji)      => call4("react_message", { id, emoji }),
 };

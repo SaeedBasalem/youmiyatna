@@ -1289,3 +1289,38 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
   .dash{height:auto;padding-bottom:10px}
   .dash-view{overflow:visible;margin-bottom:0}
 }
+
+/* ======================================================================
+   REACTIONS ON WHISPERS — pills tucked under the bubble, and the picker.
+   A pill sits inside the bubble under the text, so it reads as something
+   laid ON that whisper rather than a new line of chat.
+   ====================================================================== */
+.react-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.react-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:var(--pill);
+  background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-sm);
+  font-size:12px;line-height:1.5;transition:transform .12s var(--ease-out)}
+.react-pill b{font-size:10.5px;font-weight:800;color:var(--ink-2)}
+.react-pill.mine{border-color:var(--rose);background:var(--rose-soft)}
+.react-pill.mine b{color:var(--rose-deep)}
+.react-pill:active{transform:scale(.9)}
+.react-pill span{animation:pop .28s var(--ease-out)}
+@keyframes pop{0%{transform:scale(.3)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+
+.react-picker{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:6px 0 16px}
+.rp-btn{width:50px;height:50px;border-radius:16px;font-size:25px;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--surface-2);border:1px solid var(--line);transition:transform .14s var(--ease-out)}
+.rp-btn:active{transform:scale(.86)}
+.rp-btn.on{background:var(--rose-soft);border-color:var(--rose);transform:scale(1.06)}
+@media (prefers-reduced-motion: reduce){
+  .react-pill span{animation:none}
+  .rp-btn,.react-pill{transition:none}
+}
+
+/* what the scheduled nudges will actually send — shown plainly in settings */
+.nudge-list{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
+.nl-head{font-size:12px;font-weight:700}
+.nl-row{display:flex;gap:10px;align-items:flex-start}
+.nl-e{font-size:17px;line-height:1.35;flex:none}
+.nl-row b{display:block;font-size:13.5px;line-height:1.4}
+.nl-row span{font-size:11.5px;line-height:1.55}

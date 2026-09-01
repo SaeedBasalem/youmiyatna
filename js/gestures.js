@@ -72,3 +72,22 @@ export function attachSheetDrag(sheet, close) {
   grab.style.touchAction = "none";
   grab.style.cursor = "grab";
 }
+
+// Press-and-hold on an element. Cancels on move/scroll so it never fires while
+// the couple is just scrolling past. `onHold` runs once; the follow-up click is
+// swallowed by the caller (see the `_held` flag pattern) so a hold never
+// doubles as a tap.
+export function attachLongPress(el, onHold, ms = 480) {
+  let timer = null;
+  const cancel = () => { clearTimeout(timer); timer = null; };
+  const begin = (ev) => { cancel(); timer = setTimeout(() => { timer = null; onHold(ev); }, ms); };
+  el.addEventListener("touchstart", begin, { passive: true });
+  el.addEventListener("touchend", cancel);
+  el.addEventListener("touchmove", cancel, { passive: true });
+  el.addEventListener("touchcancel", cancel);
+  el.addEventListener("mousedown", begin);
+  el.addEventListener("mouseup", cancel);
+  el.addEventListener("mouseleave", cancel);
+  el.addEventListener("contextmenu", (e) => { e.preventDefault(); cancel(); onHold(e); });
+  return cancel;
+}

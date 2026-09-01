@@ -1,6 +1,6 @@
 // يومياتنا — service worker: offline shell (network-first) + web-push display.
-const CACHE = "yn-r17";
-const ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23FBF3E4'/%3E%3Ctext y='.9em' font-size='78'%3E🤍%3C/text%3E%3C/svg%3E";
+const CACHE = "yn-r18";
+const ICON = "icons/icon-192.png";
 const CORE = [
   "./", "index.html", "manifest.webmanifest", "css/style.css", "fonts/fonts.css",
   "js/app.js", "js/config.js", "js/api.js", "js/store.js", "js/sound.js", "js/ui.js",
@@ -40,17 +40,24 @@ self.addEventListener("push", (e) => {
   const title = data.title || "يومياتنا";
   const opts = {
     body: data.body || "", tag: data.tag || "yn", renotify: true,
-    data: { url: data.url || "/#/chat" }, icon: ICON, badge: ICON, dir: "rtl", lang: "ar",
+    data: { url: data.url || "#/chat" }, icon: ICON, badge: ICON, dir: "rtl", lang: "ar",
     vibrate: [60, 40, 60],
   };
   e.waitUntil(self.registration.showNotification(title, opts));
 });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  const url = (e.notification.data && e.notification.data.url) || "/#/chat";
+  const raw = (e.notification.data && e.notification.data.url) || "#/chat";
+  // The app lives under a sub-path on Pages, so a bare "/#/chat" would open the
+  // domain root. Everything is resolved against the SW's own scope instead.
+  const hash = raw.includes("#") ? raw.slice(raw.indexOf("#")) : "#/home";
+  const target = new URL("./" + hash, self.registration.scope).href;
   e.waitUntil((async () => {
     const all = await clients.matchAll({ type: "window", includeUncontrolled: true });
-    for (const c of all) { if ("focus" in c) { try { c.postMessage({ nav: url }); } catch {} return c.focus(); } }
-    if (clients.openWindow) return clients.openWindow(url);
+    const mine = all.filter((c) => c.url.startsWith(self.registration.scope));
+    for (const c of (mine.length ? mine : all)) {
+      if ("focus" in c) { try { c.postMessage({ nav: hash }); } catch {} return c.focus(); }
+    }
+    if (clients.openWindow) return clients.openWindow(target);
   })());
 });

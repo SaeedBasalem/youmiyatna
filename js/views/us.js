@@ -658,7 +658,18 @@ async function settingsSection(pane) {
       blocked ? "على الآيفون، التنبيهات تعمل فقط بعد تثبيت التطبيق وفتحه من أيقونته."
               : "لتصلكما همسات بعضكما وتنبيهاتكما حتى والتطبيق مغلق."),
     h("button", { class: "btn soft sm", onclick: () => openPushOnboarding() },
-      store.pushOn ? "التنبيهات مفعّلة ✓ — إرسال تجربة" : "تفعيل التنبيهات على هذا الجهاز")]));
+      store.pushOn ? "التنبيهات مفعّلة ✓ — إرسال تجربة" : "تفعيل التنبيهات على هذا الجهاز"),
+    h("div", { class: "nudge-list" },
+      h("div", { class: "nl-head muted" }, "ما الذي سيصلكما؟"),
+      ...[["🌅", "صباح الخير", "الثامنة صباحًا — سؤال اليوم بانتظاركما"],
+          ["🔁", "في مثل هذا اليوم", "التاسعة — إن كانت لكما ذكرى في هذا التاريخ"],
+          ["🔥", "سلسلتكما", "الثامنة مساءً — فقط إن لم تدوّنا شيئًا"],
+          ["💓", "شعور رقيق", "حين يسجّل أحدكما شوقًا أو حنينًا"],
+          ["🤍", "حصاد الأسبوع", "مساء الأحد — ملخّصكما على التطبيق والبريد"]]
+        .map(([e, t, sub]) => h("div", { class: "nl-row" },
+          h("span", { class: "nl-e" }, e),
+          h("div", {}, h("b", {}, t), h("span", { class: "muted" }, sub))))),
+    h("div", { class: "acct-hint" }, "لن يصلكما أكثر من واحد من كل نوع في اليوم — لا إزعاج أبدًا 🤍")]));
   // account / email
   const ac = (acct.ok && acct.data.accounts) ? acct.data.accounts : {};
   const mine = ac[store.person] || {}, partner = other(store.person), theirs = ac[partner] || {};

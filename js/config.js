@@ -2,6 +2,7 @@
 export const FN   = "https://vfyzedlyveukjaukcekq.supabase.co/functions/v1/journal";
 export const FN2  = "https://vfyzedlyveukjaukcekq.supabase.co/functions/v1/journal2";
 export const FN3  = "https://vfyzedlyveukjaukcekq.supabase.co/functions/v1/journal3";
+export const FN4  = "https://vfyzedlyveukjaukcekq.supabase.co/functions/v1/journal4";
 export const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmeXplZGx5dmV1a2phdWtjZWtxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NDU5MjksImV4cCI6MjA4ODAyMTkyOX0.ojqZrTULclfbd_PrU0VCP7E0ylJGLskdi53BUEwiC-w";
 
 // the two people

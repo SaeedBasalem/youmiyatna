@@ -9,12 +9,32 @@ import { PEOPLE, other } from "../config.js";
 import { downscale, VoiceRecorder, uploadSigned } from "../media.js";
 import { openModal, ensureSigned } from "../helpers.js";
 import { openLightbox } from "../lightbox.js";
+import { attachLongPress } from "../gestures.js";
+import { haptic } from "../haptics.js";
+import { openSheet } from "../helpers.js";
 
 let msgs = [], scroller = null, pollTimer = null, seen = new Set(), lastSig = "";
+// Our own most recent reaction state per message, with the moment we set it.
+// A poll's response can be older than it looks — the request may have been sent
+// before we toggled and answered after — so any snapshot fetched earlier than
+// our last local write loses to it. Without this the pill flickers back on.
+const rLocal = new Map();      // id -> { reactions, at }
+function mergeLocalReactions(list, t0) {
+  for (const m of list) {
+    const loc = rLocal.get(m.id);
+    if (!loc) continue;
+    if (loc.at > t0) m.reactions = loc.reactions;   // our write is newer than this fetch
+    else rLocal.delete(m.id);                       // the server snapshot already has it
+  }
+  return list;
+}
 
 const isChatActive = () => (location.hash || "").replace(/^#\//, "").split("/")[0] === "chat";
 const cid = () => "c" + Date.now() + Math.random().toString(36).slice(2, 7);
-const sig = (server) => server.map((m) => m.id + (m.read_at ? "1" : "0")).join("|");
+const REACTS = ["❤️", "🤍", "😂", "🥹", "😮", "🤲", "🔥"];
+// the fingerprint carries reactions too, so a poll notices them landing
+const rsig = (m) => Object.entries(m.reactions || {}).map(([e, w]) => e + (w || []).join("")).sort().join("");
+const sig = (server) => server.map((m) => m.id + (m.read_at ? "1" : "0") + rsig(m)).join("|");
 
 // resume immediately when the couple returns to the tab (bound once)
 document.addEventListener("visibilitychange", () => { if (!document.hidden && isChatActive()) load(false); });
@@ -34,9 +54,10 @@ export async function viewChat(content) {
 }
 
 async function load(scroll) {
+  const t0 = Date.now();
   const r = await api.messages();
   if (r.ok) {
-    const server = await withSigned(r.data.items || []);
+    const server = mergeLocalReactions(await withSigned(r.data.items || []), t0);
     seen = new Set(server.map((m) => m.id));
     lastSig = sig(server);
     // keep any still-pending optimistic bubbles on top of the fresh server list
@@ -57,13 +78,17 @@ function startPoll() { clearInterval(pollTimer); pollTimer = setInterval(poll, 4
 async function poll() {
   if (!isChatActive()) { clearInterval(pollTimer); pollTimer = null; return; }
   if (document.hidden) return;                       // no work while backgrounded
+  const t0 = Date.now();
   const r = await api.messages();
   if (!r.ok) return;
-  const server = await withSigned(r.data.items || []);
+  const server = mergeLocalReactions(await withSigned(r.data.items || []), t0);
   const s = sig(server);
   const hasPending = msgs.some((m) => m._pending);
   if (s === lastSig && !hasPending) return;          // nothing changed
   const newFromOther = server.some((m) => !seen.has(m.id) && m.sender !== store.person);
+  // a reaction landing on one of my whispers deserves its own small sound
+  const before = new Map(msgs.map((m) => [m.id, rsig(m)]));
+  const newReact = server.some((m) => before.has(m.id) && before.get(m.id) !== rsig(m));
   server.forEach((m) => seen.add(m.id));
   lastSig = s;
   const serverIds = new Set(server.map((m) => m.id));
@@ -71,9 +96,13 @@ async function poll() {
   msgs = server.concat(pend);
   render();
   if (newFromOther) { scrollBottom(); sound.react(); api.markRead(); }
+  else if (newReact) sound.heart();
 }
 
 function render() {
+  // If they were already reading the newest whisper, keep them there: a landing
+  // reaction makes a bubble taller and would otherwise push it under the composer.
+  const stick = scroller ? scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 60 : false;
   clear(scroller);
   if (!msgs.length) { scroller.appendChild(h("div", { class: "empty", style: { margin: "auto" } }, h("div", { class: "big" }, "💬"), h("div", {}, __g("لا رسائل بعد… ابدأ الهمس 💛", "لا رسائل بعد… ابدئي الهمس 💛")))); return; }
   let lastDay = null;
@@ -82,6 +111,7 @@ function render() {
     if (day !== lastDay) { lastDay = day; scroller.appendChild(h("div", { class: "chat-day" }, dayLabel(m.created_at))); }
     scroller.appendChild(bubble(m));
   }
+  if (stick) scrollBottom();
 }
 function dayLabel(iso) { try { return new Date(iso).toLocaleDateString("ar", { weekday: "long", day: "numeric", month: "long" }); } catch { return ""; } }
 function timeShort(iso) { try { return new Date(iso).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } }
@@ -95,8 +125,81 @@ function bubble(m) {
   else b.appendChild(h("div", { class: "chat-text" }, m.body));
   const tick = mine ? (m._failed ? " ⚠︎" : m.read_at ? " ✓✓" : " ✓") : "";
   b.appendChild(h("div", { class: "chat-meta" }, timeShort(m.created_at) + tick));
+  const pills = reactionPills(m);
+  if (pills) b.appendChild(pills);
+  if (!m._pending && !m._failed && !String(m.id).startsWith("tmp")) {
+    // double-tap sends a heart; press-and-hold opens the whole little row
+    b.addEventListener("click", () => {
+      if (b._held) { b._held = false; return; }
+      const now = Date.now();
+      if (now - (b._tap || 0) < 320) { b._tap = 0; react(m, "❤️"); } else b._tap = now;
+    });
+    attachLongPress(b, () => { b._held = true; openReactPicker(m); });
+  }
   return b;
 }
+
+function reactionPills(m) {
+  const map = m.reactions || {};
+  const keys = Object.keys(map).filter((k) => (map[k] || []).length);
+  if (!keys.length) return null;
+  const row = h("div", { class: "react-row" });
+  for (const e of keys) {
+    const who = map[e] || [];
+    row.appendChild(h("button", {
+      class: "react-pill" + (who.includes(store.person) ? " mine" : ""),
+      title: who.map((x) => (PEOPLE[x] || {}).name || "").join(" و "),
+      onclick: (ev) => { ev.stopPropagation(); react(m, e); },
+    }, h("span", {}, e), who.length > 1 ? h("b", {}, arNum(who.length)) : null));
+  }
+  return row;
+}
+
+function openReactPicker(m) {
+  haptic.soft();
+  const map = m.reactions || {};
+  const { close } = openSheet({
+    title: "كيف وصلتكما؟",
+    subtitle: "لمسةٌ صغيرة تقول الكثير 🤍",
+    body: [h("div", { class: "react-picker" }, ...REACTS.map((e) =>
+      h("button", {
+        class: "rp-btn" + (((map[e] || []).includes(store.person)) ? " on" : ""),
+        onclick: () => { close(); react(m, e); },
+      }, e)))],
+  });
+}
+
+// Optimistic, and it rolls back if the write never lands — a pill must never
+// claim a touch the other one will never see.
+async function react(m, emoji) {
+  const id = m.id;
+  const find = () => msgs.find((x) => x.id === id);
+  const target = find(); if (!target) return;
+  const before = target.reactions;
+  const map = JSON.parse(JSON.stringify(before || {}));
+  const who = Array.isArray(map[emoji]) ? map[emoji] : [];
+  const had = who.includes(store.person);
+  const next = had ? who.filter((x) => x !== store.person) : who.concat(store.person);
+  if (next.length) map[emoji] = next; else delete map[emoji];
+  target.reactions = map;
+  rLocal.set(id, { reactions: map, at: Date.now() });
+  render();
+  if (had) haptic.soft(); else { sound.react(); haptic.tap(); }
+  const r = await api.reactMessage(id, emoji);
+  const cur = find(); if (!cur) return;              // a poll retired it mid-flight
+  if (r.ok && r.data.reactions) {
+    cur.reactions = r.data.reactions;
+    rLocal.set(id, { reactions: r.data.reactions, at: Date.now() });
+    lastSig = sig(msgs.filter((x) => !x._pending));
+    render();
+  } else {
+    cur.reactions = before;
+    rLocal.set(id, { reactions: before, at: Date.now() });
+    render();
+    toast(r.offline ? "لا يوجد اتصال — لم يُرسل التفاعل" : "تعذّر التفاعل");
+  }
+}
+
 function voiceMini(m) {
   const audio = h("audio", { src: m.signed_url, preload: "none" });
   const dur = (m.meta && m.meta.duration) || 0;
