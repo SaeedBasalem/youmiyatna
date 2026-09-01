@@ -1306,8 +1306,10 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .react-pill span{animation:pop .28s var(--ease-out)}
 @keyframes pop{0%{transform:scale(.3)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
 
-.react-picker{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:6px 0 16px}
-.rp-btn{width:50px;height:50px;border-radius:16px;font-size:25px;line-height:1;
+/* one row, always: seven columns that share whatever width the sheet has,
+   rather than a flex row that wraps a lonely seventh emoji onto its own line */
+.react-picker{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:6px 0 16px}
+.rp-btn{aspect-ratio:1;max-height:52px;border-radius:15px;font-size:clamp(19px,5.4vw,25px);line-height:1;
   display:flex;align-items:center;justify-content:center;
   background:var(--surface-2);border:1px solid var(--line);transition:transform .14s var(--ease-out)}
 .rp-btn:active{transform:scale(.86)}
