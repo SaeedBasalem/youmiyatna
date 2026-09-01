@@ -1172,3 +1172,120 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .pf-fact{display:flex;align-items:center;gap:10px;font-size:14px}
 .pf-fact b{margin-inline-start:auto}
 .pf-e{font-size:18px}
+
+/* ======================================================================
+   THE DASHBOARD — one screenful, no scrolling.
+   Rows: header/meta/nav size to content; the three tile rows share what is
+   left as fr, so the grid always fills the viewport minus the nav and never
+   spills past it. Every tile clips its own overflow.
+   ====================================================================== */
+/* cancel #app's bottom padding here; the grid reserves the nav space itself */
+.dash-view{overflow:hidden;margin-bottom:calc(-1 * (var(--nav-h) + 30px))}
+.dash{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-auto-rows:minmax(0,auto);
+  gap:10px;
+  height:calc(100dvh - 18px);
+  padding:10px 0 calc(var(--nav-h) + 6px);
+  align-content:stretch;
+}
+@supports not (height: 100dvh){ .dash{height:calc(100vh - 18px)} }
+
+.d-head{grid-column:1/-1;display:flex;align-items:center;gap:12px;min-height:0}
+.dh-text{flex:1;min-width:0}
+.dh-hello{font-family:var(--font-display);font-weight:700;font-size:clamp(20px,5.6vw,25px);margin:0;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dh-sub{color:var(--ink-2);font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.av-tap{display:inline-flex}
+
+.d-meta{grid-column:1/-1;display:flex;gap:7px;flex-wrap:wrap;align-items:center;min-height:0}
+.d-meta .together{font-size:12px;padding:6px 12px}
+.d-meta .streak-chip{font-size:12px;padding:6px 11px}
+.occ-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:var(--pill);
+  background:var(--gold-soft);color:var(--gold-ink);font-weight:700;font-size:12px}
+
+/* shared tile shell */
+.d-tile{position:relative;display:flex;flex-direction:column;gap:4px;text-align:start;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow-sm);padding:14px;min-width:0;min-height:0;overflow:hidden;
+  transition:transform .14s var(--ease-out)}
+.d-tile:active{transform:scale(.975)}
+.dt-ic{font-size:19px;display:flex;align-items:center;color:var(--rose-deep);line-height:1}
+.dt-label{font-family:var(--font-display);font-weight:700;font-size:15px;line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dt-peek{font-size:12.5px;color:var(--ink-2);line-height:1.6;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;unicode-bidi:plaintext}
+.dt-foot{margin-top:auto;font-size:11.5px;font-weight:700;color:var(--rose-deep);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dt-foot.as-link{background:none;padding:0;text-align:start}
+
+/* hero: write a moment */
+.d-write{grid-column:1/-1;justify-content:center;align-items:flex-start;gap:6px;padding:18px;
+  color:#fff;border:none;overflow:hidden;
+  background:linear-gradient(135deg,var(--rose),var(--rose-deep));box-shadow:var(--shadow-rose)}
+.d-write::after{content:"🤍";position:absolute;inset-inline-start:-8px;bottom:-18px;font-size:88px;opacity:.14;transform:rotate(-12deg)}
+.dw-ic{display:flex;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.24);
+  align-items:center;justify-content:center;margin-bottom:2px}
+.dw-t{font-family:var(--font-display);font-weight:700;font-size:clamp(17px,4.8vw,21px);line-height:1.25}
+.dw-s{font-size:12.5px;opacity:.92;line-height:1.6;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dw-cta{margin-top:6px;align-self:flex-start;background:rgba(255,255,255,.22);padding:7px 15px;
+  border-radius:var(--pill);font-weight:700;font-size:12.5px;backdrop-filter:blur(4px)}
+:root[data-skin="velvet"] .d-write{color:#2A1F0E}
+:root[data-skin="velvet"] .dw-cta{background:rgba(0,0,0,.12)}
+
+/* second row */
+.d-chat{grid-column:span 2}
+.d-ask{grid-column:span 2}
+.d-chat.has-new{border-color:var(--rose);box-shadow:0 0 0 1.5px var(--rose), var(--shadow-sm)}
+.dt-badge{position:absolute;top:12px;inset-inline-start:12px;min-width:20px;height:20px;padding:0 6px;
+  border-radius:var(--pill);background:var(--rose);color:#fff;font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center}
+.d-ask.nudge{background:linear-gradient(160deg,var(--gold-soft),var(--surface))}
+
+/* third row */
+.d-mood{grid-column:span 2}
+.d-next{grid-column:span 2}
+.d-next.warm{background:linear-gradient(160deg,var(--rose-soft),var(--surface))}
+.dm-row{display:flex;gap:5px;margin-top:auto;flex-wrap:nowrap}
+.dm-pick{flex:1;min-width:0;aspect-ratio:1;max-height:38px;border-radius:11px;background:var(--surface-2);
+  border:1px solid var(--line);font-size:17px;display:flex;align-items:center;justify-content:center;
+  transition:transform .12s}
+.dm-pick:active{transform:scale(.88)}
+.dm-now{font-size:17px;font-weight:700;margin-top:2px}
+
+/* quick nav strip */
+.d-nav{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;min-height:0}
+.d-navt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  padding:10px 4px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--line);
+  box-shadow:var(--shadow-sm);font-size:11px;font-weight:700;color:var(--ink-2);transition:transform .12s}
+.d-navt:active{transform:scale(.94)}
+.dn-ic{color:var(--rose-deep);display:flex}
+.d-navt.accent{background:linear-gradient(150deg,var(--gold-soft),var(--surface));color:var(--gold-ink)}
+.d-navt.accent .dn-ic{color:var(--gold-ink)}
+
+/* install nudge */
+.install-card{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:var(--radius-sm);background:linear-gradient(135deg,var(--him-soft),var(--surface));
+  border:1px solid var(--line);box-shadow:var(--shadow-sm);min-height:0}
+.ic-emoji{font-size:20px}
+.ic-body{flex:1;min-width:0}
+.ic-body b{display:block;font-size:13px}
+.ic-body span{font-size:11.5px;color:var(--ink-2)}
+.ic-go{flex:none;padding:7px 14px;font-size:12.5px}
+.ic-x{width:26px;height:26px;border-radius:50%;color:var(--ink-3);display:flex;align-items:center;justify-content:center;flex:none}
+
+/* install guide sheet */
+.inst-steps{display:flex;flex-direction:column;gap:12px;margin:4px 0 14px}
+.inst-step{display:flex;gap:12px;align-items:flex-start}
+.is-n{width:26px;height:26px;flex:none;border-radius:50%;background:var(--rose);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+.inst-step b{display:block;font-size:14.5px;margin-bottom:2px}
+.inst-step span{font-size:12.5px;line-height:1.6}
+
+/* very short phones: let the dashboard scroll rather than crush the tiles */
+@media (max-height:640px){
+  .dash{height:auto;padding-bottom:10px}
+  .dash-view{overflow:visible;margin-bottom:0}
+}

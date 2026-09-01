@@ -9,6 +9,7 @@ import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyThem
 import { downscale, uploadSigned } from "../media.js";
 import { haptic } from "../haptics.js";
 import { SKINS, applySkin } from "../skins.js";
+import { openPushOnboarding, openInstallGuide, isStandalone, isIOS, pushBlockedUntilInstalled, canPromptInstall, promptInstall } from "../install.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
 import { khalwa as genKhalwa, duaForSpouse } from "../generate.js";
 
@@ -647,9 +648,17 @@ async function settingsSection(pane) {
     rowToggle("أصوات لطيفة", store.soundOn, (on) => { store.soundOn = on; if (on) sound.chime(); }),
     rowToggle("اهتزاز عند اللمس", store.hapticsOn, (on) => { store.hapticsOn = on; if (on) haptic.success(); })]));
   // notifications
-  c.appendChild(settingCard("التنبيهات 🔔", [
-    h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "لتصلكما همسات بعضكما وإشعاراتكما على الجوّال حتى والتطبيق مغلق. (على الآيفون: أضيفا التطبيق للشاشة الرئيسية أولًا.)"),
-    h("button", { class: "btn soft sm", onclick: enableNotifications }, store.pushOn ? "التنبيهات مفعّلة ✓ — إرسال تجربة" : "تفعيل التنبيهات على هذا الجهاز")]));
+  const installed = isStandalone();
+  const blocked = pushBlockedUntilInstalled();
+  c.appendChild(settingCard("التطبيق والتنبيهات 🔔", [
+    h("div", { class: "acct-row" }, "📲 التثبيت على الجوّال",
+      h("span", { class: "acct-badge " + (installed ? "ok" : "no") }, installed ? "مثبّت ✓" : "غير مثبّت")),
+    !installed ? h("button", { class: "btn soft sm", style: { marginBottom: "12px" }, onclick: () => (canPromptInstall() ? promptInstall() : openInstallGuide()) }, "ثبّتا التطبيق") : null,
+    h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } },
+      blocked ? "على الآيفون، التنبيهات تعمل فقط بعد تثبيت التطبيق وفتحه من أيقونته."
+              : "لتصلكما همسات بعضكما وتنبيهاتكما حتى والتطبيق مغلق."),
+    h("button", { class: "btn soft sm", onclick: () => openPushOnboarding() },
+      store.pushOn ? "التنبيهات مفعّلة ✓ — إرسال تجربة" : "تفعيل التنبيهات على هذا الجهاز")]));
   // account / email
   const ac = (acct.ok && acct.data.accounts) ? acct.data.accounts : {};
   const mine = ac[store.person] || {}, partner = other(store.person), theirs = ac[partner] || {};
@@ -780,27 +789,6 @@ function promptPin(title) {
       h("button", { class: "btn", onclick: () => { const v = inp.value.trim(); if (v.length !== 4) { toast("٤ أرقام"); return; } close(); resolve(v); } }, "تم"))] });
     setTimeout(() => inp.focus(), 50);
   });
-}
-async function enableNotifications() {
-  try {
-    if (!("Notification" in window) || !("serviceWorker" in navigator)) { toast("جهازك لا يدعم التنبيهات"); return; }
-    const perm = await Notification.requestPermission();
-    if (perm !== "granted") { toast("لم تُمنح الأذونات"); return; }
-    const reg = await navigator.serviceWorker.ready;
-    const vr = await api.getVapid();
-    if (!vr.ok || !vr.data.key) { toast("تعذّر الإعداد"); return; }
-    let subx = await reg.pushManager.getSubscription();
-    if (!subx) subx = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToU8(vr.data.key) });
-    const r = await api.subscribePush(subx.toJSON(), navigator.userAgent);
-    if (r.ok) { store.pushOn = true; toast("فُعّلت التنبيهات 🔔"); await api.testPush(); } else toast("تعذّر التفعيل");
-  } catch { toast("تعذّر تفعيل التنبيهات"); }
-}
-function urlB64ToU8(base64) {
-  const pad = "=".repeat((4 - (base64.length % 4)) % 4);
-  const b64 = (base64 + pad).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(b64); const arr = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-  return arr;
 }
 
 /* ---------------- theme studio ---------------- */
