@@ -726,3 +726,93 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .album-cell.picked .pick-tick{display:flex}
 .album-cell.picked{outline:3px solid var(--rose);outline-offset:-3px}
 .album-cell.picked img,.album-cell.picked video{filter:brightness(.9)}
+
+/* ======================================================================
+   كتابنا — the bound book
+   ====================================================================== */
+.book-view{display:flex;flex-direction:column}
+.book-stage{position:relative;flex:1}
+.book-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;scrollbar-width:none;padding-bottom:6px}
+.book-track::-webkit-scrollbar{display:none}
+.book-page{flex:0 0 100%;scroll-snap-align:center;height:64vh;overflow-y:auto;display:flex;flex-direction:column;
+  background:linear-gradient(160deg,var(--surface),var(--surface-2));border:1px solid var(--line);
+  border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:26px 22px 34px;position:relative;overflow:hidden}
+.book-page::before{content:"";position:absolute;inset-inline-start:0;top:0;bottom:0;width:6px;
+  background:linear-gradient(180deg,var(--rose-soft),var(--gold-soft));opacity:.85}
+.bp-num{position:absolute;bottom:12px;inset-inline-start:0;right:0;text-align:center;font-size:11px;color:var(--ink-3)}
+.k-cover,.k-chapter,.k-closing,.k-dedication{align-items:center;justify-content:center;text-align:center;gap:6px}
+.bp-crest{font-size:44px;filter:drop-shadow(0 8px 14px rgba(201,107,128,.3))}
+.bp-title{font-family:var(--font-display);font-weight:700;font-size:clamp(40px,13vw,60px);line-height:1.05;
+  background:linear-gradient(120deg,var(--rose-deep),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;padding:4px 0}
+.bp-sub{font-family:var(--font-quote);font-size:17px;color:var(--ink-2)}
+.bp-days{font-weight:700;color:var(--rose-deep);margin-top:4px}
+.bp-since{font-size:13px;color:var(--ink-3)}
+.bp-rule{width:70px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--rose),var(--gold));margin:14px auto}
+.bp-hint{font-size:12px;color:var(--ink-3);margin-top:8px}
+.bp-chapter-label{font-size:12px;letter-spacing:2px;color:var(--ink-3)}
+.bp-chapter{font-family:var(--font-display);font-weight:700;font-size:30px;color:var(--rose-deep)}
+.bp-ded{font-family:var(--font-quote);font-size:16px;line-height:2.05;white-space:pre-wrap;unicode-bidi:plaintext;max-width:34ch}
+.bp-ded.reply{color:var(--her);margin-top:12px;border-top:1px dashed var(--line);padding-top:12px}
+.bp-month{font-family:var(--font-display);font-size:15px;color:var(--rose-deep);margin-bottom:12px}
+.bp-entry{margin-bottom:6px}
+.bp-entry-head{font-size:11.5px;color:var(--ink-3);margin-bottom:5px}
+.bp-text{font-size:16px;line-height:2;unicode-bidi:plaintext;white-space:pre-wrap}
+.bp-sep{text-align:center;color:var(--gold);margin:14px 0;font-size:15px}
+.bp-photo{width:100%;border-radius:var(--radius-sm);object-fit:cover;max-height:46vh;box-shadow:var(--shadow-sm)}
+.bp-caption{font-family:var(--font-quote);font-size:16px;line-height:1.95;margin-top:14px;unicode-bidi:plaintext}
+.bp-foot{margin-top:auto;padding-top:12px;font-size:11.5px;color:var(--ink-3)}
+.book-nav{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;
+  background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-sm);color:var(--rose-deep);
+  display:flex;align-items:center;justify-content:center;z-index:3}
+.book-nav.prev{inset-inline-end:-6px} .book-nav.next{inset-inline-start:-6px}
+.book-counter{text-align:center;font-size:12px;color:var(--ink-3);margin-top:10px}
+
+@media print{
+  body{background:#fff!important}
+  #bg,#sky,.tabbar,.no-print,#fx,#toast{display:none!important}
+  #app{max-width:none;padding:0}
+  .book-track{display:block;overflow:visible}
+  .book-page{break-after:page;page-break-after:always;height:auto;min-height:96vh;overflow:visible;box-shadow:none;border:none;
+    border-radius:0;background:#fff;margin:0}
+  .book-page::before{display:none}
+}
+
+/* ======================================================================
+   حصادنا — the recap story
+   ====================================================================== */
+.wrap-view{display:flex;flex-direction:column}
+.wrap-stage{position:relative;flex:1;display:flex;flex-direction:column}
+.wrap-bars{display:flex;gap:5px;margin-bottom:14px}
+.wb{flex:1;height:3px;border-radius:2px;background:var(--line);transition:background .3s}
+.wb.done{background:var(--rose)} .wb.now{background:var(--rose-deep)}
+.wrap-card{flex:1;min-height:52vh;max-height:66vh;overflow-y:auto;border-radius:var(--radius-lg);padding:30px 24px;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;
+  box-shadow:var(--shadow);border:1px solid var(--line);animation:wcIn .5s var(--ease-spring)}
+@keyframes wcIn{from{opacity:0;transform:scale(.95) translateY(14px)}to{opacity:1;transform:none}}
+.wrap-card.tone-open,.wrap-card.tone-close{background:linear-gradient(160deg,var(--rose-soft),var(--gold-soft))}
+.wrap-card.tone-rose{background:linear-gradient(160deg,var(--rose),var(--rose-deep));color:#fff;border-color:transparent}
+.wrap-card.tone-gold{background:linear-gradient(160deg,var(--gold-soft),var(--surface))}
+.wrap-card.tone-him{background:linear-gradient(160deg,var(--him-soft),var(--surface))}
+.wrap-card.tone-her{background:linear-gradient(160deg,var(--her-soft),var(--surface))}
+.wrap-card.tone-keepsake{background:var(--surface);justify-content:flex-start;padding-top:24px}
+.wc-num{font-family:var(--font-display);font-weight:700;font-size:clamp(58px,19vw,88px);line-height:1}
+.wrap-card.tone-rose .wc-num{color:#fff}
+.wrap-card:not(.tone-rose) .wc-num{color:var(--rose-deep)}
+.wc-unit{font-size:18px;font-weight:700}
+.wc-big{font-family:var(--font-display);font-weight:700;font-size:clamp(28px,8vw,40px);line-height:1.2}
+.wc-sub{font-size:15px;opacity:.9}
+.wc-line{font-family:var(--font-quote);font-size:16px;line-height:1.9;margin-top:6px;opacity:.92}
+.wc-emoji{font-size:60px}
+.wc-art{opacity:.95}
+.wc-cloud{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:baseline;margin:10px 0}
+.wc-word{font-family:var(--font-display);color:var(--rose-deep);line-height:1.3}
+.wc-split{width:100%;max-width:300px;margin-top:8px}
+.ws-bar{display:flex;height:14px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.ws-bar i.him{background:var(--him)} .ws-bar i.her{background:var(--her)}
+.ws-legend{display:flex;justify-content:space-between;font-size:12.5px;margin-top:8px;color:var(--ink-2)}
+.wc-photo{width:100%;border-radius:var(--radius-sm);max-height:38vh;object-fit:cover;box-shadow:var(--shadow-sm)}
+.wc-quote{font-family:var(--font-quote);font-size:17px;line-height:2;margin-top:14px;unicode-bidi:plaintext}
+.wc-meta{font-size:12px;color:var(--ink-3);margin-top:8px}
+.wrap-nav{display:flex;justify-content:space-between;margin-top:14px}
+.wn{width:46px;height:46px;border-radius:50%;background:var(--surface);border:1px solid var(--line);
+  box-shadow:var(--shadow-sm);color:var(--rose-deep);display:flex;align-items:center;justify-content:center}

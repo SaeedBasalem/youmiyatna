@@ -14,6 +14,8 @@ import { viewChat } from "./views/chat.js";
 import { viewPlay } from "./views/play.js";
 import { viewUs } from "./views/us.js";
 import { viewSearch } from "./views/search.js";
+import { viewBook } from "./views/book.js";
+import { viewWrapped } from "./views/wrapped.js";
 
 const APP = () => document.getElementById("app");
 
@@ -74,6 +76,8 @@ function renderRoute() {
     case "play": return shell("play", viewPlay);
     case "us": return shell("us", viewUs);
     case "search": return shell("journal", viewSearch);
+    case "book": return shell("us", viewBook);
+    case "wrapped": return shell("us", viewWrapped);
     case "moment": return viewMoment(routeArg());
     default: return go("home");
   }

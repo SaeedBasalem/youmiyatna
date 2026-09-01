@@ -77,6 +77,8 @@ function renderHub(pane) {
     hubCard("🌅", "أذكارنا", "الصباح والمساء", "adhkar", "gold"),
     hubCard("🫙", "جرّة الصدقة", "نعطي معًا", "sadaqah", "rose"),
     hubCard("🎵", "أغانينا", "قائمة أغانينا", "songs", "rose"),
+    hubCard("📖", "كتابنا", "صفحاتنا مجلّدة", "__book", "rose"),
+    hubCard("✨", "حصادنا", "قصّتنا بالأرقام", "__wrapped", "gold"),
     hubCard("🏆", "إنجازاتنا", "أوسمة رحلتنا", "milestones", "gold"),
     hubCard("🤲", "امتناننا", "شكرٌ كل يوم", "gratitude", "her"),
     hubCard("⚙️", "الإعدادات", "المظهر والتنبيهات", "settings", "him"));
@@ -92,7 +94,7 @@ function renderHub(pane) {
 }
 function hubCard(emoji, title, sub, route, tone) {
   const card = h("button", { class: "hub-card tone-" + tone, dataset: { route },
-    onclick: () => { if (card._held) { card._held = false; return; } sound.tab(); usDir = "in"; go("us/" + route); } },
+    onclick: () => { if (card._held) { card._held = false; return; } sound.tab(); if (route.startsWith("__")) { go(route.slice(2)); return; } usDir = "in"; go("us/" + route); } },
     h("span", { class: "hub-e" }, emoji), h("span", { class: "hub-t" }, title), h("span", { class: "hub-s" }, sub));
   // long-press pins/unpins (avoids nesting a button inside a button)
   let timer = null;
