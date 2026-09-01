@@ -580,7 +580,7 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .story-field{margin-bottom:10px}
 
 /* ---- backgrounds ---- */
-#bg{position:fixed;inset:0;z-index:-1;background-size:cover;background-position:center;pointer-events:none;transition:opacity .4s}
+#bg{position:fixed;inset:0;z-index:-2;background-size:cover;background-position:center;pointer-events:none;transition:opacity .4s}
 .bg-swatches{display:flex;gap:10px;flex-wrap:wrap}
 .bg-swatch{width:46px;height:46px;border-radius:14px;border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line);background-size:cover;background-position:center;position:relative}
 .bg-swatch.on{box-shadow:0 0 0 3px var(--rose)}
@@ -619,3 +619,110 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .hub-card.pinned::after{content:"⭐";position:absolute;top:10px;inset-inline-end:10px;font-size:14px;opacity:.95}
 .hub-card.pinned{box-shadow:0 0 0 2px var(--rose), var(--shadow-sm)}
 .hub-hint{font-size:12px;color:var(--ink-3);text-align:center;margin:-6px 4px 12px;line-height:1.7}
+
+/* ======================================================================
+   LIVING THEME — the app breathes with the hour, season and occasion
+   ====================================================================== */
+:root{
+  --ease-out:cubic-bezier(.2,.8,.2,1);
+  --ease-soft:cubic-bezier(.35,.9,.35,1);
+  --ease-spring:cubic-bezier(.2,1.15,.32,1);
+  --sky-a:transparent; --sky-b:transparent; --sky-op:.5; --mote:0;
+}
+#sky{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
+  background:linear-gradient(180deg,var(--sky-a),transparent 46%),linear-gradient(0deg,var(--sky-b),transparent 42%);
+  opacity:var(--sky-op);transition:opacity 1.2s var(--ease-soft),background 1.2s var(--ease-soft)}
+#sky i{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;
+  opacity:calc(var(--mote) * .85);transform:scale(var(--sc,1));
+  animation:drift var(--d,9s) var(--dl,0s) ease-in-out infinite;filter:blur(.2px)}
+@keyframes drift{0%,100%{transform:translate3d(0,0,0) scale(var(--sc,1));opacity:calc(var(--mote)*.25)}
+  50%{transform:translate3d(6px,-14px,0) scale(calc(var(--sc,1)*1.25));opacity:calc(var(--mote)*.9)}}
+
+:root[data-phase="dawn"]   {--sky-a:#FFD7C2;--sky-b:#F7C7DA;--sky-op:.55;--mote:.5}
+:root[data-phase="morning"]{--sky-a:#FFF0D9;--sky-b:#FDE7E0;--sky-op:.4;--mote:0}
+:root[data-phase="noon"]   {--sky-a:#FFF8EC;--sky-b:#FDEFE6;--sky-op:.28;--mote:0}
+:root[data-phase="sunset"] {--sky-a:#FFC79A;--sky-b:#F3A9BE;--sky-op:.6;--mote:.45}
+:root[data-phase="night"]  {--sky-a:#2A2140;--sky-b:#3A2A3C;--sky-op:.34;--mote:1}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"])[data-phase="dawn"]   {--sky-a:#3B2A3A;--sky-b:#4A3140;--sky-op:.55}
+  :root:not([data-theme="light"])[data-phase="morning"]{--sky-a:#3A2E31;--sky-b:#33262C;--sky-op:.4}
+  :root:not([data-theme="light"])[data-phase="noon"]   {--sky-a:#372B2F;--sky-b:#312429;--sky-op:.3}
+  :root:not([data-theme="light"])[data-phase="sunset"] {--sky-a:#4A2E33;--sky-b:#54313A;--sky-op:.5}
+  :root:not([data-theme="light"])[data-phase="night"]  {--sky-a:#1B1730;--sky-b:#2A1E2E;--sky-op:.6;--mote:1}
+}
+:root[data-theme="dark"][data-phase="dawn"]   {--sky-a:#3B2A3A;--sky-b:#4A3140;--sky-op:.55}
+:root[data-theme="dark"][data-phase="morning"]{--sky-a:#3A2E31;--sky-b:#33262C;--sky-op:.4}
+:root[data-theme="dark"][data-phase="noon"]   {--sky-a:#372B2F;--sky-b:#312429;--sky-op:.3}
+:root[data-theme="dark"][data-phase="sunset"] {--sky-a:#4A2E33;--sky-b:#54313A;--sky-op:.5}
+:root[data-theme="dark"][data-phase="night"]  {--sky-a:#1B1730;--sky-b:#2A1E2E;--sky-op:.6;--mote:1}
+
+/* a whisper of the season, and of the occasion */
+:root[data-season="spring"] #sky::after,
+:root[data-season="summer"] #sky::after,
+:root[data-season="autumn"] #sky::after,
+:root[data-season="winter"] #sky::after{content:"";position:absolute;inset:0;opacity:.22}
+:root[data-season="spring"] #sky::after{background:radial-gradient(60% 40% at 80% 90%,#BFE3C0,transparent 70%)}
+:root[data-season="summer"] #sky::after{background:radial-gradient(60% 40% at 20% 90%,#FFE2A8,transparent 70%)}
+:root[data-season="autumn"] #sky::after{background:radial-gradient(60% 40% at 80% 90%,#F0BC8A,transparent 70%)}
+:root[data-season="winter"] #sky::after{background:radial-gradient(60% 40% at 20% 90%,#BFD4E8,transparent 70%)}
+:root[data-occasion="ramadan"] #sky{box-shadow:inset 0 90px 120px -60px rgba(227,190,134,.55)}
+:root[data-occasion="eid"] #sky{box-shadow:inset 0 90px 120px -60px rgba(226,140,160,.5)}
+:root[data-occasion="friday"] #sky{box-shadow:inset 0 80px 110px -60px rgba(168,201,168,.4)}
+:root[data-occasion="hajj"] #sky{box-shadow:inset 0 90px 120px -60px rgba(227,190,134,.45)}
+
+/* ---- motion system ---- */
+.stagger > *{animation:fadeUp .5s var(--ease-out) backwards}
+.stagger > *:nth-child(1){animation-delay:.02s} .stagger > *:nth-child(2){animation-delay:.06s}
+.stagger > *:nth-child(3){animation-delay:.1s}  .stagger > *:nth-child(4){animation-delay:.14s}
+.stagger > *:nth-child(5){animation-delay:.18s} .stagger > *:nth-child(6){animation-delay:.22s}
+.stagger > *:nth-child(7){animation-delay:.26s} .stagger > *:nth-child(8){animation-delay:.3s}
+.stagger > *:nth-child(n+9){animation-delay:.34s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+::view-transition-old(root){animation:vtOut .22s var(--ease-out) both}
+::view-transition-new(root){animation:vtIn .28s var(--ease-out) both}
+@keyframes vtOut{to{opacity:0;transform:translateY(-8px)}}
+@keyframes vtIn{from{opacity:0;transform:translateY(10px)}}
+
+/* ---- icon chrome ---- */
+.ic-svg{display:block}
+.tab .ic{display:flex;align-items:center;justify-content:center;height:24px}
+.tab.active .ic{transform:translateY(-2px) scale(1.06)}
+.icon-btn svg,.c-att svg,.c-send svg{pointer-events:none}
+.phase-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-3);font-weight:600}
+.phase-chip svg{width:14px;height:14px}
+
+/* ---- search ---- */
+.search-bar{position:relative;margin-bottom:14px}
+.search-ic{position:absolute;inset-inline-start:16px;top:50%;transform:translateY(-50%);color:var(--ink-3);pointer-events:none;display:flex}
+.search-field{padding-inline-start:48px}
+.search-field::-webkit-search-cancel-button{filter:grayscale(1) opacity(.5)}
+.search-filters{margin-bottom:14px}
+.search-count{font-size:12.5px;margin:0 4px 10px;font-weight:600}
+.hit{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:start;padding:14px}
+.hit-thumb{width:56px;height:56px;flex:none;border-radius:14px;object-fit:cover;box-shadow:var(--shadow-sm)}
+.hit-thumb.ph{display:flex;align-items:center;justify-content:center;background:var(--rose-soft);font-size:24px}
+.hit-main{flex:1;min-width:0}
+.hit-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px}
+.hit-head .when{margin-inline-start:auto;color:var(--ink-3);font-size:11.5px}
+.hit-body{font-size:14.5px;line-height:1.75;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;unicode-bidi:plaintext}
+.hit-body mark{background:var(--rose-soft);color:var(--rose-deep);border-radius:5px;padding:0 3px;font-weight:700}
+.search-results .empty-card svg{opacity:.9}
+
+/* ---- albums ---- */
+.album-head{display:flex;align-items:center;gap:10px;margin:2px 2px 14px}
+.album-head .t-h2{margin:0}
+.album-shelf{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.album-tile{border-radius:var(--radius);overflow:hidden;background:var(--surface);border:1px solid var(--line);
+  box-shadow:var(--shadow-sm);text-align:start;transition:transform .14s var(--ease-out)}
+.album-tile:active{transform:scale(.96)}
+.at-cover{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--surface-2)}
+.at-cover.ph{display:flex;align-items:center;justify-content:center;color:var(--ink-3)}
+.at-meta{padding:10px 12px 12px}
+.at-meta b{display:block;font-size:14px;line-height:1.4}
+.at-meta span{font-size:11.5px;color:var(--ink-3)}
+.album.pick .album-cell{position:relative}
+.album-cell .pick-tick{position:absolute;inset-inline-end:6px;top:6px;width:22px;height:22px;border-radius:50%;
+  background:rgba(255,255,255,.85);color:var(--rose-deep);display:none;align-items:center;justify-content:center}
+.album-cell.picked .pick-tick{display:flex}
+.album-cell.picked{outline:3px solid var(--rose);outline-offset:-3px}
+.album-cell.picked img,.album-cell.picked video{filter:brightness(.9)}

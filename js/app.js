@@ -7,16 +7,19 @@ import { PEOPLE, other, MOODS, moodEmoji, DUA, DUA_FOR_SPOUSE } from "./config.j
 import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk, encryptWithPin, decryptWithPin, bioEnrolled, bioUnlock, bioForget } from "./helpers.js";
 import { SWEET_LINES, DATE_IDEAS, CONVO_DECK } from "./games.js";
 import { attachSwipe, attachPullToRefresh } from "./gestures.js";
+import { icon } from "./icons.js";
+import { startLiving, greetingFor, phaseNow, PHASE_AR } from "./living.js";
 import { viewJournal, viewMoment, openCompose } from "./views/journal.js";
 import { viewChat } from "./views/chat.js";
 import { viewPlay } from "./views/play.js";
 import { viewUs } from "./views/us.js";
+import { viewSearch } from "./views/search.js";
 
 const APP = () => document.getElementById("app");
 
 /* ---------------- boot + router ---------------- */
 let homeData = null;
-store.init(); applyTheme(); applyBackground();
+store.init(); applyTheme(); applyBackground(); startLiving();
 setAuthFailHandler(() => { store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("pointerdown", () => sound.resume(), { once: true });
@@ -31,11 +34,11 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
 }
 
 const TABS = [
-  { key: "home", ic: "🏡", label: "البيت" },
-  { key: "journal", ic: "📖", label: "يومياتنا" },
-  { key: "chat", ic: "💬", label: "همس" },
-  { key: "play", ic: "🎲", label: "نلعب" },
-  { key: "us", ic: "💛", label: "نحن" },
+  { key: "home", ic: "home", label: "البيت" },
+  { key: "journal", ic: "book", label: "يومياتنا" },
+  { key: "chat", ic: "chat", label: "همس" },
+  { key: "play", ic: "dice", label: "نلعب" },
+  { key: "us", ic: "heart", label: "نحن" },
 ];
 let slideDir = "";
 
@@ -70,6 +73,7 @@ function renderRoute() {
     case "chat": return shell("chat", viewChat);
     case "play": return shell("play", viewPlay);
     case "us": return shell("us", viewUs);
+    case "search": return shell("journal", viewSearch);
     case "moment": return viewMoment(routeArg());
     default: return go("home");
   }
@@ -93,7 +97,7 @@ function shell(active, viewFn) {
 function tabbar(active) {
   const nav = h("nav", { class: "tabbar", "aria-label": "التنقّل" }, ...TABS.map((t) => {
     const isOn = active === t.key;
-    const btn = h("button", { class: "tab" + (isOn ? " active" : ""), "aria-label": t.label, "aria-current": isOn ? "page" : null, onclick: () => { sound.tab(); navTo(t.key); } }, h("span", { class: "ic" }, t.ic), t.label);
+    const btn = h("button", { class: "tab" + (isOn ? " active" : ""), "aria-label": t.label, "aria-current": isOn ? "page" : null, onclick: () => { sound.tab(); navTo(t.key); } }, h("span", { class: "ic" }, icon(t.ic, { size: 23 })), t.label);
     if (t.key === "chat") btn.dataset.tab = "chat";
     return btn;
   }));
@@ -189,8 +193,8 @@ function viewWho() {
 }
 
 /* ---------------- home ---------------- */
-function greetWord() { const hr = new Date(Date.now() + 180 * 60000).getUTCHours(); if (hr < 5) return "ليلةٌ هانئة"; if (hr < 12) return "صباح الخير"; if (hr < 17) return "نهارٌ سعيد"; return "مساء الخير"; }
-function greetIcon() { const hr = new Date(Date.now() + 180 * 60000).getUTCHours(); if (hr < 5) return "🌙"; if (hr < 12) return "🌤️"; if (hr < 17) return "☀️"; return "🌆"; }
+function greetWord() { return greetingFor(); }
+function greetIcon() { return { dawn: "🌅", morning: "🌤️", noon: "☀️", sunset: "🌇", night: "🌙" }[phaseNow()] || "🌙"; }
 function daysTogether() { const a = store.config.anniversary_date; if (!a) return null; const now = new Date(Date.now() + 180 * 60000); const t = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()); const ad = new Date(a + "T00:00:00Z"); return Math.max(0, Math.round((t - Date.UTC(ad.getUTCFullYear(), ad.getUTCMonth(), ad.getUTCDate())) / 86400000)); }
 function dayIdx() { return Math.floor((Date.now() + 180 * 60000) / 86400000); }
 

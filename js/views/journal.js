@@ -6,6 +6,8 @@ import { h, $, clear, avatar, personChip, moodChip, heartFly, relTime, fullDate,
 import { PEOPLE, MOODS, REACTIONS, moodEmoji } from "../config.js";
 import { downscale, VoiceRecorder, uploadSigned } from "../media.js";
 import { loader, go, openSheet, openModal, confirmAsk, groupReactions, safeUrl, errorState } from "../helpers.js";
+import { icon } from "../icons.js";
+import { art } from "../art.js";
 
 let jsub = "feed";          // feed | album | timeline
 let feedCache = null;
@@ -14,7 +16,8 @@ export function viewJournal(content) {
   const c = clear(content);
   c.appendChild(h("div", { class: "section-title" },
     h("h1", { class: "t-h1" }, "دفتر ذكرياتنا"),
-    h("button", { class: "icon-btn", "aria-label": "اكتب لحظة", style: { marginInlineStart: "auto" }, onclick: () => openCompose({ onDone: () => { feedCache = null; if (jsub === "feed") renderFeed(pane); } }) }, "✍️")));
+    h("button", { class: "icon-btn", "aria-label": "بحث", style: { marginInlineStart: "auto" }, onclick: () => go("search") }, icon("search")),
+    h("button", { class: "icon-btn", "aria-label": "اكتب لحظة", onclick: () => openCompose({ onDone: () => { feedCache = null; if (jsub === "feed") renderFeed(pane); } }) }, icon("plus"))));
   c.appendChild(h("div", { class: "seg" },
     segBtn("feed", "📖 لحظاتنا"), segBtn("album", "🖼️ الألبوم"), segBtn("timeline", "📜 حكايتنا")));
   const pane = h("div", { class: "jpane" });
@@ -177,26 +180,110 @@ export async function viewMoment(id) {
 function noteBubble(n) { const p = PEOPLE[n.author] || PEOPLE.him; return h("div", { class: "note " + p.cls }, h("div", { class: "who-line" }, p.name), n.body); }
 async function delMoment(id) { if (!(await confirmAsk("إخفاء هذه اللحظة؟", { okText: "إخفاء", danger: true }))) return; loader(true); const r = await api.del(id); loader(false); if (r.ok) { feedCache = null; toast("أُخفيت"); go("journal"); } else toast("تعذّر"); }
 
-/* ---------------- album ---------------- */
-async function renderAlbum(pane) {
-  const c = clear(pane);
-  const grid = h("div", { class: "album" }); c.appendChild(grid);
-  grid.appendChild(h("div", { class: "muted", style: { gridColumn: "1/-1", textAlign: "center", padding: "20px" } }, "نجمع صوركما…"));
+/* ---------------- albums ---------------- */
+let shotsCache = null;      // [{ m, id }] every photo/video with the entry it belongs to
+let albumOpen = null;       // null = shelf, "__all" = everything, otherwise an album id
+
+async function loadShots(force) {
+  if (shotsCache && !force) return shotsCache;
   const shots = [];
   let cursor = null, pages = 0;
   do {
     const r = await api.feed(cursor); if (!r.ok) break;
     for (const e of r.data.items) for (const m of (e.media || [])) if ((m.kind === "photo" || m.kind === "video") && m.signed_url) shots.push({ m, id: e.id });
     cursor = r.data.next_cursor; pages++;
-  } while (cursor && pages < 6);
-  clear(grid);
-  if (!shots.length) { grid.appendChild(h("div", { class: "empty-card card", style: { gridColumn: "1/-1" } }, h("div", { class: "big" }, "🖼️"), h("div", { class: "muted" }, "ما في صور بعد — أرفقا صورة بأول لحظة."))); return; }
-  shots.forEach(({ m, id }) => {
+  } while (cursor && pages < 8);
+  shotsCache = shots;
+  return shots;
+}
+const albumsOf = (lists) => (lists || []).filter((l) => l.kind === "album");
+const coverOf = (m) => (m.kind === "video"
+  ? h("video", { class: "at-cover", src: m.signed_url, muted: true, preload: "metadata", playsInline: true })
+  : h("img", { class: "at-cover", src: m.signed_url, alt: "", loading: "lazy" }));
+
+async function renderAlbum(pane) {
+  const c = clear(pane);
+  c.appendChild(h("div", { class: "muted", style: { textAlign: "center", padding: "18px" } }, "…"));
+  const [shots, lr] = await Promise.all([loadShots(), api.getLists()]);
+  clear(c);
+  if (!lr.ok && !shots.length) { c.appendChild(errorState(() => renderAlbum(pane), { offline: lr.offline })); return; }
+  const albums = albumsOf(lr.ok ? lr.data.lists : []);
+  if (albumOpen) { renderOneAlbum(c, pane, albumOpen === "__all" ? null : albums.find((a) => a.id === albumOpen), shots); return; }
+
+  if (!shots.length) {
+    c.appendChild(h("div", { class: "empty-card card" }, art("album", { size: 140 }),
+      h("div", { class: "muted", style: { marginTop: "10px" } }, "ما في صور بعد — أرفقا صورة بأول لحظة.")));
+    return;
+  }
+  c.appendChild(h("div", { class: "album-head" },
+    h("h2", { class: "t-h2" }, "ألبوماتنا"),
+    h("button", { class: "btn soft sm", style: { marginInlineStart: "auto" }, onclick: () => newAlbum(pane) }, "＋ ألبوم")));
+  const grid = h("div", { class: "album-shelf stagger" });
+  grid.appendChild(albumTile("كل الصور", shots.length, shots[0], () => { albumOpen = "__all"; renderAlbum(pane); }));
+  albums.forEach((a) => {
+    const ids = new Set((a.items || []).map((i) => i.text));
+    const mine = shots.filter((s) => ids.has(s.id));
+    grid.appendChild(albumTile((a.emoji ? a.emoji + " " : "") + a.title, mine.length, mine[0], () => { albumOpen = a.id; renderAlbum(pane); }));
+  });
+  c.appendChild(grid);
+}
+function albumTile(title, count, cover, onclick) {
+  return h("button", { class: "album-tile", onclick },
+    cover ? coverOf(cover.m) : h("div", { class: "at-cover ph" }, icon("image", { size: 26 })),
+    h("div", { class: "at-meta" }, h("b", {}, title), h("span", {}, arNum(count) + " صورة")));
+}
+function renderOneAlbum(c, pane, album, shots) {
+  const isAll = !album;
+  const ids = album ? new Set((album.items || []).map((i) => i.text)) : null;
+  const mine = isAll ? shots : shots.filter((s) => ids.has(s.id));
+  c.appendChild(h("div", { class: "album-head" },
+    h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => { albumOpen = null; renderAlbum(pane); } }, icon("back")),
+    h("h2", { class: "t-h2" }, isAll ? "كل الصور" : (album.emoji ? album.emoji + " " : "") + album.title),
+    album ? h("button", { class: "icon-btn", "aria-label": "أضف صورًا", style: { marginInlineStart: "auto" }, onclick: () => pickForAlbum(pane, album, shots) }, icon("plus")) : null,
+    album ? h("button", { class: "icon-btn", "aria-label": "حذف الألبوم", onclick: async () => { if (await confirmAsk("حذف هذا الألبوم؟ الصور تبقى في يومياتكما.", { okText: "حذف", danger: true })) { await api.delList(album.id); albumOpen = null; renderAlbum(pane); } } }, icon("trash")) : null));
+  if (!mine.length) {
+    c.appendChild(h("div", { class: "empty-card card" }, art("album", { size: 130 }),
+      h("div", { class: "muted", style: { marginTop: "10px" } }, "ألبومٌ فارغ — أضيفا صورًا إليه."),
+      h("button", { class: "btn", style: { marginTop: "12px", width: "auto" }, onclick: () => pickForAlbum(pane, album, shots) }, "＋ أضيفا صورًا")));
+    return;
+  }
+  const grid = h("div", { class: "album" });
+  mine.forEach(({ m, id }) => {
     const cell = h("button", { class: "album-cell", onclick: () => go("moment/" + id) });
     if (m.kind === "video") { cell.appendChild(h("video", { src: m.signed_url, muted: true, preload: "metadata", playsInline: true })); cell.appendChild(h("span", { class: "vtag" }, "▶")); }
     else cell.appendChild(h("img", { src: m.signed_url, loading: "lazy", alt: "" }));
     grid.appendChild(cell);
   });
+  c.appendChild(grid);
+}
+function newAlbum(pane) {
+  const title = h("input", { class: "field", placeholder: "اسم الألبوم (رحلتنا، عيدنا…)" });
+  const emo = h("input", { class: "field", placeholder: "رمز (اختياري)", maxLength: 2 });
+  const { close } = openModal({ title: "ألبومٌ جديد 🖼\uFE0F", body: [h("label", { class: "lbl" }, "الاسم"), title, h("label", { class: "lbl" }, "رمز"), emo,
+    h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"),
+      h("button", { class: "btn", onclick: async () => { const t = title.value.trim(); if (!t) { title.focus(); return; } loader(true); const r = await api.addList(t, "album", emo.value.trim() || "🖼\uFE0F"); loader(false); if (r.ok) { close(); sound.post(); toast("أُنشئ الألبوم 🖼\uFE0F"); renderAlbum(pane); } else toast("تعذّر"); } }, "أنشئ"))] });
+}
+function pickForAlbum(pane, album, shots) {
+  const chosen = new Set((album.items || []).map((i) => i.text));
+  const grid = h("div", { class: "album pick" });
+  shots.forEach(({ m, id }) => {
+    const cell = h("button", { class: "album-cell" + (chosen.has(id) ? " picked" : ""), onclick: () => { if (chosen.has(id)) chosen.delete(id); else chosen.add(id); cell.classList.toggle("picked", chosen.has(id)); sound.tab(); } });
+    cell.appendChild(m.kind === "video"
+      ? h("video", { src: m.signed_url, muted: true, preload: "metadata", playsInline: true })
+      : h("img", { src: m.signed_url, loading: "lazy", alt: "" }));
+    cell.appendChild(h("span", { class: "pick-tick" }, icon("check", { size: 16 })));
+    grid.appendChild(cell);
+  });
+  const { close } = openSheet({ title: "اختارا صورًا 🖼\uFE0F", subtitle: "اضغطا على الصور لضمّها إلى " + album.title, body: [grid,
+    h("div", { class: "row-btns", style: { marginTop: "14px" } },
+      h("button", { class: "btn ghost", onclick: () => close(true) }, "إلغاء"),
+      h("button", { class: "btn", onclick: async () => {
+        loader(true);
+        const before = new Set((album.items || []).map((i) => i.text));
+        for (const it of (album.items || [])) if (!chosen.has(it.text)) await api.delItem(it.id);
+        for (const id of chosen) if (!before.has(id)) await api.addItem(album.id, id);
+        loader(false); close(true); sound.post(); toast("حُدّث الألبوم 🖼\uFE0F"); renderAlbum(pane);
+      } }, "احفظ"))] });
 }
 
 /* ---------------- timeline ---------------- */
