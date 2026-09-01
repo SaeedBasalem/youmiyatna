@@ -5,8 +5,10 @@ import { sound } from "../sound.js";
 import { h, $, clear, avatar, personChip, moodChip, heartFly, relTime, fullDate, monthYear, arNum, toast, sparkleAt, waveBars, clickable } from "../ui.js";
 import { PEOPLE, MOODS, REACTIONS, moodEmoji } from "../config.js";
 import { downscale, VoiceRecorder, uploadSigned } from "../media.js";
+import { openDoodle } from "../doodle.js";
 import { loader, go, openSheet, openModal, confirmAsk, groupReactions, safeUrl, errorState } from "../helpers.js";
 import { icon } from "../icons.js";
+import { haptic } from "../haptics.js";
 import { art } from "../art.js";
 
 let jsub = "feed";          // feed | album | timeline
@@ -139,7 +141,7 @@ function renderReacts(row, e, card) {
     row.appendChild(h("button", { class: "react-pill" + (info.mine ? " me" : ""), onclick: (ev) => { ev.stopPropagation(); toggleReact(e, emoji, card); } }, emoji + " " + arNum(info.count)));
 }
 async function toggleReact(e, emoji, card) {
-  sound.react();
+  sound.react(); haptic.love();
   const r = await api.react(e.id, emoji);
   if (r.ok) { e.reactions = r.data.reactions || []; const row = card && card.querySelector(".react-row"); if (row) renderReacts(row, e, card); }
   else toast(r.offline ? "لا اتصال — لم يُحفظ" : "تعذّر");
@@ -334,7 +336,13 @@ export function openCompose({ onDone } = {}) {
       else if (m.kind === "video") node = h("video", { class: "m-video", src: m.preview, controls: true, preload: "metadata", playsInline: true });
       else if (m.kind === "voice") node = h("div", { class: "voice-pill" }, h("span", { class: "play" }, "🎙️"), h("div", { class: "wave" }, ...waveBars(m.meta.bars)), h("span", { class: "vd" }, arNum(m.meta.duration) + "ث"));
       else node = h("div", { class: "song-pill" }, h("span", { class: "cassette" }, "🎵"), h("div", { class: "meta" }, h("b", {}, m.meta.title || "أغنية"), h("span", { class: "muted" }, m.meta.artist || "")));
-      previews.appendChild(h("div", { class: "prev-wrap" }, node, h("button", { class: "prev-x", "aria-label": "إزالة", onclick: () => { draft.media.splice(i, 1); renderPreviews(); } }, "✕")));
+      const wrapEl = h("div", { class: "prev-wrap" }, node,
+        h("button", { class: "prev-x", "aria-label": "إزالة", onclick: () => { draft.media.splice(i, 1); renderPreviews(); } }, "✕"));
+      if (m.kind === "photo") wrapEl.appendChild(h("button", { class: "prev-art", "aria-label": "زخرفة الصورة", onclick: async () => {
+        const edited = await openDoodle(m.blob);
+        if (edited) { try { URL.revokeObjectURL(m.preview); } catch {} m.blob = edited; m.preview = URL.createObjectURL(edited); renderPreviews(); }
+      } }, icon("brush", { size: 18 })));
+      previews.appendChild(wrapEl);
     });
   }
   const fileInput = h("input", { type: "file", accept: "image/*", multiple: true, class: "hidden", onchange: async (e) => { const files = [...e.target.files]; if (!files.length) return; e.target.value = ""; loader(true); for (const f of files) { const ds = await downscale(f); draft.media.push({ kind: "photo", blob: ds.blob, contentType: "image/jpeg", preview: URL.createObjectURL(ds.blob) }); } loader(false); renderPreviews(); } });
@@ -360,7 +368,7 @@ export function openCompose({ onDone } = {}) {
       }
       const r = await api.addMoment({ body: t, mood: draft.mood || null, happened_at: dateInput.value || undefined, media });
       loader(false);
-      if (r.ok) { close(true); sound.post(); sparkleAt(innerWidth / 2, innerHeight / 2, ["🤍", "🌙", "✨", "💗"]); toast("حُفظت لحظتكما 🤍"); onDone && onDone(); }
+      if (r.ok) { close(true); sound.post(); haptic.success(); sparkleAt(innerWidth / 2, innerHeight / 2, ["🤍", "🌙", "✨", "💗"]); toast("حُفظت لحظتكما 🤍"); onDone && onDone(); }
       else err.textContent = r.data.detail || "تعذّر الحفظ";
     } catch { loader(false); err.textContent = "تعذّر رفع الوسائط"; }
   }

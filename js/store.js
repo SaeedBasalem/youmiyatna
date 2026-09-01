@@ -41,6 +41,8 @@ export const store = {
   get soundOn() { return localStorage.getItem(K.sound) !== "off"; },
   set soundOn(v) { localStorage.setItem(K.sound, v ? "on" : "off"); },
 
+  get hapticsOn() { return localStorage.getItem("yn_haptics") !== "off"; },
+  set hapticsOn(v) { localStorage.setItem("yn_haptics", v ? "on" : "off"); },
   get pushOn() { return localStorage.getItem("yn_push") === "on"; },
   set pushOn(v) { localStorage.setItem("yn_push", v ? "on" : "off"); },
   get theme() { return localStorage.getItem("yn_theme") || "system"; },   // system|light|dark

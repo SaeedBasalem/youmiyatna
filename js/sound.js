@@ -48,6 +48,10 @@ export const sound = {
   unlock() { play((c, t) => { rustle(c, t, { dur: 0.18, freq: 1200, gain: 0.25 }); [523, 659, 784].forEach((f, i) => blip(c, t + 0.05 + i * 0.07, { freq: f, dur: 0.22, gain: 0.2, type: "triangle" })); }); },
   error()  { play((c, t) => blip(c, t, { freq: 200, dur: 0.22, gain: 0.24, type: "sawtooth", slide: -80 })); },
   celebrate() { play((c, t) => { [523, 659, 784, 1046].forEach((f, i) => blip(c, t + i * 0.09, { freq: f, dur: 0.5, gain: 0.22, type: "triangle" })); rustle(c, t, { dur: 0.5, freq: 3000, gain: 0.2 }); }); },
+  chime()  { play((c, t) => { [880, 1320].forEach((f, i) => blip(c, t + i * 0.05, { freq: f, dur: 0.42, gain: 0.13, type: "sine" })); }); },
+  drop()   { play((c, t) => blip(c, t, { freq: 900, slide: -520, dur: 0.2, gain: 0.16, type: "sine" })); },
+  whoosh() { play((c, t) => rustle(c, t, { dur: 0.34, freq: 900, gain: 0.22, q: 0.5 })); },
+  heart()  { play((c, t) => { blip(c, t, { freq: 150, dur: 0.12, gain: 0.22, type: "sine" }); blip(c, t + 0.16, { freq: 130, dur: 0.16, gain: 0.16, type: "sine" }); }); },
   toggle() {
     store.soundOn = !store.soundOn;
     if (store.soundOn) this.tab();

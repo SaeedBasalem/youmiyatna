@@ -4,11 +4,12 @@ import { h, clear, arNum, toast, fullDate, relTime, sparkleAt, heartFly, confett
 import { api } from "../api.js";
 import { store } from "../store.js";
 import { sound } from "../sound.js";
-import { PEOPLE, other, MOODS, moodEmoji, BADGES, DUA, DUA_FOR_SPOUSE } from "../config.js";
+import { PEOPLE, other, MOODS, moodEmoji, BADGES, DUA } from "../config.js";
 import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, applyBackground, BG_PRESETS, safeUrl, hashPin, encryptWithPin, commit, errorState, bioAvailable, bioEnroll, bioEnrolled, bioForget } from "../helpers.js";
 import { downscale, uploadSigned } from "../media.js";
+import { haptic } from "../haptics.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
-import { MARRIAGE_KHALWA } from "../games.js";
+import { khalwa as genKhalwa, duaForSpouse } from "../generate.js";
 
 const sub = () => (location.hash || "").replace(/^#\//, "").split("/")[1] || "";
 const dayStr = () => new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10);
@@ -77,6 +78,7 @@ function renderHub(pane) {
     hubCard("🌅", "أذكارنا", "الصباح والمساء", "adhkar", "gold"),
     hubCard("🫙", "جرّة الصدقة", "نعطي معًا", "sadaqah", "rose"),
     hubCard("🎵", "أغانينا", "قائمة أغانينا", "songs", "rose"),
+    hubCard("🗺️", "خريطتنا", "أماكن تعنينا", "__map", "him"),
     hubCard("📖", "كتابنا", "صفحاتنا مجلّدة", "__book", "rose"),
     hubCard("✨", "حصادنا", "قصّتنا بالأرقام", "__wrapped", "gold"),
     hubCard("🏆", "إنجازاتنا", "أوسمة رحلتنا", "milestones", "gold"),
@@ -120,8 +122,7 @@ function togglePin(route, card) {
   if (i >= 0) { list.splice(i, 1); toast("أُزيل التثبيت"); }
   else { list.unshift(route); toast("ثُبّتت في الأعلى ⭐"); }
   store.hubOrder = list;
-  sound.react();
-  if (navigator.vibrate) navigator.vibrate(12);
+  sound.react(); haptic.pick();
   card.classList.toggle("pinned", list.includes(route));
   const grid = card.parentElement;
   if (grid) { const cards = [...grid.children]; cards.sort((a, b) => { const ia = list.indexOf(a.dataset.route), ib = list.indexOf(b.dataset.route); return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib); }); cards.forEach((el) => grid.appendChild(el)); }
@@ -335,7 +336,7 @@ async function faithSection(pane) {
   renderDuas(wbox);
 
   // ---- weekly marriage khalwa ----
-  const kw = MARRIAGE_KHALWA[weekIdx() % MARRIAGE_KHALWA.length];
+  const kw = genKhalwa({ seed: "k" + weekIdx(), remember: false });
   c.appendChild(h("h2", { class: "t-h2", style: { margin: "16px 4px 10px" } }, "خلوة الأسبوع 🤍"));
   c.appendChild(h("div", { class: "card weekly-card" }, h("div", { class: "wk-t" }, kw.theme),
     h("div", { class: "muted", style: { fontFamily: "var(--font-quote)", fontSize: "15px", lineHeight: "1.9", marginBottom: "10px" } }, kw.source),
@@ -361,7 +362,7 @@ async function faithSection(pane) {
         rec.count++; localStorage.setItem("yn_dhikr_day", JSON.stringify(rec));
         ring.style.setProperty("--p", pct()); ring.querySelector("i").textContent = arNum(rec.count);
         if (rec.count === goal) { const s = bumpStreak("yn_dhikr_last", "yn_dhikr_streak"); confetti(); sound.post(); toast("أتممتما هدف اليوم! 🔥 " + arNum(s)); }
-        if (navigator.vibrate) navigator.vibrate(15); sound.react();
+        haptic.soft(); sound.react();
         await commit(() => api.incDhikr(key, 1), () => {
           counts[key] = Math.max(0, (counts[key] || 1) - 1); cnt.textContent = arNum(counts[key]);
           rec.count = Math.max(0, rec.count - 1); localStorage.setItem("yn_dhikr_day", JSON.stringify(rec));
@@ -420,7 +421,7 @@ async function faithSection(pane) {
         cell.classList.add("on"); cell.classList.remove("today"); marked.add(j);
         box.querySelector(".gp-bar i").style.width = (marked.size / K.total) * 100 + "%";
         const cnt = box.querySelector(".khcount"); if (cnt) cnt.textContent = arNum(marked.size) + " / " + arNum(K.total);
-        sound.react(); sparkleAt(innerWidth / 2, innerHeight / 2, ["📖", "✨", "🤍"]);
+        sound.react(); haptic.success(); sparkleAt(innerWidth / 2, innerHeight / 2, ["📖", "✨", "🤍"]);
         const saved = await commit(() => api.markJuz(K.id, j), () => {
           cell.classList.remove("on"); if (j === todayJuz) cell.classList.add("today"); marked.delete(j);
           box.querySelector(".gp-bar i").style.width = (marked.size / K.total) * 100 + "%";
@@ -435,7 +436,7 @@ async function faithSection(pane) {
 
   function duaNudge() {
     const partner = other(store.person);
-    const line = DUA_FOR_SPOUSE[dayIdx() % DUA_FOR_SPOUSE.length];
+    const line = duaForSpouse({ seed: "d" + dayIdx(), remember: false });
     return h("div", { class: "card dua-nudge" }, h("div", { class: "dn-t" }, line),
       h("button", { class: "btn sm", style: { width: "auto" }, onclick: async () => { const r = await api.addDua(line, PEOPLE[partner].name); if (r.ok) { sound.post(); toast("أضيفت للجدار 🤲"); faithSection(pane); } else toast("تعذّر"); } }, "ادعُ لِ" + PEOPLE[partner].name + " اليوم 🤲"));
   }
@@ -467,7 +468,7 @@ async function faithSection(pane) {
     const partner = other(store.person);
     const body = h("textarea", { class: "field", rows: 3, placeholder: "اللهم…" });
     const forWhom = h("input", { class: "field", placeholder: "لِمن؟ (اختياري)" });
-    const chips = h("div", { class: "dua-chip-row" }, ...DUA_FOR_SPOUSE.slice(0, 6).map((t) => h("button", { class: "dua-chip", onclick: () => { body.value = t; forWhom.value = PEOPLE[partner].name; } }, t.length > 34 ? t.slice(0, 34) + "…" : t)));
+    const chips = h("div", { class: "dua-chip-row" }, ...Array.from({ length: 6 }, (_, k) => duaForSpouse({ seed: "c" + k, remember: false })).map((t) => h("button", { class: "dua-chip", onclick: () => { body.value = t; forWhom.value = PEOPLE[partner].name; } }, t.length > 34 ? t.slice(0, 34) + "…" : t)));
     const { close } = openModal({ title: "دعوة 🤲", body: [h("div", { class: "muted", style: { fontSize: "12px", marginBottom: "6px" } }, "أو اختر دعوةً لشريكك:"), chips, body, h("label", { class: "lbl" }, "لِمن"), forWhom,
       h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"),
         h("button", { class: "btn", onclick: async () => { if (!body.value.trim()) return; await api.addDua(body.value.trim(), forWhom.value.trim() || null); close(); sound.post(); faithSection(pane); } }, "أضف"))] });
@@ -639,7 +640,9 @@ async function settingsSection(pane) {
     h("button", { class: "bg-swatch photo" + ((curBg && !curBg.startsWith("preset:")) ? " on" : ""), "aria-label": "صورتنا", title: "صورتنا", onclick: pickBg }));
   c.appendChild(settingCard("الخلفية 🌄", [h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "خلفيةٌ لكلٍّ منكما — اختر لونًا أو صورةً لكما 📷."), swatches]));
   // sound
-  c.appendChild(settingCard("الصوت 🔊", [toggle(store.soundOn, (on) => { store.soundOn = on; if (on) sound.tab(); })]));
+  c.appendChild(settingCard("الصوت واللمس 🔊", [
+    rowToggle("أصوات لطيفة", store.soundOn, (on) => { store.soundOn = on; if (on) sound.chime(); }),
+    rowToggle("اهتزاز عند اللمس", store.hapticsOn, (on) => { store.hapticsOn = on; if (on) haptic.success(); })]));
   // notifications
   c.appendChild(settingCard("التنبيهات 🔔", [
     h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "لتصلكما همسات بعضكما وإشعاراتكما على الجوّال حتى والتطبيق مغلق. (على الآيفون: أضيفا التطبيق للشاشة الرئيسية أولًا.)"),

@@ -6,6 +6,7 @@ import { h, clear, arNum, fullDate, monthYear, confetti, sparkleAt, noMotion } f
 import { PEOPLE, MOODS, moodEmoji } from "../config.js";
 import { go, errorState } from "../helpers.js";
 import { icon } from "../icons.js";
+import { haptic } from "../haptics.js";
 import { art } from "../art.js";
 
 const TZ = 180 * 60000;
@@ -106,7 +107,7 @@ export async function viewWrapped(content) {
     const n = idx + d;
     if (n < 0) return;
     if (n >= cards.length) { go("us"); return; }
-    idx = n; sound.page(); paint();
+    idx = n; sound.page(); haptic.page(); paint();
   }
   // swipe through the story
   let x0 = null;

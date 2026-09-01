@@ -3,11 +3,13 @@ import { api, setAuthFailHandler } from "./api.js";
 import { store } from "./store.js";
 import { sound } from "./sound.js";
 import { h, $, clear, avatar, toast, arNum, relTime, fullDate, moodChip, hijriDate, hijriParts, confetti, sparkleAt, clickable } from "./ui.js";
-import { PEOPLE, other, MOODS, moodEmoji, DUA, DUA_FOR_SPOUSE } from "./config.js";
+import { PEOPLE, other, MOODS, moodEmoji, DUA } from "./config.js";
 import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk, encryptWithPin, decryptWithPin, bioEnrolled, bioUnlock, bioForget } from "./helpers.js";
-import { SWEET_LINES, DATE_IDEAS, CONVO_DECK } from "./games.js";
+import { sweetLine, convoCard, dateIdea, duaForSpouse } from "./generate.js";
 import { attachSwipe, attachPullToRefresh } from "./gestures.js";
 import { icon } from "./icons.js";
+import { haptic } from "./haptics.js";
+import { maybeWelcome } from "./onboarding.js";
 import { startLiving, greetingFor, phaseNow, PHASE_AR } from "./living.js";
 import { viewJournal, viewMoment, openCompose } from "./views/journal.js";
 import { viewChat } from "./views/chat.js";
@@ -16,6 +18,7 @@ import { viewUs } from "./views/us.js";
 import { viewSearch } from "./views/search.js";
 import { viewBook } from "./views/book.js";
 import { viewWrapped } from "./views/wrapped.js";
+import { viewMap } from "./views/map.js";
 
 const APP = () => document.getElementById("app");
 
@@ -78,6 +81,7 @@ function renderRoute() {
     case "search": return shell("journal", viewSearch);
     case "book": return shell("us", viewBook);
     case "wrapped": return shell("us", viewWrapped);
+    case "map": return shell("us", viewMap);
     case "moment": return viewMoment(routeArg());
     default: return go("home");
   }
@@ -101,7 +105,7 @@ function shell(active, viewFn) {
 function tabbar(active) {
   const nav = h("nav", { class: "tabbar", "aria-label": "التنقّل" }, ...TABS.map((t) => {
     const isOn = active === t.key;
-    const btn = h("button", { class: "tab" + (isOn ? " active" : ""), "aria-label": t.label, "aria-current": isOn ? "page" : null, onclick: () => { sound.tab(); navTo(t.key); } }, h("span", { class: "ic" }, icon(t.ic, { size: 23 })), t.label);
+    const btn = h("button", { class: "tab" + (isOn ? " active" : ""), "aria-label": t.label, "aria-current": isOn ? "page" : null, onclick: () => { sound.tab(); haptic.tap(); navTo(t.key); } }, h("span", { class: "ic" }, icon(t.ic, { size: 23 })), t.label);
     if (t.key === "chat") btn.dataset.tab = "chat";
     return btn;
   }));
@@ -211,6 +215,7 @@ async function viewHome(content) {
     api.bootstrap(), api.ritualsToday(), api.feed(), api.onThisDay(), api.milestones(), api.listLetters(), api.listPlaylist()]);
   if (boot.ok) { store.setConfig(boot.data.config || {}); applyBackground(); }
   if (feed.ok) store.cacheFeed(feed.data.items);
+  maybeWelcome();
   homeData = {
     rt: rt.ok ? rt.data : null,
     feed: feed.ok ? feed.data.items : store.cachedFeed(),
@@ -262,7 +267,7 @@ function renderHome(content, d, loading) {
   if (cel && localStorage.getItem("yn_celebrated") !== cel.key) {
     c.appendChild(h("div", { class: "card home-card celebrate-card" }, h("div", { class: "ct" }, cel.title), h("div", { class: "cs" }, cel.sub)));
     localStorage.setItem("yn_celebrated", cel.key);
-    setTimeout(() => { confetti(); sound.post(); }, 350);
+    setTimeout(() => { confetti(); sound.celebrate(); haptic.celebrate(); }, 350);
   }
 
   // hero compose
@@ -325,8 +330,7 @@ function renderHome(content, d, loading) {
   }
 
   // daily sweet-word to chat
-  const sweet = SWEET_LINES[dayIdx() % SWEET_LINES.length];
-  const line = partner === "her" ? sweet.f : sweet.m;
+  const line = sweetLine(partner === "her", { seed: "s" + dayIdx(), remember: false });
   c.appendChild(h("div", { class: "card home-card" },
     h("div", { class: "hc-head" }, h("span", { class: "em" }, "💌"), "بادرة اليوم"),
     h("div", { style: { fontFamily: "var(--font-quote)", fontSize: "17px", lineHeight: "1.9", marginBottom: "10px" } }, line),
@@ -381,9 +385,10 @@ function pickSurprise(d) {
   const pool = [];
   const mems = (d && d.feed) || [];
   if (mems.length) { const m = mems[dayIdx() % mems.length]; if (m && m.body) pool.push({ title: "ذكرى منكما 📖", text: "“" + m.body + "”", cta: { label: "افتح اللحظة", fn: () => go("moment/" + m.id) } }); }
-  pool.push({ title: "سؤالٌ لكما 🃏", text: CONVO_DECK[dayIdx() % CONVO_DECK.length] });
-  pool.push({ title: "فكرة سهرة 🎡", text: DATE_IDEAS[dayIdx() % DATE_IDEAS.length] });
-  pool.push({ title: "دعوةٌ لكما 🤲", text: DUA_FOR_SPOUSE[dayIdx() % DUA_FOR_SPOUSE.length] });
+  const seed = "x" + dayIdx();
+  pool.push({ title: "سؤالٌ لكما 🃏", text: convoCard({ seed, remember: false }) });
+  pool.push({ title: "فكرة سهرة 🎡", text: dateIdea({ seed, remember: false }) });
+  pool.push({ title: "دعوةٌ لكما 🤲", text: duaForSpouse({ seed, remember: false }) });
   return pool.length ? pool[dayIdx() % pool.length] : null;
 }
 

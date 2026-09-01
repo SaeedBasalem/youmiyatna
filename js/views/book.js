@@ -6,6 +6,7 @@ import { h, clear, arNum, fullDate, monthYear, toast } from "../ui.js";
 import { PEOPLE, moodEmoji } from "../config.js";
 import { go, errorState, loader } from "../helpers.js";
 import { icon } from "../icons.js";
+import { haptic } from "../haptics.js";
 import { art } from "../art.js";
 
 let PAGES = null;   // built page models, cached for the session
@@ -105,7 +106,7 @@ export async function viewBook(content) {
       const w = track.clientWidth || 1;
       // RTL tracks scroll negatively; normalise by using scrollBy
       track.scrollBy({ left: dir * w, behavior: "smooth" });
-      sound.page();
+      sound.page(); haptic.page();
     }
   }
 }
