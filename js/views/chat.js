@@ -11,6 +11,7 @@ import { openModal, openSheet, ensureSigned } from "../helpers.js";
 import { openLightbox } from "../lightbox.js";
 import { attachLongPress } from "../gestures.js";
 import { haptic } from "../haptics.js";
+import { outbox } from "../outbox.js";
 
 let msgs = [], scroller = null, pollTimer = null, seen = new Set(), lastSig = "";
 // Our own most recent reaction state per message, with the moment we set it.
@@ -34,6 +35,21 @@ const REACTS = ["❤️", "🤍", "😂", "🥹", "😮", "🤲", "🔥"];
 // the fingerprint carries reactions too, so a poll notices them landing
 const rsig = (m) => Object.entries(m.reactions || {}).map(([e, w]) => e + (w || []).join("")).sort().join("");
 const sig = (server) => server.map((m) => m.id + (m.read_at ? "1" : "0") + rsig(m)).join("|");
+
+// When the outbox finally lands a queued whisper the server has it, so the
+// placeholder must go or the same whisper shows twice. Bound once, by job id,
+// so a partial flush retires exactly the ones that actually went out.
+window.addEventListener("yn:outbox-sent", (e) => {
+  const id = e.detail && e.detail.id;
+  if (!id || !msgs.some((m) => m._job === id)) return;
+  msgs = msgs.filter((m) => m._job !== id);
+  if (isChatActive()) load(false); else render();
+});
+window.addEventListener("yn:outbox-failed", (e) => {
+  const id = e.detail && e.detail.id;
+  const m = msgs.find((x) => x._job === id);
+  if (m) { m._queued = false; m._pending = false; m._failed = true; render(); }
+});
 
 // resume immediately when the couple returns to the tab (bound once)
 document.addEventListener("visibilitychange", () => { if (!document.hidden && isChatActive()) load(false); });
@@ -118,11 +134,11 @@ function timeShort(iso) { try { return new Date(iso).toLocaleTimeString("ar", { 
 function bubble(m) {
   const mine = m.sender === store.person;
   const think = m.kind === "text" && m.body && m.body.startsWith("💭");
-  const b = h("div", { class: "chat-msg " + (mine ? "mine" : "theirs") + " " + m.sender + (m._pending ? " pending" : "") + (m._failed ? " failed" : "") + (think ? " think" : "") });
+  const b = h("div", { class: "chat-msg " + (mine ? "mine" : "theirs") + " " + m.sender + (m._pending ? " pending" : "") + (m._failed ? " failed" : "") + (m._queued ? " queued" : "") + (think ? " think" : "") });
   if (m.kind === "image" && m.signed_url) b.appendChild(h("img", { class: "chat-img", src: m.signed_url, loading: "lazy", alt: "صورة", onclick: () => openLightbox([{ url: m.signed_url }]) }));
   else if (m.kind === "voice" && m.signed_url) b.appendChild(voiceMini(m));
   else b.appendChild(h("div", { class: "chat-text" }, m.body));
-  const tick = mine ? (m._failed ? " ⚠︎" : m.read_at ? " ✓✓" : " ✓") : "";
+  const tick = mine ? (m._failed ? " ⚠︎" : m._queued ? " ⏳" : m.read_at ? " ✓✓" : " ✓") : "";
   b.appendChild(h("div", { class: "chat-meta" }, timeShort(m.created_at) + tick));
   const pills = reactionPills(m);
   if (pills) b.appendChild(pills);
@@ -222,8 +238,18 @@ function autoGrow(el) { el.style.height = "auto"; el.style.height = Math.min(120
 function scrollBottom() { setTimeout(() => { if (scroller) scroller.scrollTop = scroller.scrollHeight; }, 30); }
 
 // reconcile an optimistic bubble with the server's confirmed message (by client id)
-async function confirmSend(temp, r) {
-  if (!r.ok) { temp._pending = false; temp._failed = true; render(); toast("تعذّر الإرسال"); return; }
+async function confirmSend(temp, r, queue) {
+  if (!r.ok) {
+    // No signal: hold it in the outbox and leave the bubble looking pending,
+    // because it genuinely is — it will go out the moment the signal returns.
+    const job = r.offline && queue ? outbox.add("message", queue) : false;
+    if (job) {
+      temp._queued = true; temp._job = job; render();
+      toast("لا اتصال — ستُرسل تلقائيًا ⏳");
+      return;
+    }
+    temp._pending = false; temp._failed = true; render(); toast("تعذّر الإرسال"); return;
+  }
   const real = (await withSigned([r.data.message]))[0];
   const idx = msgs.findIndex((m) => m.cid && m.cid === temp.cid);
   if (idx >= 0) msgs[idx] = real; else if (!msgs.some((m) => m.id === real.id)) msgs.push(real);
@@ -236,7 +262,7 @@ async function sendText(input) {
   input.value = ""; autoGrow(input);
   const temp = { id: "tmp" + Date.now(), cid: cid(), sender: store.person, kind: "text", body, created_at: new Date().toISOString(), read_at: null, _pending: true };
   msgs.push(temp); render(); scrollBottom(); sound.post();
-  confirmSend(temp, await api.sendMessage({ kind: "text", body }));
+  confirmSend(temp, await api.sendMessage({ kind: "text", body }), { kind: "text", body });
 }
 async function onImage(e) {
   const f = e.target.files[0]; if (!f) return; e.target.value = "";
@@ -280,6 +306,6 @@ async function thinkingOfYou(ev) {
   const temp = { id: "tmp" + Date.now(), cid: cid(), sender: store.person, kind: "text", body, created_at: new Date().toISOString(), read_at: null, _pending: true };
   msgs.push(temp); render(); scrollBottom();
   const r = await api.sendMessage({ kind: "text", body });
-  await confirmSend(temp, r);
+  await confirmSend(temp, r, { kind: "text", body });
   if (r.ok) toast("وصلَتها لمستك 💭");
 }

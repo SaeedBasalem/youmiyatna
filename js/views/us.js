@@ -11,6 +11,7 @@ import { haptic } from "../haptics.js";
 import { SKINS, applySkin } from "../skins.js";
 import { openPushOnboarding, openPushDoctor, openInstallGuide, isStandalone, isIOS, pushBlockedUntilInstalled, canPromptInstall, promptInstall } from "../install.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
+import { planSection } from "./plan.js";
 import { khalwa as genKhalwa, duaForSpouse } from "../generate.js";
 
 const sub = () => (location.hash || "").replace(/^#\//, "").split("/")[1] || "";
@@ -49,6 +50,7 @@ export function viewUs(content) {
 }
 
 const SECTIONS = {
+  plan:       { title: "مهامّنا", render: (p) => planSection(p) },
   jar:        { title: "لماذا أحبّك", render: (p) => jarSection(p) },
   firsts:     { title: "أوّليّاتنا", render: (p) => firstsSection(p) },
   goals:      { title: "أحلامنا", render: (p) => goalsSection(p) },
@@ -71,6 +73,8 @@ function renderHub(pane) {
   c.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "كل ما يجمعنا")));
   c.appendChild(h("div", { class: "hub-hint" }, "اضغطا مطوّلًا على أي بطاقة لتثبيتها في الأعلى ⭐"));
   const grid = h("div", { class: "hub" },
+    hubCard("📋", "مهامّنا", "ما نحتاج فعله معًا", "plan", "him"),
+    hubCard("🗞️", "كل ما جرى", "خيط حياتنا", "__inbox", "gold"),
     hubCard("💛", "لماذا أحبّك", "جرّة أسبابنا", "jar", "her"),
     hubCard("✨", "أوّليّاتنا", "أول كل شيء", "firsts", "gold"),
     hubCard("🎯", "أحلامنا", "قائمة الأمنيات", "goals", "him"),
@@ -643,6 +647,13 @@ async function settingsSection(pane) {
     ...Object.entries(BG_PRESETS).map(([key, p]) => h("button", { class: "bg-swatch" + ((curBg === "preset:" + key || (!curBg && key === "default")) ? " on" : ""), "aria-label": p.name, title: p.name, style: { background: p.dot }, onclick: async () => { const prev = store.config["bg_" + store.person] || ""; store.setConfig({ ["bg_" + store.person]: "preset:" + key }); applyBackground(); sound.tab(); await commit(() => api.setConfig("bg_" + store.person, "preset:" + key), () => { store.setConfig({ ["bg_" + store.person]: prev }); applyBackground(); }); settingsSection(pane); } })),
     h("button", { class: "bg-swatch photo" + ((curBg && !curBg.startsWith("preset:")) ? " on" : ""), "aria-label": "صورتنا", title: "صورتنا", onclick: pickBg }));
   c.appendChild(settingCard("الخلفية 🌄", [h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "خلفيةٌ لكلٍّ منكما — اختر لونًا أو صورةً لكما 📷."), swatches]));
+  // everything they have written, as one file they keep
+  c.appendChild(settingCard("نسخة لكما 📦", [
+    h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } },
+      "احفظا كل ما كتبتماه — اللحظات والهمسات والرسائل والمهام — في ملف واحد يبقى معكما مهما حدث."),
+    h("button", { class: "btn soft sm", onclick: (ev) => downloadExport(ev.currentTarget) }, "نزّلا نسختنا"),
+    h("div", { class: "acct-hint" }, "الصور والصوت تُحفَظ كروابط صالحة سبعة أيام — افتحاها واحفظاها قريبًا."),
+  ]));
   // sound
   c.appendChild(settingCard("الصوت واللمس 🔊", [
     rowToggle("أصوات لطيفة", store.soundOn, (on) => { store.soundOn = on; if (on) sound.chime(); }),
@@ -839,4 +850,24 @@ function adder(placeholder, onAdd, quickLabel) {
   const row = h("div", { class: "adder" }, inp, h("button", { class: "btn sm", "aria-label": "إضافة", onclick: submit }, "＋"));
   if (quickLabel) return h("div", {}, row, h("button", { class: "btn soft sm", style: { marginTop: "8px", width: "100%" }, onclick: () => onAdd("") }, quickLabel));
   return row;
+}
+
+// One file with everything in it. Built in the browser from what the server
+// hands back, so nothing extra is stored anywhere on the way out.
+async function downloadExport(btn) {
+  const was = btn.textContent;
+  btn.disabled = true; btn.textContent = "…نجمع كل شيء";
+  const r = await api.exportAll();
+  btn.disabled = false; btn.textContent = was;
+  if (!r.ok) { toast(r.offline ? "لا اتصال" : "تعذّر التصدير"); return; }
+  try {
+    const blob = new Blob([JSON.stringify(r.data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = h("a", { href: url, download: `youmiyatna-${new Date().toISOString().slice(0, 10)}.json` });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    const n = r.data.counts || {};
+    sound.chime(); haptic.success();
+    toast(`حُفظت نسختكما ✓ ${arNum(n.entries || 0)} لحظة و${arNum(n.messages || 0)} همسة`);
+  } catch { toast("تعذّر حفظ الملف"); }
 }

@@ -1,5 +1,5 @@
 // يومياتنا — service worker: offline shell (network-first) + web-push display.
-const CACHE = "yn-r19";
+const CACHE = "yn-r20";
 const ICON = "icons/icon-192.png";
 const CORE = [
   "./", "index.html", "manifest.webmanifest", "css/style.css", "fonts/fonts.css",
@@ -10,6 +10,7 @@ const CORE = [
   "js/lightbox.js", "js/views/story.js", "js/views/pulse.js", "js/views/profile.js", "js/install.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
   "js/views/journal.js", "js/views/chat.js", "js/views/play.js", "js/views/us.js",
+  "js/outbox.js", "js/newsbar.js", "js/views/inbox.js", "js/views/plan.js",
 ];
 self.addEventListener("install", (e) => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE).catch(() => {}))); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });

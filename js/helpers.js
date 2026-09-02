@@ -3,6 +3,7 @@ import { h, $, clear, toast } from "./ui.js";
 import { attachSheetDrag } from "./gestures.js";
 import { store } from "./store.js";
 import { api } from "./api.js";
+import { outbox } from "./outbox.js";
 
 export const go = (r) => { location.hash = "#/" + r; };
 
@@ -74,10 +75,17 @@ export function errorState(retry, { offline = false } = {}) {
 
 // Run an optimistic write. If the server rejects it (or we are offline), undo the
 // local change and say so — a journal must never look saved when it was not.
-export async function commit(call, revert, failMsg) {
+export async function commit(call, revert, failMsg, queueAs) {
   let r;
   try { r = await call(); } catch { r = null; }
   if (r && r.ok) return true;
+  // Offline AND safe to replay later: keep the optimistic change and hold the
+  // write in the outbox. Anything else rolls back, because a change the server
+  // never hears about must not keep looking saved.
+  if (r && r.offline && queueAs && outbox.add(queueAs.kind, queueAs.args)) {
+    toast("لا اتصال — سيُرسل تلقائيًا عند عودته ⏳");
+    return true;
+  }
   try { revert && revert(); } catch {}
   toast(r && r.offline ? "لا اتصال — لم يُحفظ" : (failMsg || "تعذّر الحفظ"));
   return false;

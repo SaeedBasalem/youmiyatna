@@ -1,5 +1,5 @@
 // يومياتنا — single network module to the `journal` edge-function gate.
-import { FN, FN2, FN3, FN4, ANON } from "./config.js";
+import { FN, FN2, FN3, FN4, FN5, ANON } from "./config.js";
 
 let TOKEN = null;
 let onAuthFail = null;
@@ -40,6 +40,16 @@ async function call3(action, extra = {}) {
   try { res = await fetch(FN3, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action, token: TOKEN, ...extra }) }); }
   catch (e) { return { ok: false, status: 0, offline: true, data: {} }; }
   try { data = await res.json(); } catch { data = {}; }
+  return { ok: res.ok, status: res.status, data };
+}
+
+// fifth gate (activity stream, planner, export), same token scheme
+async function call5(action, extra = {}) {
+  let res, data = {};
+  try { res = await fetch(FN5, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action, token: TOKEN, ...extra }) }); }
+  catch (e) { return { ok: false, status: 0, offline: true, data: {} }; }
+  try { data = await res.json(); } catch { data = {}; }
+  if (res.status === 401 && onAuthFail) onAuthFail();
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -137,4 +147,12 @@ export const api = {
   setEmailNotify:(on)             => call("set_email_notify", { on }),
   // whisper reactions (journal4)
   reactMessage:  (id, emoji)      => call4("react_message", { id, emoji }),
+  // activity, planner, export (journal5)
+  activity:      (limit)          => call5("activity", { limit }),
+  activitySeen:  (at)             => call5("activity_seen", { at }),
+  listTasks:     ()               => call5("list_tasks"),
+  addTask:       (payload)        => call5("add_task", payload),
+  toggleTask:    (id)             => call5("toggle_task", { id }),
+  delTask:       (id)             => call5("del_task", { id }),
+  exportAll:     ()               => call5("export_all"),
 };

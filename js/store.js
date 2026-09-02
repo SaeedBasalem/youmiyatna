@@ -43,6 +43,7 @@ export const store = {
 
   get hapticsOn() { return localStorage.getItem("yn_haptics") !== "off"; },
   set hapticsOn(v) { localStorage.setItem("yn_haptics", v ? "on" : "off"); },
+  activityUnseen: 0,                            // in-memory: how much the other one did since we last looked
   get pushOn() { return localStorage.getItem("yn_push") === "on"; },
   set pushOn(v) { localStorage.setItem("yn_push", v ? "on" : "off"); },
   get theme() { return localStorage.getItem("yn_theme") || "system"; },   // system|light|dark

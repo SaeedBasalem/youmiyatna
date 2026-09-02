@@ -6,7 +6,10 @@ import { h, $, clear, avatar, toast, arNum, relTime, fullDate, moodChip, hijriDa
 import { PEOPLE, other, MOODS, moodEmoji, DUA } from "./config.js";
 import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk, encryptWithPin, decryptWithPin, bioEnrolled, bioUnlock, bioForget, refreshAvatars, commit } from "./helpers.js";
 import { sweetLine, convoCard, dateIdea, duaForSpouse } from "./generate.js";
+import { viewInbox, refreshActivityBadge } from "./views/inbox.js";
+import { newsBar, recommendations, newsFromActivity, interleave } from "./newsbar.js";
 import { installBanner, pushBanner } from "./install.js";
+import { startOutbox, outbox } from "./outbox.js";
 import { attachSwipe, attachPullToRefresh } from "./gestures.js";
 import { icon } from "./icons.js";
 import { haptic } from "./haptics.js";
@@ -30,7 +33,7 @@ const APP = () => document.getElementById("app");
 
 /* ---------------- boot + router ---------------- */
 let homeData = null;
-store.init(); applyTheme(); applySkin(); applyBackground(); startLiving();
+store.init(); applyTheme(); applySkin(); applyBackground(); startLiving(); startOutbox();
 watchInstall(() => { if (currentRoute() === "home") { homeData = null; renderRoute(); } });
 if (isStandalone()) document.documentElement.setAttribute("data-standalone", "1");
 setAuthFailHandler(() => { store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });
@@ -92,6 +95,7 @@ function renderRoute() {
     case "map": return shell("us", viewMap);
     case "story": return viewStory();
     case "pulse": return shell("us", viewPulse);
+    case "inbox": return shell("home", viewInbox);
     case "profile": return shell("us", (c) => viewProfile(c, routeArg()));
     case "moment": return viewMoment(routeArg());
     default: return go("home");
@@ -222,9 +226,9 @@ function weekIdx() { return Math.floor(dayIdx() / 7); }
 
 async function viewHome(content) {
   renderHome(content, homeData, true);
-  const [boot, rt, feed, otd, ms, letters, playlist, msgs, unread] = await Promise.all([
+  const [boot, rt, feed, otd, ms, letters, playlist, msgs, unread, acts, tsks] = await Promise.all([
     api.bootstrap(), api.ritualsToday(), api.feed(), api.onThisDay(), api.milestones(), api.listLetters(), api.listPlaylist(),
-    api.messages(), api.chatUnread()]);
+    api.messages(), api.chatUnread(), api.activity(30), api.listTasks()]);
   if (boot.ok) { store.setConfig(boot.data.config || {}); applyBackground(); }
   refreshAvatars().then(() => { const heads = $(".avatars"); if (heads) { clear(heads); heads.append(avatar("him"), avatar("her")); } });
   if (feed.ok) store.cacheFeed(feed.data.items);
@@ -239,8 +243,13 @@ async function viewHome(content) {
     playlist: playlist.ok ? playlist.data.items : [],
     lastMsg: (msgs.ok && msgs.data.items && msgs.data.items[msgs.data.items.length - 1]) || null,
     unread: (unread.ok && unread.data.unread) || 0,
+    activity: acts.ok ? acts.data.items : [],
+    activitySeen: acts.ok ? acts.data.seen_at : "",
+    activityUnseen: acts.ok ? acts.data.unseen : 0,
+    tasks: tsks.ok ? tsks.data.items : [],
     offline: feed.offline,
   };
+  store.activityUnseen = homeData.activityUnseen || 0;
   renderHome(content, homeData, false);
 }
 
@@ -266,16 +275,31 @@ function renderHome(content, d, loading) {
       clickable(h("span", { class: "av-tap", onclick: () => go("profile/" + me) }, avatar(me)), () => go("profile/" + me)),
       clickable(h("span", { class: "av-tap", onclick: () => go("profile/" + partner) }, avatar(partner)), () => go("profile/" + partner)))));
 
-  /* ---- row: the running numbers, and today's occasion ---- */
+  /* ---- row: the running numbers, read as data rather than as chips ---- */
   const dt = daysTogether();
   const streak = (d && d.ms && d.ms.streak_current) || 0;
   const occ = occasionToday();
+  const weekAgo = Date.now() - 7 * 86400000;
+  const weekCount = ((d && d.feed) || []).filter((e) => new Date(e.created_at) >= weekAgo).length;
+  const fresh = (d && d.activityUnseen) || 0;
   const meta = h("div", { class: "d-meta" });
-  if (dt != null) meta.appendChild(h("span", { class: "together" }, "🤍 " + arNum(dt) + " يومًا معًا"));
-  if (streak > 0) meta.appendChild(h("span", { class: "streak-chip" }, "🔥 " + arNum(streak)));
-  if (occ) meta.appendChild(h("span", { class: "occ-chip" }, occ.emoji + " " + occ.title));
-  if (d && d.offline) meta.appendChild(h("span", { class: "occ-chip" }, "🌙 دون اتصال"));
-  if (meta.children.length) grid.appendChild(meta);
+  // Arabic-Indic zero is a dot, which at this size reads as a bullet rather
+  // than as a number — an em dash says "nothing yet" far more clearly.
+  const stat = (n, label, tone, onclick) => h("button", { class: "d-stat" + (tone ? " " + tone : ""), onclick },
+    h("span", { class: "ds-n" + (n ? "" : " zero") }, n ? arNum(n) : "—"), h("span", { class: "ds-l" }, label));
+  if (dt != null) meta.appendChild(stat(dt, "يومًا معًا", "", () => go("us")));
+  meta.appendChild(stat(streak, "سلسلة", streak > 0 ? "hot" : "", () => go("journal")));
+  meta.appendChild(stat(weekCount, "هذا الأسبوع", "", () => go("journal")));
+  meta.appendChild(stat(fresh, "جديد", fresh > 0 ? "new" : "", () => go("inbox")));
+  if (occ) meta.appendChild(h("span", { class: "occ-chip d-occ" }, occ.emoji + " " + occ.title));
+  if (d && d.offline) meta.appendChild(h("span", { class: "occ-chip d-occ" }, "🌙 دون اتصال"));
+  grid.appendChild(meta);
+
+  /* ---- row: the news bar — what to do, and what the other one just did ---- */
+  const news = newsBar(interleave(recommendations(d, (d && d.tasks) || []),
+                                  newsFromActivity((d && d.activity) || [], d && d.activitySeen)),
+                       { onOpen: () => go("inbox") });
+  if (news) grid.appendChild(news);
 
   /* ---- optional row: install, then notifications (only one at a time) ---- */
   const inst = installBanner();
