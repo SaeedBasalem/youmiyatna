@@ -7,6 +7,7 @@
   --ink:#4B3A37; --ink-2:#6E5852; --ink-3:#907A72;
   --rose:#E28CA0; --rose-deep:#C96B80; --rose-soft:#FADEE4;
   --gold:#E3BE86; --gold-soft:#F7EAD5; --gold-ink:#A9741F;
+  --ok:#3F9D6B;                       /* the one 'this is fine' green, tokenised so skins can retune it */
   --him:#8CA7C6; --him-soft:#E7EEF6; --her:#E6A0B2; --her-soft:#FBE3EA;
   --line:#F0E0D8;
   --shadow:0 12px 34px rgba(198,126,133,.16);
@@ -25,6 +26,7 @@
     --ink:#F4E8E3; --ink-2:#C7ADA8; --ink-3:#A08A84;
     --rose:#EB9DAD; --rose-deep:#F0AAB8; --rose-soft:#4A2E37;
     --gold:#E7C793; --gold-soft:#3C2E22; --gold-ink:#E7C793;
+    --ok:#63BE8C;
     --him:#9EB7D4; --him-soft:#26313E; --her:#EEA9BB; --her-soft:#40252E;
     --line:#3A2B32;
     --shadow:0 14px 36px rgba(0,0,0,.42); --shadow-sm:0 6px 18px rgba(0,0,0,.34);
@@ -1326,3 +1328,23 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .nl-e{font-size:17px;line-height:1.35;flex:none}
 .nl-row b{display:block;font-size:13.5px;line-height:1.4}
 .nl-row span{font-size:11.5px;line-height:1.55}
+
+/* ======================================================================
+   THE NOTIFICATION DOCTOR — one row per precondition, so "it doesn't work"
+   becomes "this exact step is unhappy, and here is what fixes it".
+   ====================================================================== */
+.doc-rows{display:flex;flex-direction:column;gap:8px;margin:2px 0 14px}
+.doc-row{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border-radius:var(--radius-sm);
+  background:var(--surface-2);border:1px solid var(--line)}
+.doc-row.ok{border-color:color-mix(in srgb, var(--ok, #3F9D6B) 40%, var(--line))}
+.doc-row.bad{border-color:color-mix(in srgb, var(--rose-deep) 45%, var(--line));
+  background:color-mix(in srgb, var(--rose-soft) 55%, var(--surface-2))}
+.doc-dot{flex:none;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:#fff;background:var(--ok, #3F9D6B)}
+.doc-row.bad .doc-dot{background:var(--rose-deep)}
+.doc-row b{display:block;font-size:13.5px;line-height:1.4}
+.doc-row span{font-size:11.5px;line-height:1.55}
+.doc-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.acct-hint.ok{color:var(--ok, #3F9D6B)}
+.acct-hint.bad{color:var(--rose-deep)}
+.push-card{background:linear-gradient(135deg,var(--gold-soft),var(--surface))}

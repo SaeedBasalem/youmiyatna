@@ -6,7 +6,7 @@ import { h, $, clear, avatar, toast, arNum, relTime, fullDate, moodChip, hijriDa
 import { PEOPLE, other, MOODS, moodEmoji, DUA } from "./config.js";
 import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk, encryptWithPin, decryptWithPin, bioEnrolled, bioUnlock, bioForget, refreshAvatars, commit } from "./helpers.js";
 import { sweetLine, convoCard, dateIdea, duaForSpouse } from "./generate.js";
-import { installBanner } from "./install.js";
+import { installBanner, pushBanner } from "./install.js";
 import { attachSwipe, attachPullToRefresh } from "./gestures.js";
 import { icon } from "./icons.js";
 import { haptic } from "./haptics.js";
@@ -277,9 +277,10 @@ function renderHome(content, d, loading) {
   if (d && d.offline) meta.appendChild(h("span", { class: "occ-chip" }, "🌙 دون اتصال"));
   if (meta.children.length) grid.appendChild(meta);
 
-  /* ---- optional row: install nudge ---- */
+  /* ---- optional row: install, then notifications (only one at a time) ---- */
   const inst = installBanner();
   if (inst) grid.appendChild(inst);
+  else { const pb = pushBanner(); if (pb) grid.appendChild(pb); }
 
   /* ---- celebration (monthiversary / round day) ---- */
   const cel = isMilestoneToday(dt);

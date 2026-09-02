@@ -9,7 +9,7 @@ import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyThem
 import { downscale, uploadSigned } from "../media.js";
 import { haptic } from "../haptics.js";
 import { SKINS, applySkin } from "../skins.js";
-import { openPushOnboarding, openInstallGuide, isStandalone, isIOS, pushBlockedUntilInstalled, canPromptInstall, promptInstall } from "../install.js";
+import { openPushOnboarding, openPushDoctor, openInstallGuide, isStandalone, isIOS, pushBlockedUntilInstalled, canPromptInstall, promptInstall } from "../install.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
 import { khalwa as genKhalwa, duaForSpouse } from "../generate.js";
 
@@ -657,8 +657,10 @@ async function settingsSection(pane) {
     h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } },
       blocked ? "على الآيفون، التنبيهات تعمل فقط بعد تثبيت التطبيق وفتحه من أيقونته."
               : "لتصلكما همسات بعضكما وتنبيهاتكما حتى والتطبيق مغلق."),
-    h("button", { class: "btn soft sm", onclick: () => openPushOnboarding() },
-      store.pushOn ? "التنبيهات مفعّلة ✓ — إرسال تجربة" : "تفعيل التنبيهات على هذا الجهاز"),
+    h("div", { class: "doc-actions", style: { justifyContent: "flex-start" } },
+      h("button", { class: "btn soft sm", onclick: () => openPushOnboarding() },
+        store.pushOn ? "التنبيهات مفعّلة ✓ — إرسال تجربة" : "تفعيل التنبيهات على هذا الجهاز"),
+      h("button", { class: "btn ghost sm", onclick: () => openPushDoctor() }, "لا تصلكما؟ افحصا 🩺")),
     h("div", { class: "nudge-list" },
       h("div", { class: "nl-head muted" }, "ما الذي سيصلكما؟"),
       ...[["🌅", "صباح الخير", "الثامنة صباحًا — سؤال اليوم بانتظاركما"],
