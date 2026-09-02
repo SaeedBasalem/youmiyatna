@@ -852,22 +852,45 @@ function adder(placeholder, onAdd, quickLabel) {
   return row;
 }
 
-// One file with everything in it. Built in the browser from what the server
-// hands back, so nothing extra is stored anywhere on the way out.
+// One file with everything in it, built in the browser from what the server
+// hands back so nothing extra is stored on the way out.
 async function downloadExport(btn) {
   const was = btn.textContent;
   btn.disabled = true; btn.textContent = "…نجمع كل شيء";
   const r = await api.exportAll();
   btn.disabled = false; btn.textContent = was;
   if (!r.ok) { toast(r.offline ? "لا اتصال" : "تعذّر التصدير"); return; }
+
+  const n = r.data.counts || {};
+  const done = () => { sound.chime(); haptic.success(); toast(`حُفظت نسختكما ✓ ${arNum(n.entries || 0)} لحظة و${arNum(n.messages || 0)} همسة`); };
+  const json = JSON.stringify(r.data, null, 2);
+  const name = `youmiyatna-${new Date().toISOString().slice(0, 10)}.json`;
+
+  // iOS Safari cannot save a blob download — it opens the JSON in a tab and the
+  // file is lost. Sharing hands it to the Files app instead, which is what the
+  // couple actually wants. Everywhere else, a plain download is better.
   try {
-    const blob = new Blob([JSON.stringify(r.data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = h("a", { href: url, download: `youmiyatna-${new Date().toISOString().slice(0, 10)}.json` });
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    const n = r.data.counts || {};
-    sound.chime(); haptic.success();
-    toast(`حُفظت نسختكما ✓ ${arNum(n.entries || 0)} لحظة و${arNum(n.messages || 0)} همسة`);
+    const file = new File([json], name, { type: "application/json" });
+    // only where the download is the broken path: elsewhere a share sheet is a
+    // worse answer than simply saving the file
+    if (isIOS() && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "نسخة يومياتنا" });
+      done();
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === "AbortError") return;      // they closed the share sheet
+    // anything else: fall through to the download
+  }
+
+  try {
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    const a = h("a", { href: url, download: name });
+    document.body.appendChild(a);
+    a.click();
+    // Removing the anchor or revoking the URL straight away cancels the download
+    // in Chrome — it has only just begun. Let it finish, then clean up.
+    setTimeout(() => { try { a.remove(); URL.revokeObjectURL(url); } catch {} }, 60000);
+    done();
   } catch { toast("تعذّر حفظ الملف"); }
 }
