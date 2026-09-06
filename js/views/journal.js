@@ -157,6 +157,7 @@ export async function viewMoment(id) {
   app.appendChild(h("div", { class: "topbar" },
     h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => (history.length > 1 ? history.back() : go("journal")) }, "→"),
     h("div", { class: "tb-title" }, "لحظة"),
+    h("button", { class: "icon-btn", "aria-label": "عدّل اللحظة", style: { marginInlineStart: "auto" }, onclick: () => editMoment(id) }, "✏️"),
     h("button", { class: "icon-btn", "aria-label": "حذف اللحظة", onclick: () => delMoment(id) }, "🗑️")));
   const content = h("div", { class: "view", style: { paddingTop: "6px" } }, h("div", { class: "empty" }, h("div", { class: "big" }, "🌙"), "نحمّل اللحظة…"));
   app.appendChild(content);
@@ -184,6 +185,51 @@ export async function viewMoment(id) {
     h("div", { class: "note-composer" }, input, h("button", { class: "btn sm", onclick: send }, __g("أرسل", "أرسلي")))));
 }
 function noteBubble(n) { const p = PEOPLE[n.author] || PEOPLE.him; return h("div", { class: "note " + p.cls }, h("div", { class: "who-line" }, p.name), n.body); }
+// Correcting a moment used to mean deleting it and writing it again, which
+// threw away its comments, its reactions and its place in the timeline. The
+// words and the mood can now be fixed in place; the media stay as they are.
+async function editMoment(id) {
+  loader(true);
+  const r = await api.moment(id);
+  loader(false);
+  if (!r.ok) { toast("تعذّر فتح اللحظة"); return; }
+  const e = r.data.moment;
+  const body = h("textarea", { class: "field", rows: 5, value: e.body || "" });
+  let mood = e.mood || "";
+  const moods = h("div", { class: "chip-wrap" }, ...MOODS.map(([label, emo]) => {
+    const chip = h("button", { class: "chip" + (label === mood ? " rose" : ""), onclick: () => {
+      mood = (mood === label) ? "" : label;
+      moods.querySelectorAll(".chip").forEach((x) => x.classList.remove("rose"));
+      if (mood) chip.classList.add("rose");
+      haptic.tap();
+    } }, emo + " " + label);
+    return chip;
+  }));
+  const when = h("input", { class: "field", type: "date", value: (e.happened_at || e.created_at || "").slice(0, 10) });
+  const err = h("div", { class: "err" });
+
+  const { close } = openSheet({
+    title: "عدّلا هذه اللحظة ✏️",
+    subtitle: "الكلمات والشعور والتاريخ — الصور تبقى كما هي",
+    body: [body, moods, h("label", { class: "lbl" }, "متى حدثت؟"), when, err,
+      h("div", { class: "row-btns", style: { marginTop: "14px" } },
+        h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"),
+        h("button", { class: "btn", onclick: async () => {
+          const text = body.value.trim();
+          if (!text && !mood) { err.textContent = "اكتبا شيئًا أو اختارا شعورًا"; return; }
+          loader(true);
+          const res = await api.editMoment(id, { body: text, mood: mood || null, happened_at: when.value || undefined });
+          loader(false);
+          if (!res.ok) { err.textContent = res.offline ? "لا اتصال — لم يُحفظ" : "تعذّر الحفظ"; return; }
+          close(true);
+          feedCache = null; shotsCache = null;
+          sound.post(); haptic.success();
+          toast("عُدّلت اللحظة ✓");
+          viewMoment(id);
+        } }, "احفظا"))],
+  });
+  setTimeout(() => body.focus(), 240);
+}
 async function delMoment(id) { if (!(await confirmAsk("إخفاء هذه اللحظة؟", { okText: "إخفاء", danger: true }))) return; loader(true); const r = await api.del(id); loader(false); if (r.ok) { feedCache = null; toast("أُخفيت"); go("journal"); } else toast("تعذّر"); }
 
 /* ---------------- albums ---------------- */
@@ -435,12 +481,23 @@ async function renderTimeline(pane) {
 }
 
 /* ---------------- composer ---------------- */
+const DRAFT_KEY = "yn_compose_draft";
+const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch { return null; } };
+const saveDraft = (d) => { try { d && (d.body || d.mood) ? localStorage.setItem(DRAFT_KEY, JSON.stringify(d)) : localStorage.removeItem(DRAFT_KEY); } catch {} };
+const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch {} };
+
 export function openCompose({ onDone } = {}) {
-  const draft = { mood: "", media: [], happened_at: "" };
+  const kept = readDraft();
+  const draft = { mood: (kept && kept.mood) || "", media: [], happened_at: "" };
   const err = h("div", { class: "err" });
   const previews = h("div", { class: "m-media compose-prev" });
   const body = h("textarea", { class: "field", rows: 4, placeholder: __g("شو صار اليوم؟ اكتب لحظة تبقى…", "شو صار اليوم؟ اكتبي لحظة تبقى…") });
-  const moods = h("div", { class: "chip-wrap" }, ...MOODS.map(([label, emo]) => h("button", { class: "chip", onclick: (e) => { const on = e.currentTarget.classList.contains("rose"); moods.querySelectorAll(".chip").forEach((x) => x.classList.remove("rose")); if (!on) { e.currentTarget.classList.add("rose"); draft.mood = label; } else draft.mood = ""; } }, emo + " " + label)));
+  if (kept && kept.body) body.value = kept.body;
+  // Half-written words used to vanish the moment the sheet closed. They are
+  // kept locally now. Attachments are not: a File cannot be revived from
+  // localStorage, so promising to keep one would be a lie.
+  body.addEventListener("input", () => saveDraft({ body: body.value, mood: draft.mood }));
+  const moods = h("div", { class: "chip-wrap" }, ...MOODS.map(([label, emo]) => h("button", { class: "chip", onclick: (e) => { const on = e.currentTarget.classList.contains("rose"); moods.querySelectorAll(".chip").forEach((x) => x.classList.remove("rose")); if (!on) { e.currentTarget.classList.add("rose"); draft.mood = label; } else draft.mood = ""; saveDraft({ body: body.value, mood: draft.mood }); } }, emo + " " + label)));
 
   function renderPreviews() {
     clear(previews);
@@ -482,14 +539,19 @@ export function openCompose({ onDone } = {}) {
       }
       const r = await api.addMoment({ body: t, mood: draft.mood || null, happened_at: dateInput.value || undefined, media });
       loader(false);
-      if (r.ok) { close(true); sound.post(); haptic.success(); sparkleAt(innerWidth / 2, innerHeight / 2, ["🤍", "🌙", "✨", "💗"]); toast("حُفظت لحظتكما 🤍"); onDone && onDone(); }
+      if (r.ok) { clearDraft(); close(true); sound.post(); haptic.success(); sparkleAt(innerWidth / 2, innerHeight / 2, ["🤍", "🌙", "✨", "💗"]); toast("حُفظت لحظتكما 🤍"); onDone && onDone(); }
       else err.textContent = r.data.detail || "تعذّر الحفظ";
     } catch { loader(false); err.textContent = "تعذّر رفع الوسائط"; }
   }
   const { close } = openSheet({
     title: "لحظةٌ جديدة 🌸",
-    subtitle: "ستُحفظ باسم " + (PEOPLE[store.person]?.name || ""),
-    beforeClose: async () => (!body.value.trim() && !draft.media.length) ? true : await confirmAsk("تترك هذه اللحظة دون حفظ؟", { okText: "اترك", cancelText: "أكمل", danger: true }),
+    subtitle: (kept && kept.body) ? "أكملا مسودّتكما ✍️" : "ستُحفظ باسم " + (PEOPLE[store.person]?.name || ""),
+    beforeClose: async () => {
+      if (!body.value.trim() && !draft.media.length) { clearDraft(); return true; }
+      if (!draft.media.length) { saveDraft({ body: body.value, mood: draft.mood }); toast("حُفظت مسودّتكما ✍️"); return true; }
+      // only attachments are genuinely at risk, so only then is a warning honest
+      return await confirmAsk("تُغلق ومعك مرفقات لن تُحفظ؟", { okText: "أغلق", cancelText: "أكمل", danger: true });
+    },
     body: [body, moods, rail, fileInput, videoInput, previews,
       h("label", { class: "lbl" }, "متى حدثت؟ (اختياري)"), dateInput, err,
       h("div", { class: "row-btns", style: { marginTop: "14px" } },

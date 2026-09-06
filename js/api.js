@@ -156,4 +156,5 @@ export const api = {
   delTask:       (id)             => call5("del_task", { id }),
   exportAll:     ()               => call5("export_all"),
   searchAll:     (q, limit)       => call5("search_all", { q, limit }),
+  editMoment:    (id, patch)      => call5("edit_moment", { id, ...patch }),
 };
