@@ -1518,3 +1518,7 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .d-stat.new .ds-n{color:var(--rose-deep)}
 .d-occ{grid-column:1/-1;justify-self:start}
 .ds-n.zero{color:var(--ink-3);font-weight:600}
+
+/* a stack of full-width choices in a sheet (press-and-hold a photo, etc.) */
+.sheet-actions{display:flex;flex-direction:column;gap:8px;margin:4px 0 10px}
+.sheet-actions .btn{width:100%}

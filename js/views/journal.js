@@ -10,6 +10,7 @@ import { openLightbox, photosOf } from "../lightbox.js";
 import { loader, go, openSheet, openModal, confirmAsk, groupReactions, safeUrl, errorState } from "../helpers.js";
 import { icon } from "../icons.js";
 import { haptic } from "../haptics.js";
+import { attachLongPress } from "../gestures.js";
 import { art } from "../art.js";
 
 let jsub = "feed";          // feed | album | timeline
@@ -186,6 +187,11 @@ function noteBubble(n) { const p = PEOPLE[n.author] || PEOPLE.him; return h("div
 async function delMoment(id) { if (!(await confirmAsk("إخفاء هذه اللحظة؟", { okText: "إخفاء", danger: true }))) return; loader(true); const r = await api.del(id); loader(false); if (r.ok) { feedCache = null; toast("أُخفيت"); go("journal"); } else toast("تعذّر"); }
 
 /* ---------------- albums ---------------- */
+// A photo used to reach an album only the long way round: write a moment, attach
+// a photo to it, then come back here and tick it. With no photos yet the shelf
+// hid even the "new album" button, so an empty gallery was a dead end. Albums
+// now take photos directly — the moment is still created underneath, because
+// that is where photos live, but the couple never has to know that.
 let shotsCache = null;      // [{ m, id }] every photo/video with the entry it belongs to
 let albumOpen = null;       // null = shelf, "__all" = everything, otherwise an album id
 
@@ -206,6 +212,74 @@ const coverOf = (m) => (m.kind === "video"
   ? h("video", { class: "at-cover", src: m.signed_url, muted: true, preload: "metadata", playsInline: true })
   : h("img", { class: "at-cover", src: m.signed_url, alt: "", loading: "lazy" }));
 
+// Upload straight into an album. The photos become one moment (that is where
+// photos live) which is then filed into the album, so nothing about the data
+// model changes and the moment shows up in the feed as it always would.
+function uploadToAlbum(album, onDone) {
+  const input = h("input", {
+    type: "file", accept: "image/*", multiple: true, class: "hidden",
+    onchange: async (e) => {
+      const files = [...e.target.files];
+      input.remove();
+      if (!files.length) return;
+      loader(true);
+      try {
+        const media = [];
+        for (const f of files) {
+          const ds = await downscale(f);
+          const su = await api.signUpload("photo", "image/jpeg");
+          if (!su.ok) throw new Error("sign");
+          const ok = await uploadSigned(su.data.signedUrl, ds.blob, "image/jpeg");
+          if (!ok) throw new Error("upload");
+          media.push({ kind: "photo", path: su.data.path, meta: { w: ds.width, h: ds.height } });
+        }
+        const r = await api.addMoment({ body: album ? album.title : "", mood: null, media });
+        if (!r.ok) throw new Error("moment");
+        const entryId = r.data && r.data.moment && r.data.moment.id;   // add_moment returns { ok, moment }
+        if (album && entryId) {
+          const added = await api.addItem(album.id, entryId);
+          if (!added.ok) { loader(false); toast("رُفعت الصور، لكن لم تُضف للألبوم"); shotsCache = null; feedCache = null; onDone && onDone(); return; }
+        }
+        shotsCache = null; feedCache = null;              // both are now stale
+        loader(false);
+        sound.post(); haptic.success();
+        toast(arNum(files.length) + (files.length === 1 ? " صورة أُضيفت 🖼️" : " صور أُضيفت 🖼️"));
+        onDone && onDone();
+      } catch {
+        loader(false);
+        toast("تعذّر رفع الصور");
+      }
+    },
+  });
+  document.body.appendChild(input);
+  input.click();
+}
+
+// Hand a photo to whatever the phone can do with it — the share sheet where
+// there is one, a plain save where there is not.
+async function sharePhoto(m) {
+  try {
+    const res = await fetch(m.signed_url);
+    if (!res.ok) throw new Error("fetch");
+    const blob = await res.blob();
+    const ext = ((blob.type || "image/jpeg").split("/")[1] || "jpg").replace("jpeg", "jpg");
+    const name = `youmiyatna-${Date.now()}.${ext}`;
+    const file = new File([blob], name, { type: blob.type || "image/jpeg" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "من يومياتنا 🤍" });
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = h("a", { href: url, download: name });
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { try { a.remove(); URL.revokeObjectURL(url); } catch {} }, 60000);
+    toast("حُفظت الصورة ✓");
+  } catch (e) {
+    if (e && e.name === "AbortError") return;            // they closed the sheet
+    toast("تعذّرت المشاركة");
+  }
+}
+
 async function renderAlbum(pane) {
   const c = clear(pane);
   c.appendChild(h("div", { class: "muted", style: { textAlign: "center", padding: "18px" } }, "…"));
@@ -213,18 +287,28 @@ async function renderAlbum(pane) {
   clear(c);
   if (!lr.ok && !shots.length) { c.appendChild(errorState(() => renderAlbum(pane), { offline: lr.offline })); return; }
   const albums = albumsOf(lr.ok ? lr.data.lists : []);
-  if (albumOpen) { renderOneAlbum(c, pane, albumOpen === "__all" ? null : albums.find((a) => a.id === albumOpen), shots); return; }
-
-  if (!shots.length) {
-    c.appendChild(h("div", { class: "empty-card card" }, art("album", { size: 140 }),
-      h("div", { class: "muted", style: { marginTop: "10px" } }, "ما في صور بعد — أرفقا صورة بأول لحظة.")));
+  if (albumOpen) {
+    const found = albumOpen === "__all" ? null : albums.find((a) => a.id === albumOpen);
+    if (albumOpen !== "__all" && !found) { albumOpen = null; renderAlbum(pane); return; }   // deleted elsewhere
+    renderOneAlbum(c, pane, found, shots);
     return;
   }
+
+  // the head is always here, so a gallery with nothing in it is still a place
+  // where an album can be started
   c.appendChild(h("div", { class: "album-head" },
     h("h2", { class: "t-h2" }, "ألبوماتنا"),
-    h("button", { class: "btn soft sm", style: { marginInlineStart: "auto" }, onclick: () => newAlbum(pane) }, "＋ ألبوم")));
+    h("button", { class: "btn soft sm", style: { marginInlineStart: "auto" }, onclick: () => uploadToAlbum(null, () => renderAlbum(pane)) }, "📷 ارفعا"),
+    h("button", { class: "btn soft sm", onclick: () => newAlbum(pane) }, "＋ ألبوم")));
+
+  if (!shots.length && !albums.length) {
+    c.appendChild(h("div", { class: "empty-card card" }, art("album", { size: 140 }),
+      h("div", { class: "muted", style: { marginTop: "10px" } }, "لا صور بعد — ارفعا أول صورة، أو أنشئا ألبومًا تملآنه لاحقًا."),
+      h("button", { class: "btn", style: { marginTop: "12px", width: "auto" }, onclick: () => uploadToAlbum(null, () => renderAlbum(pane)) }, "📷 ارفعا صورًا")));
+    return;
+  }
   const grid = h("div", { class: "album-shelf stagger" });
-  grid.appendChild(albumTile("كل الصور", shots.length, shots[0], () => { albumOpen = "__all"; renderAlbum(pane); }));
+  if (shots.length) grid.appendChild(albumTile("كل الصور", shots.length, shots[0], () => { albumOpen = "__all"; renderAlbum(pane); }));
   albums.forEach((a) => {
     const ids = new Set((a.items || []).map((i) => i.text));
     const mine = shots.filter((s) => ids.has(s.id));
@@ -235,7 +319,7 @@ async function renderAlbum(pane) {
 function albumTile(title, count, cover, onclick) {
   return h("button", { class: "album-tile", onclick },
     cover ? coverOf(cover.m) : h("div", { class: "at-cover ph" }, icon("image", { size: 26 })),
-    h("div", { class: "at-meta" }, h("b", {}, title), h("span", {}, arNum(count) + " صورة")));
+    h("div", { class: "at-meta" }, h("b", {}, title), h("span", {}, count ? arNum(count) + " صورة" : "فارغ")));
 }
 function renderOneAlbum(c, pane, album, shots) {
   const isAll = !album;
@@ -244,19 +328,41 @@ function renderOneAlbum(c, pane, album, shots) {
   c.appendChild(h("div", { class: "album-head" },
     h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => { albumOpen = null; renderAlbum(pane); } }, icon("back")),
     h("h2", { class: "t-h2" }, isAll ? "كل الصور" : (album.emoji ? album.emoji + " " : "") + album.title),
-    album ? h("button", { class: "icon-btn", "aria-label": "أضف صورًا", style: { marginInlineStart: "auto" }, onclick: () => pickForAlbum(pane, album, shots) }, icon("plus")) : null,
-    album ? h("button", { class: "icon-btn", "aria-label": "حذف الألبوم", onclick: async () => { if (await confirmAsk("حذف هذا الألبوم؟ الصور تبقى في يومياتكما.", { okText: "حذف", danger: true })) { await api.delList(album.id); albumOpen = null; renderAlbum(pane); } } }, icon("trash")) : null));
+    album ? h("button", { class: "icon-btn", "aria-label": "ارفعا صورًا", style: { marginInlineStart: "auto" }, onclick: () => uploadToAlbum(album, () => renderAlbum(pane)) }, icon("camera")) : null,
+    album ? h("button", { class: "icon-btn", "aria-label": "اختارا من الصور الموجودة", onclick: () => pickForAlbum(pane, album, shots) }, icon("plus")) : null,
+    album ? h("button", { class: "icon-btn", "aria-label": "حذف الألبوم", onclick: async () => { if (await confirmAsk("حذف هذا الألبوم؟ الصور تبقى في يومياتكما.", { okText: "حذف", danger: true })) { const r = await api.delList(album.id); if (!r.ok) { toast("تعذّر الحذف"); return; } albumOpen = null; renderAlbum(pane); } } }, icon("trash")) : null));
   if (!mine.length) {
     c.appendChild(h("div", { class: "empty-card card" }, art("album", { size: 130 }),
-      h("div", { class: "muted", style: { marginTop: "10px" } }, "ألبومٌ فارغ — أضيفا صورًا إليه."),
-      h("button", { class: "btn", style: { marginTop: "12px", width: "auto" }, onclick: () => pickForAlbum(pane, album, shots) }, "＋ أضيفا صورًا")));
+      h("div", { class: "muted", style: { marginTop: "10px" } }, "ألبومٌ فارغ — ارفعا صورًا إليه، أو اختارا من صوركما."),
+      h("div", { class: "row-btns", style: { marginTop: "12px" } },
+        h("button", { class: "btn", onclick: () => uploadToAlbum(album, () => renderAlbum(pane)) }, "📷 ارفعا"),
+        shots.length ? h("button", { class: "btn ghost", onclick: () => pickForAlbum(pane, album, shots) }, "اختارا من صورنا") : null)));
     return;
   }
   const grid = h("div", { class: "album" });
   mine.forEach(({ m, id }) => {
-    const cell = h("button", { class: "album-cell", onclick: () => go("moment/" + id) });
+    const cell = h("button", { class: "album-cell", onclick: () => { if (cell._held) { cell._held = false; return; } go("moment/" + id); } });
     if (m.kind === "video") { cell.appendChild(h("video", { src: m.signed_url, muted: true, preload: "metadata", playsInline: true })); cell.appendChild(h("span", { class: "vtag" }, "▶")); }
     else cell.appendChild(h("img", { src: m.signed_url, loading: "lazy", alt: "" }));
+    // press and hold for what you would expect to be able to do with a photo
+    attachLongPress(cell, () => {
+      cell._held = true;
+      haptic.soft();
+      const { close } = openSheet({
+        title: "هذه الصورة",
+        body: [h("div", { class: "sheet-actions" },
+          h("button", { class: "btn", onclick: () => { close(); sharePhoto(m); } }, "📤 شاركا أو احفظا"),
+          h("button", { class: "btn ghost", onclick: () => { close(); go("moment/" + id); } }, "افتحا اللحظة"),
+          album ? h("button", { class: "btn ghost", onclick: async () => {
+            close();
+            const it = (album.items || []).find((x) => x.text === id);
+            if (!it) return;
+            const r = await api.delItem(it.id);
+            if (!r.ok) { toast("تعذّر"); return; }
+            toast("أُخرجت من الألبوم"); shotsCache = null; renderAlbum(pane);
+          } }, "أخرجاها من الألبوم") : null)],
+      });
+    });
     grid.appendChild(cell);
   });
   c.appendChild(grid);
@@ -264,9 +370,9 @@ function renderOneAlbum(c, pane, album, shots) {
 function newAlbum(pane) {
   const title = h("input", { class: "field", placeholder: "اسم الألبوم (رحلتنا، عيدنا…)" });
   const emo = h("input", { class: "field", placeholder: "رمز (اختياري)", maxLength: 2 });
-  const { close } = openModal({ title: "ألبومٌ جديد 🖼\uFE0F", body: [h("label", { class: "lbl" }, "الاسم"), title, h("label", { class: "lbl" }, "رمز"), emo,
+  const { close } = openModal({ title: "ألبومٌ جديد 🖼️", body: [h("label", { class: "lbl" }, "الاسم"), title, h("label", { class: "lbl" }, "رمز"), emo,
     h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"),
-      h("button", { class: "btn", onclick: async () => { const t = title.value.trim(); if (!t) { title.focus(); return; } loader(true); const r = await api.addList(t, "album", emo.value.trim() || "🖼\uFE0F"); loader(false); if (r.ok) { close(); sound.post(); toast("أُنشئ الألبوم 🖼\uFE0F"); renderAlbum(pane); } else toast("تعذّر"); } }, "أنشئ"))] });
+      h("button", { class: "btn", onclick: async () => { const t = title.value.trim(); if (!t) { title.focus(); return; } loader(true); const r = await api.addList(t, "album", emo.value.trim() || "🖼️"); loader(false); if (r.ok) { close(); sound.post(); toast("أُنشئ الألبوم 🖼️"); renderAlbum(pane); } else toast("تعذّر"); } }, "أنشئ"))] });
 }
 function pickForAlbum(pane, album, shots) {
   const chosen = new Set((album.items || []).map((i) => i.text));
@@ -279,15 +385,20 @@ function pickForAlbum(pane, album, shots) {
     cell.appendChild(h("span", { class: "pick-tick" }, icon("check", { size: 16 })));
     grid.appendChild(cell);
   });
-  const { close } = openSheet({ title: "اختارا صورًا 🖼\uFE0F", subtitle: "اضغطا على الصور لضمّها إلى " + album.title, body: [grid,
+  const { close } = openSheet({ title: "اختارا صورًا 🖼️", subtitle: "اضغطا على الصور لضمّها إلى " + album.title, body: [grid,
     h("div", { class: "row-btns", style: { marginTop: "14px" } },
       h("button", { class: "btn ghost", onclick: () => close(true) }, "إلغاء"),
       h("button", { class: "btn", onclick: async () => {
         loader(true);
         const before = new Set((album.items || []).map((i) => i.text));
-        for (const it of (album.items || [])) if (!chosen.has(it.text)) await api.delItem(it.id);
-        for (const id of chosen) if (!before.has(id)) await api.addItem(album.id, id);
-        loader(false); close(true); sound.post(); toast("حُدّث الألبوم 🖼\uFE0F"); renderAlbum(pane);
+        let failed = 0;
+        for (const it of (album.items || [])) if (!chosen.has(it.text)) { const r = await api.delItem(it.id); if (!r.ok) failed++; }
+        for (const id of chosen) if (!before.has(id)) { const r = await api.addItem(album.id, id); if (!r.ok) failed++; }
+        loader(false); close(true);
+        // it used to say "updated" even when every single write had failed
+        if (failed) toast("تعذّر حفظ " + arNum(failed) + " من التغييرات");
+        else { sound.post(); toast("حُدّث الألبوم 🖼️"); }
+        renderAlbum(pane);
       } }, "احفظ"))] });
 }
 
