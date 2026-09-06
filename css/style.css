@@ -1522,3 +1522,42 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 /* a stack of full-width choices in a sheet (press-and-hold a photo, etc.) */
 .sheet-actions{display:flex;flex-direction:column;gap:8px;margin:4px 0 10px}
 .sheet-actions .btn{width:100%}
+
+/* ======================================================================
+   COMMAND PALETTE — ⌘K on a keyboard, 🔍 on a phone. Sits above everything,
+   traps focus, and never grows taller than the screen it is standing on.
+   ====================================================================== */
+.pal-scrim{position:fixed;inset:0;z-index:120;background:color-mix(in srgb, var(--sunk) 62%, transparent);
+  backdrop-filter:blur(6px);display:flex;align-items:flex-start;justify-content:center;
+  padding:clamp(12px,8vh,90px) 14px 14px;animation:fadein .16s var(--ease-out)}
+.pal-box{width:min(620px,100%);max-height:min(70vh,560px);display:flex;flex-direction:column;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:0 24px 60px rgba(0,0,0,.28);overflow:hidden;animation:pal-in .2s var(--ease-out)}
+@keyframes pal-in{from{opacity:0;transform:translateY(-10px) scale(.985)}to{opacity:1;transform:none}}
+.pal-top{display:flex;align-items:center;gap:9px;padding:12px 14px;border-bottom:1px solid var(--line);flex:none}
+.pal-ic{color:var(--ink-3);display:flex;flex:none}
+.pal-input{flex:1;min-width:0;background:none;border:none;outline:none;font:inherit;font-size:15px;color:var(--ink)}
+.pal-input::placeholder{color:var(--ink-3)}
+.pal-esc{flex:none;font-size:10.5px;font-weight:700;color:var(--ink-3);padding:3px 7px;
+  border:1px solid var(--line);border-radius:6px;background:var(--surface-2);font-family:ui-monospace,monospace}
+.pal-list{flex:1;overflow-y:auto;padding:6px;overscroll-behavior:contain}
+.pal-group{font-size:10.5px;font-weight:800;color:var(--ink-3);padding:10px 10px 4px;letter-spacing:.03em}
+.pal-row{display:flex;align-items:center;gap:10px;width:100%;text-align:start;padding:9px 10px;
+  border-radius:var(--radius-sm);min-width:0}
+.pal-row.on{background:var(--surface-2)}
+.pal-row:active{transform:scale(.99)}
+.pal-e{flex:none;width:26px;height:26px;border-radius:8px;background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;font-size:14px}
+.pal-row.on .pal-e{background:var(--rose-soft)}
+.pal-txt{min-width:0;display:flex;flex-direction:column;line-height:1.35}
+.pal-txt b{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pal-txt span{font-size:11.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  unicode-bidi:plaintext}
+.pal-empty,.pal-searching{padding:22px;text-align:center;color:var(--ink-3);font-size:12.5px}
+.pal-hint{flex:none;display:flex;gap:14px;justify-content:center;padding:8px;border-top:1px solid var(--line);
+  font-size:10.5px;color:var(--ink-3)}
+@media (max-width:520px){ .pal-hint{display:none} .pal-esc{display:none} }
+@media (prefers-reduced-motion: reduce){ .pal-box,.pal-scrim{animation:none} }
+.d-find{flex:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  color:var(--ink-2);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.d-find:active{transform:scale(.9)}

@@ -10,6 +10,7 @@ import { viewInbox, refreshActivityBadge } from "./views/inbox.js";
 import { newsBar, recommendations, newsFromActivity, interleave } from "./newsbar.js";
 import { installBanner, pushBanner } from "./install.js";
 import { startOutbox, outbox } from "./outbox.js";
+import { startPalette, openPalette } from "./palette.js";
 import { attachSwipe, attachPullToRefresh } from "./gestures.js";
 import { icon } from "./icons.js";
 import { haptic } from "./haptics.js";
@@ -33,7 +34,7 @@ const APP = () => document.getElementById("app");
 
 /* ---------------- boot + router ---------------- */
 let homeData = null;
-store.init(); applyTheme(); applySkin(); applyBackground(); startLiving(); startOutbox();
+store.init(); applyTheme(); applySkin(); applyBackground(); startLiving(); startOutbox(); startPalette();
 watchInstall(() => { if (currentRoute() === "home") { homeData = null; renderRoute(); } });
 if (isStandalone()) document.documentElement.setAttribute("data-standalone", "1");
 setAuthFailHandler(() => { store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });
@@ -271,6 +272,7 @@ function renderHome(content, d, loading) {
     h("div", { class: "dh-text" },
       h("h1", { class: "dh-hello" }, greetWord() + " يا " + meName),
       h("div", { class: "dh-sub" }, fullDate(new Date().toISOString()), " · ", h("span", { class: "hijri" }, hijriDate()))),
+    h("button", { class: "d-find", "aria-label": "ابحثا أو نفّذا أمرًا", onclick: () => openPalette() }, icon("search", { size: 17 })),
     h("div", { class: "avatars" },
       clickable(h("span", { class: "av-tap", onclick: () => go("profile/" + me) }, avatar(me)), () => go("profile/" + me)),
       clickable(h("span", { class: "av-tap", onclick: () => go("profile/" + partner) }, avatar(partner)), () => go("profile/" + partner)))));
