@@ -1583,3 +1583,24 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .sorting{touch-action:none;cursor:grabbing}
 .sorting *{cursor:grabbing}
 @media (prefers-reduced-motion: reduce){ .sort-ghost{scale:1;rotate:0deg} }
+
+/* ======================================================================
+   PRAYER TIMES — the next one large, the day beneath it.
+   ====================================================================== */
+.prayer-card{padding:0;overflow:hidden}
+.pr-next{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:16px 18px;background:linear-gradient(135deg,var(--gold-soft),var(--surface))}
+.pr-label{font-size:11px;font-weight:700}
+.pr-name{font-family:var(--font-display);font-weight:700;font-size:20px;line-height:1.25;margin-top:2px}
+.pr-in{font-size:12px;color:var(--gold-ink);font-weight:700;margin-top:2px}
+.pr-at{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--gold-ink);white-space:nowrap}
+.pr-rows{display:flex;flex-direction:column}
+.pr-row{display:flex;align-items:center;gap:10px;padding:9px 18px;border-top:1px solid var(--line);font-size:14px}
+.pr-row.past{opacity:.5}
+.pr-row.on{background:var(--gold-soft);font-weight:700}
+.pr-e{width:20px;text-align:center}
+.pr-t{flex:1}
+.pr-v{font-variant-numeric:tabular-nums;color:var(--ink-2);white-space:nowrap}
+.pr-row.on .pr-v{color:var(--gold-ink)}
+.pr-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 14px;border-top:1px solid var(--line);font-size:11.5px}

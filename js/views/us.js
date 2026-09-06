@@ -10,6 +10,7 @@ import { downscale, uploadSigned } from "../media.js";
 import { haptic } from "../haptics.js";
 import { SKINS, applySkin } from "../skins.js";
 import { makeSortable } from "../gestures.js";
+import { RIYADH, PRAYERS, nextPrayer, fmtTime, untilText } from "../prayer.js";
 import { openPushOnboarding, openPushDoctor, openInstallGuide, isStandalone, isIOS, pushBlockedUntilInstalled, canPromptInstall, promptInstall } from "../install.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
 import { planSection } from "./plan.js";
@@ -310,6 +311,79 @@ async function calendarSection(pane) {
 /* ---------------- faith corner ---------------- */
 const ADHKAR = [["subhanallah", "سبحان الله"], ["alhamdulillah", "الحمد لله"], ["allahuakbar", "الله أكبر"], ["lailahaillallah", "لا إله إلا الله"], ["astaghfirullah", "أستغفر الله"], ["salaala", "اللهم صلِّ على محمد"]];
 function safeJSON(k, dflt) { try { return JSON.parse(localStorage.getItem(k)) ?? dflt; } catch { return dflt; } }
+// ---- أوقات الصلاة ----------------------------------------------------------
+// Computed on the device, so it works with no signal. The location is theirs to
+// set; it defaults to Riyadh rather than silently asking for GPS on first open.
+function whereWeAre() {
+  try {
+    const raw = localStorage.getItem("yn_place");
+    if (raw) { const p = JSON.parse(raw); if (p && isFinite(p.lat) && isFinite(p.lng)) return p; }
+  } catch {}
+  return RIYADH;
+}
+function prayerCard() {
+  const card = h("div", { class: "card prayer-card" });
+  let timer = null;
+
+  function paint() {
+    const where = whereWeAre();
+    const now = new Date();
+    const next = nextPrayer(now, where);
+    clear(card);
+    card.appendChild(h("div", { class: "pr-next" },
+      h("div", {},
+        h("div", { class: "pr-label muted" }, "الصلاة القادمة"),
+        h("div", { class: "pr-name" }, (PRAYERS.find((p) => p[0] === next.key) || [])[2] + " " + (PRAYERS.find((p) => p[0] === next.key) || [])[1]),
+        h("div", { class: "pr-in" }, untilText(next.inHours))),
+      h("div", { class: "pr-at" }, fmtTime(next.at))));
+
+    const rows = h("div", { class: "pr-rows" });
+    for (const [key, label, emoji] of PRAYERS) {
+      const t = next.today[key];
+      const passed = isFinite(t) && (now.getHours() + now.getMinutes() / 60 + (next.shift || 0)) > t;
+      rows.appendChild(h("div", { class: "pr-row" + (key === next.key && !next.tomorrow ? " on" : "") + (passed ? " past" : "") },
+        h("span", { class: "pr-e" }, emoji),
+        h("span", { class: "pr-t" }, label),
+        h("span", { class: "pr-v" }, fmtTime(t))));
+    }
+    card.appendChild(rows);
+    // if the place runs on a different clock from the reader's, say so rather
+    // than showing times that look an hour wrong for no visible reason
+    const off = next.shift || 0;
+    card.appendChild(h("div", { class: "pr-foot" },
+      h("span", { class: "muted" }, "أم القرى · " + (where.name || "موقعكما")
+        + (off ? ` · بتوقيت ${where.name || "المكان"}` : "")),
+      h("button", { class: "btn ghost sm", onclick: setPlace }, "غيّرا الموقع")));
+  }
+
+  function setPlace() {
+    const body = [h("div", { class: "muted", style: { fontSize: "13px", lineHeight: "1.8", marginBottom: "10px" } },
+      "تُحسب الأوقات على جهازكما بطريقة أم القرى. اسمحا بالموقع لدقّة أعلى، أو أبقياها على الرياض.")];
+    const use = h("button", { class: "btn", onclick: () => {
+      if (!navigator.geolocation) { toast("جهازكما لا يدعم تحديد الموقع"); return; }
+      use.disabled = true; use.textContent = "…نحدّد موقعكما";
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          // no tz stored: they set this from where they are, so their own clock is right
+          try { localStorage.setItem("yn_place", JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude, name: "موقعكما" })); } catch {}
+          close(); paint(); sound.chime(); toast("حُدّث الموقع ✓");
+        },
+        () => { use.disabled = false; use.textContent = "استخدما موقعنا"; toast("لم يُسمح بالموقع"); },
+        { timeout: 10000 });
+    } }, "استخدما موقعنا");
+    const back = h("button", { class: "btn ghost", onclick: () => {
+      try { localStorage.removeItem("yn_place"); } catch {}
+      close(); paint(); toast("عادت إلى الرياض");
+    } }, "أعيداها إلى الرياض");
+    const { close } = openSheet({ title: "موقع الأوقات 📍", body: [...body, h("div", { class: "sheet-actions" }, use, back)] });
+  }
+
+  paint();
+  // the countdown is only honest if it keeps moving
+  timer = setInterval(() => { if (document.body.contains(card)) paint(); else clearInterval(timer); }, 30000);
+  return card;
+}
+
 async function faithSection(pane) {
   const c = clear(pane);
   const [dk, kh, du] = await Promise.all([api.getDhikr(), api.getKhatmah(), api.listDuas()]);
@@ -318,6 +392,10 @@ async function faithSection(pane) {
   c.appendChild(h("h2", { class: "t-h2", style: { margin: "2px 4px 10px" } }, "مسبحتنا 📿"));
   const dbox = h("div", { class: "card dhikr-box" }); c.appendChild(dbox);
   renderDhikr(dbox);
+
+  // ---- prayer times ----
+  c.appendChild(h("h2", { class: "t-h2", style: { margin: "16px 4px 10px" } }, "أوقات الصلاة 🕰️"));
+  c.appendChild(prayerCard());
 
   // ---- salah check-in ----
   c.appendChild(h("h2", { class: "t-h2", style: { margin: "16px 4px 10px" } }, "صلواتنا 🕌"));
