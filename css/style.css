@@ -18,7 +18,21 @@
   --font-body:'Tajawal',system-ui,sans-serif;
   --font-quote:'Amiri',serif;
   --nav-h:76px; --max:520px;
+
+  /* ---- the scale ----------------------------------------------------
+     One type ramp and one spacing ramp, so a screen built later lands on
+     the same rhythm as one built first. `--density` lets a whole skin
+     tighten at once: the urban look is denser than the warm one by
+     intent, not by a hundred separate decisions. */
+  --step--2:10.5px; --step--1:11.5px; --step-0:13px; --step-1:15px;
+  --step-2:17px;    --step-3:21px;    --step-4:26px;
+  --sp-1:4px; --sp-2:6px; --sp-3:8px; --sp-4:12px; --sp-5:16px; --sp-6:20px; --sp-7:28px;
+  --density:1;
+  --dur-1:.12s; --dur-2:.2s; --dur-3:.32s;
 }
+/* a denser skin tightens every shared component in one move */
+:root[data-skin="urban"]{ --density:.78 }
+:root[data-skin="bento"]{ --density:.9 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --bg:#241A20; --bg2:#2C2028;
@@ -78,7 +92,7 @@ a{color:inherit}
 @keyframes sr{from{opacity:.2;transform:translateX(26px)}to{opacity:1;transform:none}}
 
 /* ---------- buttons ---------- */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:15px 20px;
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:44px;padding:calc(var(--sp-4) * var(--density)) var(--sp-6);
   font-family:var(--font-body);font-weight:700;font-size:16px;color:#fff;border-radius:var(--pill);
   background:linear-gradient(135deg,var(--rose),var(--rose-deep));box-shadow:var(--shadow-rose);
   transition:transform .14s ease, box-shadow .2s, filter .2s}
@@ -93,7 +107,7 @@ a{color:inherit}
 .icon-btn:active{transform:scale(.92)}
 
 /* ---------- cards & primitives ---------- */
-.card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;border:1px solid var(--line)}
+.card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:calc(var(--sp-6) * var(--density));border:1px solid var(--line)}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:var(--pill);background:var(--surface-2);
   font-weight:500;font-size:13px;color:var(--ink-2);border:1px solid var(--line)}
 .chip.rose{background:var(--rose-soft);color:var(--rose-deep);border-color:transparent}
@@ -101,14 +115,14 @@ a{color:inherit}
   font-family:var(--font-display);font-weight:700;font-size:16px;color:#fff;flex:none;box-shadow:var(--shadow-sm)}
 .avatar.him{background:linear-gradient(135deg,var(--him),#6f8fb4)} .avatar.her{background:linear-gradient(135deg,var(--her),#d07f95)}
 .avatar.sm{width:26px;height:26px;font-size:12px} .avatar.lg{width:74px;height:74px;font-size:30px}
-.field{width:100%;padding:14px 18px;font-size:16px;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);
+.field{width:100%;min-height:44px;padding:calc(var(--sp-4) * var(--density)) var(--sp-5);font-size:16px;color:var(--ink);background:var(--surface);border:1.5px solid var(--line);
   border-radius:var(--radius-sm);outline:none;transition:border-color .2s, box-shadow .2s}
 .field::placeholder{color:var(--ink-3)}
 .field:focus{border-color:var(--rose);box-shadow:0 0 0 4px var(--rose-soft)}
 textarea.field{resize:vertical;min-height:100px;line-height:1.8}
 label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin:14px 4px 6px}
 .err{color:#D6607A;font-weight:600;min-height:20px;font-size:14px}
-.section-title{display:flex;align-items:center;gap:10px;margin:8px 4px 14px}
+.section-title{display:flex;align-items:center;gap:10px;margin:calc(var(--sp-3) * var(--density)) var(--sp-1) calc(var(--sp-5) * var(--density))}
 .section-title h1,.section-title h2{margin:0}
 
 /* ---------- bottom nav ---------- */
@@ -245,7 +259,7 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .hero-note.slim{padding:16px 20px;margin:0 0 16px}
 .hero-note.slim .hn-t{font-size:19px;margin-bottom:8px}
 .feed{display:flex;flex-direction:column;gap:16px}
-.moment{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:16px;border-inline-start:4px solid var(--rose)}
+.moment{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:calc(var(--sp-5) * var(--density));border-inline-start:4px solid var(--rose)}
 .moment.him{border-inline-start-color:var(--him)} .moment.her{border-inline-start-color:var(--her)}
 .moment.flash{border-inline-start-color:var(--gold);background:linear-gradient(160deg,var(--gold-soft),var(--surface))}
 .ribbon{display:inline-block;font-size:12px;font-weight:700;color:var(--gold);margin-bottom:8px}
@@ -388,7 +402,7 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 
 /* ---- us hub ---- */
 .hub{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.hub-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:start;padding:18px 16px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-sm);transition:transform .12s}
+.hub-card{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:start;padding:calc(var(--sp-6) * var(--density)) calc(var(--sp-5) * var(--density));border-radius:var(--radius);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-sm);transition:transform .12s}
 .hub-card:active{transform:scale(.96)}
 .hub-e{font-size:30px;margin-bottom:4px}
 .hub-t{font-family:var(--font-display);font-weight:700;font-size:16px}
@@ -499,7 +513,7 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 @keyframes cf{to{transform:translateY(118vh) rotate(var(--rx,360deg));opacity:.9}}
 
 /* empty/loading micro-states (was an unstyled bare class) */
-.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;color:var(--ink-2);padding:32px 20px;font-size:15px;line-height:1.7}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;color:var(--ink-2);padding:calc(var(--sp-7) * var(--density)) var(--sp-6);font-size:var(--step-1);line-height:1.7}
 .empty .big{font-size:44px}
 .err-state{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:28px 20px;color:var(--ink-2)}
 .err-state .big{font-size:40px}
@@ -1561,3 +1575,11 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .d-find{flex:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   color:var(--ink-2);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
 .d-find:active{transform:scale(.9)}
+
+/* drag-to-reorder: the clone follows the finger, the real cards slide */
+.sort-ghost{opacity:.94;transform-origin:center;box-shadow:0 18px 44px rgba(0,0,0,.28);
+  border-radius:var(--radius);scale:1.04;rotate:-1.2deg}
+.sort-source{opacity:.32}
+.sorting{touch-action:none;cursor:grabbing}
+.sorting *{cursor:grabbing}
+@media (prefers-reduced-motion: reduce){ .sort-ghost{scale:1;rotate:0deg} }

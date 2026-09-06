@@ -9,6 +9,7 @@ import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyThem
 import { downscale, uploadSigned } from "../media.js";
 import { haptic } from "../haptics.js";
 import { SKINS, applySkin } from "../skins.js";
+import { makeSortable } from "../gestures.js";
 import { openPushOnboarding, openPushDoctor, openInstallGuide, isStandalone, isIOS, pushBlockedUntilInstalled, canPromptInstall, promptInstall } from "../install.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
 import { planSection } from "./plan.js";
@@ -71,7 +72,7 @@ const SECTIONS = {
 function renderHub(pane) {
   const c = clear(pane);
   c.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "كل ما يجمعنا")));
-  c.appendChild(h("div", { class: "hub-hint" }, "اضغطا مطوّلًا على أي بطاقة لتثبيتها في الأعلى ⭐"));
+  c.appendChild(h("div", { class: "hub-hint" }, "اضغطا مطوّلًا على بطاقة ثم اسحباها — رتّبا الصفحة كما تحبّان ✋"));
   const grid = h("div", { class: "hub" },
     hubCard("📋", "مهامّنا", "ما نحتاج فعله معًا", "plan", "him"),
     hubCard("🗞️", "كل ما جرى", "خيط حياتنا", "__inbox", "gold"),
@@ -92,50 +93,41 @@ function renderHub(pane) {
     hubCard("🏆", "إنجازاتنا", "أوسمة رحلتنا", "milestones", "gold"),
     hubCard("🤲", "امتناننا", "شكرٌ كل يوم", "gratitude", "her"),
     hubCard("⚙️", "الإعدادات", "المظهر والتنبيهات", "settings", "him"));
-  // favourites float to the top (order kept in store.hubOrder)
-  const pinned = store.hubOrder || [];
+  // The hub is theirs to arrange: hold a card and drag it. store.hubOrder is
+  // the whole order now, not a pinned few — anything it does not mention keeps
+  // its declared place at the end, so a new section appears without disturbing
+  // an arrangement they made months ago.
+  const saved = store.hubOrder || [];
   const cards = [...grid.children];
   cards.sort((a, b) => {
-    const ia = pinned.indexOf(a.dataset.route), ib = pinned.indexOf(b.dataset.route);
+    const ia = saved.indexOf(a.dataset.route), ib = saved.indexOf(b.dataset.route);
     return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
   });
-  cards.forEach((el) => { el.classList.toggle("pinned", pinned.includes(el.dataset.route)); grid.appendChild(el); });
+  cards.forEach((el) => grid.appendChild(el));
   c.appendChild(grid);
+  makeSortable(grid, {
+    itemSelector: ".hub-card",
+    onOrder: (order) => {
+      store.hubOrder = order.map((el) => el.dataset.route);
+      order.forEach((el) => grid.appendChild(el));
+      sound.tab(); haptic.pick();
+      toast("رُتّبت كما تحبّان ✓");
+    },
+  });
 }
 function hubCard(emoji, title, sub, route, tone) {
   const card = h("button", { class: "hub-card tone-" + tone, dataset: { route },
-    onclick: () => { if (card._held) { card._held = false; return; } sound.tab(); if (route.startsWith("__")) { go(route.slice(2)); return; } usDir = "in"; go("us/" + route); } },
+    onclick: () => {
+      // a drag ends in a click on the card that was held; that click is not a tap
+      const grid = card.parentElement;
+      if (grid && grid._sortJustDragged && Date.now() - grid._sortJustDragged < 500) return;
+      sound.tab();
+      if (route.startsWith("__")) { go(route.slice(2)); return; }
+      usDir = "in"; go("us/" + route);
+    } },
     h("span", { class: "hub-e" }, emoji), h("span", { class: "hub-t" }, title), h("span", { class: "hub-s" }, sub));
-  // long-press pins/unpins (avoids nesting a button inside a button)
-  let timer = null;
-  const begin = () => { timer = setTimeout(() => { card._held = true; togglePin(route, card); }, 500); };
-  const cancel = () => { clearTimeout(timer); };
-  card.addEventListener("touchstart", begin, { passive: true });
-  card.addEventListener("touchend", cancel);
-  card.addEventListener("touchmove", cancel, { passive: true });
-  card.addEventListener("mousedown", begin);
-  card.addEventListener("mouseup", cancel);
-  card.addEventListener("mouseleave", cancel);
-  card.addEventListener("contextmenu", (e) => { e.preventDefault(); card._held = true; togglePin(route, card); });
   return card;
 }
-let pinSuppress = 0;
-document.addEventListener("click", (e) => {
-  if (Date.now() < pinSuppress) { e.stopPropagation(); e.preventDefault(); }
-}, true);
-function togglePin(route, card) {
-  pinSuppress = Date.now() + 700;
-  const list = store.hubOrder || [];
-  const i = list.indexOf(route);
-  if (i >= 0) { list.splice(i, 1); toast("أُزيل التثبيت"); }
-  else { list.unshift(route); toast("ثُبّتت في الأعلى ⭐"); }
-  store.hubOrder = list;
-  sound.react(); haptic.pick();
-  card.classList.toggle("pinned", list.includes(route));
-  const grid = card.parentElement;
-  if (grid) { const cards = [...grid.children]; cards.sort((a, b) => { const ia = list.indexOf(a.dataset.route), ib = list.indexOf(b.dataset.route); return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib); }); cards.forEach((el) => grid.appendChild(el)); }
-}
-
 /* ---------------- lists helpers (jar / firsts / goals reuse jn_lists) ---------------- */
 async function getList(kind) { const r = await api.getLists(); if (!r.ok) return null; return (r.data.lists || []).find((x) => x.kind === kind) || null; }
 async function ensureList(kind, title, emoji) { let l = await getList(kind); if (l) return l; await api.addList(title, kind, emoji); return await getList(kind); }

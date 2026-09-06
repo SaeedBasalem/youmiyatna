@@ -91,3 +91,100 @@ export function attachLongPress(el, onHold, ms = 480) {
   el.addEventListener("contextmenu", (e) => { e.preventDefault(); cancel(); onHold(e); });
   return cancel;
 }
+
+// Drag a tile to a new place in a grid. Pointer-events based, so one code path
+// covers finger, mouse and pen. It waits for a hold before it starts, otherwise
+// every scroll of the page would turn into a drag; once it starts, the pointer
+// is captured so the card keeps following even outside the grid.
+//
+// The card itself never moves in the DOM while dragging — a clone follows the
+// finger and the real cards slide via transforms. Only on drop does the order
+// actually change, so a cancelled drag leaves nothing to undo.
+export function makeSortable(container, { itemSelector, onOrder, hold = 320 } = {}) {
+  let timer = null, dragging = null, ghost = null, items = [], from = -1, to = -1;
+  let startX = 0, startY = 0, pid = null;
+
+  const cards = () => [...container.querySelectorAll(itemSelector)];
+
+  function begin(e, card) {
+    dragging = card;
+    items = cards();
+    from = to = items.indexOf(card);
+    const r = card.getBoundingClientRect();
+    ghost = card.cloneNode(true);
+    ghost.classList.add("sort-ghost");
+    Object.assign(ghost.style, {
+      position: "fixed", left: r.left + "px", top: r.top + "px",
+      width: r.width + "px", height: r.height + "px", margin: "0", zIndex: "90", pointerEvents: "none",
+    });
+    document.body.appendChild(ghost);
+    card.classList.add("sort-source");
+    container.classList.add("sorting");
+    try { card.setPointerCapture(pid); } catch {}
+    if (navigator.vibrate) { try { navigator.vibrate(12); } catch {} }
+  }
+
+  function moveTo(x, y) {
+    if (!ghost) return;
+    ghost.style.transform = `translate(${x - startX}px, ${y - startY}px)`;
+    // whichever card's centre is nearest the ghost is where it would land
+    let best = -1, bestD = Infinity;
+    items.forEach((el, i) => {
+      const r = el.getBoundingClientRect();
+      const d = Math.hypot(r.left + r.width / 2 - x, r.top + r.height / 2 - y);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    if (best >= 0 && best !== to) {
+      to = best;
+      // preview the shuffle with transforms only; the DOM is untouched
+      const order = items.filter((_, i) => i !== from);
+      order.splice(to, 0, items[from]);
+      const rects = items.map((el) => el.getBoundingClientRect());
+      order.forEach((el, i) => {
+        const src = rects[items.indexOf(el)], dst = rects[i];
+        el.style.transition = "transform .18s var(--ease-out)";
+        el.style.transform = el === dragging ? "" : `translate(${dst.left - src.left}px, ${dst.top - src.top}px)`;
+      });
+    }
+  }
+
+  function end(commit) {
+    clearTimeout(timer); timer = null;
+    if (ghost) { ghost.remove(); ghost = null; }
+    items.forEach((el) => { el.style.transition = ""; el.style.transform = ""; });
+    if (dragging) dragging.classList.remove("sort-source");
+    container.classList.remove("sorting");
+    const moved = commit && from >= 0 && to >= 0 && from !== to;
+    const held = !!dragging;
+    dragging = null;
+    if (moved) {
+      const order = items.filter((_, i) => i !== from);
+      order.splice(to, 0, items[from]);
+      onOrder && onOrder(order);
+    }
+    from = to = -1;
+    return held;
+  }
+
+  container.addEventListener("pointerdown", (e) => {
+    const card = e.target.closest(itemSelector);
+    if (!card || !container.contains(card)) return;
+    pid = e.pointerId; startX = e.clientX; startY = e.clientY;
+    clearTimeout(timer);
+    timer = setTimeout(() => begin(e, card), hold);
+  });
+  container.addEventListener("pointermove", (e) => {
+    if (!dragging) {
+      // moving before the hold elapses means they meant to scroll, not drag
+      if (timer && Math.hypot(e.clientX - startX, e.clientY - startY) > 10) { clearTimeout(timer); timer = null; }
+      return;
+    }
+    e.preventDefault();
+    moveTo(e.clientX, e.clientY);
+  });
+  const finish = () => { const held = end(true); if (held) container._sortJustDragged = Date.now(); };
+  container.addEventListener("pointerup", finish);
+  container.addEventListener("pointercancel", () => end(false));
+  container.addEventListener("contextmenu", (e) => { if (dragging) e.preventDefault(); });
+  return () => { clearTimeout(timer); end(false); };
+}
