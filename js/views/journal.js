@@ -4,10 +4,10 @@ import { store } from "../store.js";
 import { sound } from "../sound.js";
 import { h, $, clear, avatar, personChip, moodChip, heartFly, relTime, fullDate, monthYear, arNum, toast, sparkleAt, waveBars, clickable } from "../ui.js";
 import { PEOPLE, MOODS, REACTIONS, moodEmoji } from "../config.js";
-import { downscale, VoiceRecorder, uploadSigned } from "../media.js";
+import { downscale, VoiceRecorder, uploadMany } from "../media.js";
 import { openDoodle } from "../doodle.js";
 import { openLightbox, photosOf } from "../lightbox.js";
-import { loader, go, openSheet, openModal, confirmAsk, groupReactions, safeUrl, errorState } from "../helpers.js";
+import { loader, loaderNote, go, openSheet, openModal, confirmAsk, groupReactions, safeUrl, errorState } from "../helpers.js";
 import { icon } from "../icons.js";
 import { haptic } from "../haptics.js";
 import { attachLongPress } from "../gestures.js";
@@ -270,15 +270,14 @@ function uploadToAlbum(album, onDone) {
       if (!files.length) return;
       loader(true);
       try {
-        const media = [];
+        loaderNote(files.length > 1 ? `نجهّز ${arNum(files.length)} صور…` : "نجهّز الصورة…");
+        const prepared = [];
         for (const f of files) {
           const ds = await downscale(f);
-          const su = await api.signUpload("photo", "image/jpeg");
-          if (!su.ok) throw new Error("sign");
-          const ok = await uploadSigned(su.data.signedUrl, ds.blob, "image/jpeg");
-          if (!ok) throw new Error("upload");
-          media.push({ kind: "photo", path: su.data.path, meta: { w: ds.width, h: ds.height } });
+          prepared.push({ kind: "photo", blob: ds.blob, contentType: "image/jpeg", meta: { w: ds.width, h: ds.height } });
         }
+        const media = await uploadMany(prepared, { sign: api.signUpload,
+          onProgress: (d, n) => loaderNote(n > 1 ? `جارٍ الرفع ${arNum(d)} من ${arNum(n)}` : "جارٍ الحفظ…") });
         const r = await api.addMoment({ body: album ? album.title : "", mood: null, media });
         if (!r.ok) throw new Error("moment");
         const entryId = r.data && r.data.moment && r.data.moment.id;   // add_moment returns { ok, moment }
@@ -530,13 +529,12 @@ export function openCompose({ onDone } = {}) {
     if (!t && !draft.media.length) { err.textContent = __g("اكتب لحظة أو أرفق شيئًا", "اكتبي لحظة أو أرفقي شيئًا"); return; }
     loader(true);
     try {
-      const media = [];
-      for (const m of draft.media) {
-        if (m.kind === "song") { media.push({ kind: "song", url: m.url, meta: m.meta }); continue; }
-        const su = await api.signUpload(m.kind, m.contentType); if (!su.ok) throw 0;
-        const ok = await uploadSigned(su.data.signedUrl, m.blob, m.contentType); if (!ok) throw 0;
-        media.push({ kind: m.kind, path: su.data.path, meta: m.meta || {} });
-      }
+      const files = draft.media.filter((m) => m.kind !== "song");
+      const note = (d, n) => loaderNote(n > 1 ? `جارٍ الرفع ${arNum(d)} من ${arNum(n)}` : "جارٍ الحفظ…");
+      if (files.length) note(0, files.length);
+      const up = await uploadMany(files, { sign: api.signUpload, onProgress: note });
+      let k = 0;
+      const media = draft.media.map((m) => (m.kind === "song" ? { kind: "song", url: m.url, meta: m.meta } : up[k++]));
       const r = await api.addMoment({ body: t, mood: draft.mood || null, happened_at: dateInput.value || undefined, media });
       loader(false);
       if (r.ok) { clearDraft(); close(true); sound.post(); haptic.success(); sparkleAt(innerWidth / 2, innerHeight / 2, ["🤍", "🌙", "✨", "💗"]); toast("حُفظت لحظتكما 🤍"); onDone && onDone(); }

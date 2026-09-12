@@ -70,3 +70,34 @@ export async function uploadSigned(signedUrl, blob, contentType) {
   const res = await fetch(signedUrl, { method: "PUT", headers: { "Content-Type": contentType, "x-upsert": "true" }, body: blob });
   return res.ok;
 }
+
+// Several files at once — three in flight at a time, each retried once — and
+// the result keeps the order they were picked in. Uploading one after another
+// meant five photos took five full round trips back to back, with nothing on
+// screen to say it was still working. A failure stops the lanes that are left
+// rather than letting them go on uploading files nothing will point at.
+export async function uploadMany(items, { sign, onProgress, concurrency = 3 } = {}) {
+  const out = new Array(items.length);
+  let next = 0, done = 0, failed = false;
+  const one = async (i) => {
+    const m = items[i];
+    for (let attempt = 0; attempt < 2 && !failed; attempt++) {
+      try {
+        const su = await sign(m.kind, m.contentType);
+        if (su && su.ok && await uploadSigned(su.data.signedUrl, m.blob, m.contentType)) {
+          out[i] = { kind: m.kind, path: su.data.path, meta: m.meta || {} };
+          done++;
+          if (onProgress) onProgress(done, items.length);
+          return;
+        }
+      } catch { /* the second attempt is the retry */ }
+    }
+    failed = true;
+    throw new Error("upload failed: item " + (i + 1));
+  };
+  const lanes = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length && !failed) { const i = next++; await one(i); }
+  });
+  await Promise.all(lanes);
+  return out;
+}

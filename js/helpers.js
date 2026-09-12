@@ -13,6 +13,14 @@ export function loader(on) {
   if (on) { if (!l) document.body.appendChild(h("div", { id: "loader", class: "loader", role: "status", "aria-label": "جارٍ التحميل" }, h("div", { class: "spinner" }))); }
   else if (l) l.remove();
 }
+// A line of text under the spinner, for waits long enough to deserve one.
+export function loaderNote(text) {
+  const l = $("#loader");
+  if (!l) return;
+  let n = l.querySelector(".loader-note");
+  if (!n) { n = h("div", { class: "loader-note" }); l.appendChild(n); }
+  n.textContent = text;
+}
 
 let dlgId = 0;
 // give a dialog panel proper semantics + focus trap + Escape + focus restore

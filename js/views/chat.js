@@ -90,9 +90,18 @@ async function withSigned(items) {
 }
 
 function startPoll() { clearInterval(pollTimer); pollTimer = setInterval(poll, 4000); }
+let polling = false;
 async function poll() {
   if (!isChatActive()) { clearInterval(pollTimer); pollTimer = null; return; }
   if (document.hidden) return;                       // no work while backgrounded
+  // A poll can outlast the 4s between polls (a cold function start alone is
+  // about 2s) and nothing stopped the next one starting on top of it, so two
+  // overlapping polls could each count the same whisper as new.
+  if (polling) return;
+  polling = true;
+  try { await pollOnce(); } finally { polling = false; }
+}
+async function pollOnce() {
   const t0 = Date.now();
   const r = await api.messages();
   if (!r.ok) return;
