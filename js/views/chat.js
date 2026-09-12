@@ -78,7 +78,8 @@ async function load(scroll) {
     // keep any still-pending optimistic bubbles on top of the fresh server list
     const serverIds = new Set(server.map((m) => m.id));
     const pend = msgs.filter((m) => m._pending && !serverIds.has(m.id));
-    msgs = server.concat(pend);
+    if (!olderMsgs.length) olderCursor = r.data.older_cursor || null;
+    msgs = withOlder(server).concat(pend);
     render(); if (scroll) scrollBottom(); api.markRead();
   } else if (!msgs.length) { clear(scroller).appendChild(h("div", { class: "empty" }, h("div", { class: "big" }, "😔"), h("div", {}, "تعذّر تحميل الهمس"), h("button", { class: "btn soft sm", onclick: () => load(true) }, "أعد المحاولة ↻"))); }
 }
@@ -87,6 +88,34 @@ async function withSigned(items) {
   if (!need.length) return items;
   const map = await ensureSigned(need);
   return items.map((m) => (m.path && map[m.path] ? { ...m, signed_url: map[m.path] } : m));
+}
+
+// Whispers older than the latest forty. Each poll brings only the newest forty
+// and used to replace the whole list with them, so from the forty-first whisper
+// on, the oldest simply vanished from the chat. They are now paged in on
+// request — the gate already pages by created_at — and kept across polls.
+let olderMsgs = [], olderCursor = null, loadingOlder = false;
+const withOlder = (server) => {
+  const ids = new Set(server.map((m) => m.id));
+  return olderMsgs.filter((m) => !ids.has(m.id)).concat(server);
+};
+async function loadOlder(btn) {
+  if (loadingOlder || !olderCursor) return;
+  loadingOlder = true; btn.disabled = true; btn.textContent = "…";
+  const r = await api.messages(olderCursor);
+  loadingOlder = false;
+  if (!r.ok) { btn.disabled = false; btn.textContent = r.offline ? "لا اتصال — حاولا مجددًا" : "تعذّر — حاولا مجددًا"; return; }
+  const got = await withSigned(r.data.items || []);
+  const have = new Set(msgs.map((m) => m.id));
+  const fresh = got.filter((m) => !have.has(m.id));
+  olderMsgs = fresh.concat(olderMsgs);
+  olderCursor = r.data.older_cursor || null;
+  // keep their place: prepending pushes everything down by the new height
+  const fromBottom = scroller.scrollHeight - scroller.scrollTop;
+  msgs = fresh.concat(msgs);
+  render();
+  scroller.scrollTop = scroller.scrollHeight - fromBottom;
+  haptic.tap();
 }
 
 function startPoll() { clearInterval(pollTimer); pollTimer = setInterval(poll, 4000); }
@@ -117,7 +146,8 @@ async function pollOnce() {
   lastSig = s;
   const serverIds = new Set(server.map((m) => m.id));
   const pend = msgs.filter((m) => m._pending && !serverIds.has(m.id));
-  msgs = server.concat(pend);
+  if (!olderMsgs.length) olderCursor = r.data.older_cursor || null;
+  msgs = withOlder(server).concat(pend);
   render();
   if (newFromOther) { scrollBottom(); sound.react(); api.markRead(); }
   else if (newReact) sound.heart();
@@ -129,6 +159,10 @@ function render() {
   const stick = scroller ? scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 60 : false;
   clear(scroller);
   if (!msgs.length) { scroller.appendChild(h("div", { class: "empty", style: { margin: "auto" } }, h("div", { class: "big" }, "💬"), h("div", {}, __g("لا رسائل بعد… ابدأ الهمس 💛", "لا رسائل بعد… ابدئي الهمس 💛")))); return; }
+  if (olderCursor) {
+    const btn = h("button", { class: "chat-older", onclick: () => loadOlder(btn) }, "↑ همسات أقدم");
+    scroller.appendChild(btn);
+  }
   let lastDay = null;
   for (const m of msgs) {
     const day = new Date(m.created_at).toDateString();

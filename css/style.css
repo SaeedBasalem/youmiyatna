@@ -1609,3 +1609,6 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .loader{flex-direction:column;gap:14px}
 .loader-note{font-size:13px;font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums;
   background:var(--surface);border:1px solid var(--line);padding:6px 14px;border-radius:var(--pill);box-shadow:var(--shadow-sm)}
+.chat-older{align-self:center;margin:4px auto 10px;padding:6px 14px;border-radius:var(--pill);font-size:12px;font-weight:700;
+  color:var(--ink-2);background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.chat-older:disabled{opacity:.6}
