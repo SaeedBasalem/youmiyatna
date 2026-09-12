@@ -9,7 +9,8 @@ import { icon } from "../icons.js";
 import { haptic } from "../haptics.js";
 import { art } from "../art.js";
 
-let PAGES = null;   // built page models, cached for the session
+let PAGES = null;     // built page models, shown instantly on the next visit
+let PAGES_SIG = "";   // what they were built from; a new or edited moment changes it
 
 const TZ = 180 * 60000;
 function daysTogether() {
@@ -77,12 +78,22 @@ export async function viewBook(content) {
   c.appendChild(stage);
   stage.appendChild(h("div", { class: "muted", style: { textAlign: "center", padding: "30px" } }, "نجمع صفحاتكما…"));
 
-  if (!PAGES) {
-    const { all, ok } = await loadEntries();
-    if (!ok && !all.length) { clear(stage); stage.appendChild(errorState(() => { PAGES = null; viewBook(content); })); return; }
-    PAGES = buildPages(all);
+  // Show the last-built book at once if there is one, but always fetch again.
+  // The cache used to live for the whole session, so a moment written — or
+  // corrected — after the book was first opened never appeared in it until
+  // the app was closed and reopened.
+  if (PAGES) paint();
+  const { all, ok } = await loadEntries();
+  if (!ok && !all.length) {
+    if (!PAGES) { clear(stage); stage.appendChild(errorState(() => { PAGES = null; PAGES_SIG = ""; viewBook(content); })); }
+    return;
   }
-  paint();
+  const sig = all.map((e) => e.id + ":" + (e.edited_at || "") + ":" + (e.body || "").length + ":" + (e.media || []).length).join("|");
+  if (sig !== PAGES_SIG) {
+    PAGES = buildPages(all);
+    PAGES_SIG = sig;
+    if (document.body.contains(stage)) paint();
+  }
 
   function paint() {
     clear(stage);

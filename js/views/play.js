@@ -110,18 +110,30 @@ function weeklyGame() {
 
 /* ---------------- عجلة السهرة ---------------- */
 function spinnerGame() {
-  const ideas = Array.from({ length: 12 }, () => dateIdea({ remember: false }));
-  const N = ideas.length;
+  const N = 12, S = 360 / N;
+  let ideas = [];
   const wheel = h("div", { class: "wheel" });
-  ideas.forEach((_, i) => { const seg = h("span", { class: "wheel-seg" }); seg.style.transform = `rotate(${(360 / N) * i}deg)`; wheel.appendChild(seg); });
+  for (let i = 0; i < N; i++) { const seg = h("span", { class: "wheel-seg" }); seg.style.transform = `rotate(${S * i}deg)`; wheel.appendChild(seg); }
   const ptr = h("div", { class: "wheel-ptr" }, "▲");
-  const result = h("div", { class: "wheel-result muted" }, "لُفّوا العجلة ✨");
+  const result = h("div", { class: "wheel-result muted" });
   let angle = 0, spinning = false;
+  // Fresh ideas replace the old ones inside this same sheet. It used to call
+  // spinnerGame() again, which opened a second sheet on top of the first —
+  // three taps and there were three wheels stacked on the screen.
+  const deal = () => {
+    if (spinning) return;
+    ideas = Array.from({ length: N }, () => dateIdea({ remember: false }));
+    clear(result).appendChild(h("span", {}, "لُفّوا العجلة ✨"));
+  };
   const spin = () => {
     if (spinning) return; spinning = true; sound.tab();
     const winner = Math.floor(Math.random() * N);
     const turns = 5 + Math.floor(Math.random() * 3);
-    angle += turns * 360 + (360 - (360 / N) * winner) - (angle % 360);
+    // Stop in the MIDDLE of the winning wedge. Aiming at 360 - S·winner stopped
+    // on the line between two wedges, so the wedge the pointer touched and the
+    // idea announced could disagree.
+    const target = (360 - (S * winner + S / 2) + 360) % 360;
+    angle += turns * 360 + ((target - (angle % 360)) + 360) % 360;
     wheel.style.transform = `rotate(${angle}deg)`;
     clear(result).appendChild(h("span", {}, "…"));
     setTimeout(() => {
@@ -130,10 +142,11 @@ function spinnerGame() {
       clear(result).appendChild(h("b", {}, ideas[winner]));
     }, 3600);
   };
+  deal();
   openSheet({ title: "🎡 عجلة السهرة", subtitle: "دَعوا العجلة تختار لكم", body: [
     h("div", { class: "wheel-wrap" }, ptr, wheel), result,
     h("button", { class: "btn", style: { marginTop: "8px" }, onclick: spin }, "لُفّها 🎡"),
-    h("button", { class: "btn ghost sm", style: { margin: "10px auto 0" }, onclick: () => { spinnerGame(); }, }, "أفكار جديدة ↻")] });
+    h("button", { class: "btn ghost sm", style: { margin: "10px auto 0" }, onclick: () => { sound.tab(); deal(); } }, "أفكار جديدة ↻")] });
 }
 
 /* ---------------- كم تعرفني؟ ---------------- */

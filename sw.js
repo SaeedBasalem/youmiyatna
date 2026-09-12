@@ -1,5 +1,5 @@
 // يومياتنا — service worker: offline shell (network-first) + web-push display.
-const CACHE = "yn-r26";
+const CACHE = "yn-r27";
 const ICON = "icons/icon-192.png";
 const CORE = [
   "./", "index.html", "manifest.webmanifest", "css/style.css", "fonts/fonts.css",

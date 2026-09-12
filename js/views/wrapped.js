@@ -22,8 +22,17 @@ async function gather() {
     ok = true; entries.push(...r.data.items);
     cursor = r.data.next_cursor; pages++;
   } while (cursor && pages < 10);
-  const [ms, msg, mood] = await Promise.all([api.milestones(), api.messages(), api.moodCalendar(90)]);
-  return { entries, ok, ms: ms.ok ? ms.data : null, messages: msg.ok ? msg.data.items : [], moods: mood.ok ? mood.data.items : [] };
+  // Whispers are counted by the server. Counting the list we had loaded stopped
+  // at 40, because the list is only ever the latest forty — and it ignored the
+  // year when the period was "this year".
+  const [ms, msg, mood, cnt] = await Promise.all([
+    api.milestones(), api.messages(), api.moodCalendar(90), api.counts(period === "year" ? yearNow() : null)]);
+  return {
+    entries, ok, ms: ms.ok ? ms.data : null,
+    messages: msg.ok ? msg.data.items : [],
+    whispers: cnt.ok && typeof cnt.data.whispers === "number" ? cnt.data.whispers : null,
+    moods: mood.ok ? mood.data.items : [],
+  };
 }
 
 function statsFor(d) {
@@ -51,7 +60,8 @@ function statsFor(d) {
   const topWords = Object.entries(words).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const withPhoto = entries.filter((e) => (e.media || []).some((m) => m.kind === "photo" && m.signed_url));
   const keepsake = withPhoto[Math.floor(Math.random() * withPhoto.length)] || entries[Math.floor(Math.random() * entries.length)] || null;
-  return { entries, photos, videos, voices, topMood, topMonth, byAuthor, topWords, keepsake, messages: d.messages.length, ms: d.ms };
+  return { entries, photos, videos, voices, topMood, topMonth, byAuthor, topWords, keepsake,
+    messages: d.whispers != null ? d.whispers : d.messages.length, ms: d.ms };
 }
 
 function buildCards(s) {

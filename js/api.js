@@ -147,6 +147,7 @@ export const api = {
   setEmailNotify:(on)             => call("set_email_notify", { on }),
   // whisper reactions (journal4)
   reactMessage:  (id, emoji)      => call4("react_message", { id, emoji }),
+  counts:        (year)           => call4("counts", { year }),
   // activity, planner, export (journal5)
   activity:      (limit)          => call5("activity", { limit }),
   activitySeen:  (at)             => call5("activity_seen", { at }),
