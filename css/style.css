@@ -7,7 +7,7 @@
   --ink:#4B3A37; --ink-2:#6E5852; --ink-3:#907A72;
   --rose:#E28CA0; --rose-deep:#C96B80; --rose-soft:#FADEE4;
   --gold:#E3BE86; --gold-soft:#F7EAD5; --gold-ink:#A9741F;
-  --ok:#3F9D6B;                       /* the one 'this is fine' green, tokenised so skins can retune it */
+  --ok:#3F9D6B;                       /* the one 'this is fine' green, tokenised so a look can retune it */
   --him:#8CA7C6; --him-soft:#E7EEF6; --her:#E6A0B2; --her-soft:#FBE3EA;
   --line:#F0E0D8;
   --shadow:0 12px 34px rgba(198,126,133,.16);
@@ -21,18 +21,16 @@
 
   /* ---- the scale ----------------------------------------------------
      One type ramp and one spacing ramp, so a screen built later lands on
-     the same rhythm as one built first. `--density` lets a whole skin
-     tighten at once: the urban look is denser than the warm one by
-     intent, not by a hundred separate decisions. */
+     the same rhythm as one built first. `--density` lets a whole look
+     tighten at once, by intent rather than by a hundred separate
+     decisions. */
   --step--2:10.5px; --step--1:11.5px; --step-0:13px; --step-1:15px;
   --step-2:17px;    --step-3:21px;    --step-4:26px;
   --sp-1:4px; --sp-2:6px; --sp-3:8px; --sp-4:12px; --sp-5:16px; --sp-6:20px; --sp-7:28px;
   --density:1;
   --dur-1:.12s; --dur-2:.2s; --dur-3:.32s;
 }
-/* a denser skin tightens every shared component in one move */
-:root[data-skin="urban"]{ --density:.78 }
-:root[data-skin="bento"]{ --density:.9 }
+
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --bg:#241A20; --bg2:#2C2028;
@@ -218,7 +216,7 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 @keyframes up{from{transform:translateY(100%)}to{transform:none}}
 @keyframes pop{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:none}}
 .grab{width:44px;height:5px;border-radius:3px;background:var(--line);margin:6px auto 12px}
-.sheet h3,.modal h3{font-family:var(--font-display);font-weight:700;font-size:22px;text-align:center;margin:0 0 14px}
+.sheet h2,.modal h2,.sheet h3,.modal h3{font-family:var(--font-display);font-weight:700;font-size:22px;text-align:center;margin:0 0 14px}
 
 /* ---------- fx ---------- */
 .toast{position:fixed;bottom:calc(var(--nav-h) + 16px);left:50%;transform:translateX(-50%);z-index:95;
@@ -898,187 +896,6 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .pr-main span{font-size:12px}
 .danger-text{color:#D6607A}
 
-/* ======================================================================
-   THEME STUDIO — complete switchable design languages
-   Skins override the token layer, so the couple's theme (light/dark),
-   accent and background choices still compose on top.
-   ====================================================================== */
-
-/* ---------- زجاجي · frosted glass ---------- */
-:root[data-skin="glass"]{
-  --bg:#EFE9FA; --bg2:#F7E7F0;
-  --surface:rgba(255,255,255,.58); --surface-2:rgba(255,255,255,.4); --sunk:rgba(255,255,255,.3);
-  --line:rgba(255,255,255,.65);
-  --shadow:0 18px 44px rgba(122,86,160,.16); --shadow-sm:0 8px 22px rgba(122,86,160,.12);
-  --radius:26px; --radius-lg:32px;
-}
-:root[data-skin="glass"] body{
-  background:
-    radial-gradient(52% 44% at 12% 6%, #FBD1DF 0%, transparent 70%),
-    radial-gradient(46% 40% at 88% 12%, #D7C4F4 0%, transparent 70%),
-    radial-gradient(50% 44% at 22% 88%, #C7E6EC 0%, transparent 70%),
-    radial-gradient(44% 40% at 86% 82%, #FCE3C8 0%, transparent 70%),
-    linear-gradient(160deg,#F3ECFB,#F9EDF3);
-  background-attachment:fixed;
-}
-:root[data-skin="glass"] :is(.card,.moment,.tabbar,.sheet,.modal,.hub-card,.game-tile,.q-tile,.icon-btn,.wrap-card,.book-page,.wl-card){
-  backdrop-filter:blur(18px) saturate(1.35); -webkit-backdrop-filter:blur(18px) saturate(1.35);
-  border-color:var(--line);
-}
-:root[data-skin="glass"] :is(.chip,.seg,.field,.react-pill,.foot-chip,.count-chip,.voice-pill){background:rgba(255,255,255,.45)}
-:root[data-skin="glass"] .tabbar{background:rgba(255,255,255,.5)}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"])[data-skin="glass"]{
-    --bg:#1B1626; --bg2:#241B30;
-    --surface:rgba(38,30,52,.58); --surface-2:rgba(38,30,52,.4); --sunk:rgba(20,15,30,.5);
-    --line:rgba(255,255,255,.14);
-    --shadow:0 18px 44px rgba(0,0,0,.5); --shadow-sm:0 8px 22px rgba(0,0,0,.4);
-  }
-  :root:not([data-theme="light"])[data-skin="glass"] body{
-    background:
-      radial-gradient(52% 44% at 12% 6%, #4A2A44 0%, transparent 70%),
-      radial-gradient(46% 40% at 88% 12%, #33265A 0%, transparent 70%),
-      radial-gradient(50% 44% at 22% 88%, #1E3A40 0%, transparent 70%),
-      linear-gradient(160deg,#181226,#221629);
-    background-attachment:fixed;
-  }
-  :root:not([data-theme="light"])[data-skin="glass"] :is(.chip,.seg,.field,.react-pill,.foot-chip,.count-chip,.voice-pill){background:rgba(255,255,255,.08)}
-  :root:not([data-theme="light"])[data-skin="glass"] .tabbar{background:rgba(30,24,42,.55)}
-}
-:root[data-theme="dark"][data-skin="glass"]{
-  --bg:#1B1626; --bg2:#241B30;
-  --surface:rgba(38,30,52,.58); --surface-2:rgba(38,30,52,.4); --sunk:rgba(20,15,30,.5);
-  --line:rgba(255,255,255,.14);
-  --shadow:0 18px 44px rgba(0,0,0,.5); --shadow-sm:0 8px 22px rgba(0,0,0,.4);
-}
-:root[data-theme="dark"][data-skin="glass"] body{
-  background:
-    radial-gradient(52% 44% at 12% 6%, #4A2A44 0%, transparent 70%),
-    radial-gradient(46% 40% at 88% 12%, #33265A 0%, transparent 70%),
-    radial-gradient(50% 44% at 22% 88%, #1E3A40 0%, transparent 70%),
-    linear-gradient(160deg,#181226,#221629);
-  background-attachment:fixed;
-}
-:root[data-theme="dark"][data-skin="glass"] :is(.chip,.seg,.field,.react-pill,.foot-chip,.count-chip,.voice-pill){background:rgba(255,255,255,.08)}
-:root[data-theme="dark"][data-skin="glass"] .tabbar{background:rgba(30,24,42,.55)}
-
-/* ---------- بنتو · bento grid ---------- */
-:root[data-skin="bento"]{
-  --bg:#F5F3EF; --bg2:#F5F3EF;
-  --surface:#FFFFFF; --surface-2:#F1EDE7; --sunk:#E9E4DC;
-  --ink:#26221E; --ink-2:#5C554D; --ink-3:#8E857A;
-  --rose:#E2704A; --rose-deep:#C4552F; --rose-soft:#FBE3D8;
-  --gold:#E8B54A; --gold-soft:#F8EDD3; --gold-ink:#9A6E14;
-  --line:#E4DFD6;
-  --shadow:0 2px 10px rgba(40,32,24,.07); --shadow-sm:0 1px 4px rgba(40,32,24,.06);
-  --shadow-rose:0 8px 20px rgba(196,85,47,.25);
-  --radius:20px; --radius-lg:24px; --radius-sm:12px;
-}
-:root[data-skin="bento"] body{background:var(--bg)}
-:root[data-skin="bento"] :is(.card,.moment,.hub-card,.game-tile,.q-tile,.tl-card){border-width:1.5px}
-:root[data-skin="bento"] .tabbar{bottom:10px;border-radius:24px;border-width:1.5px;box-shadow:0 6px 24px rgba(40,32,24,.12)}
-:root[data-skin="bento"] :is(.hello,.t-h1,.sh-title,.tb-title){font-family:var(--font-body);font-weight:800;letter-spacing:-.3px}
-:root[data-skin="bento"] .together{background:var(--ink);color:var(--bg)}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"])[data-skin="bento"]{
-    --bg:#17151A; --bg2:#17151A; --surface:#211F25; --surface-2:#1B191F; --sunk:#121014;
-    --ink:#F2EEE9; --ink-2:#B7AFA6; --ink-3:#877F76;
-    --rose:#F08A62; --rose-deep:#F5A57F; --rose-soft:#43281C;
-    --gold:#E8C05C; --gold-soft:#3A2F18; --gold-ink:#E8C05C;
-    --line:#332F38; --shadow:0 2px 10px rgba(0,0,0,.4); --shadow-sm:0 1px 4px rgba(0,0,0,.35);
-  }
-}
-:root[data-theme="dark"][data-skin="bento"]{
-  --bg:#17151A; --bg2:#17151A; --surface:#211F25; --surface-2:#1B191F; --sunk:#121014;
-  --ink:#F2EEE9; --ink-2:#B7AFA6; --ink-3:#877F76;
-  --rose:#F08A62; --rose-deep:#F5A57F; --rose-soft:#43281C;
-  --gold:#E8C05C; --gold-soft:#3A2F18; --gold-ink:#E8C05C;
-  --line:#332F38; --shadow:0 2px 10px rgba(0,0,0,.4); --shadow-sm:0 1px 4px rgba(0,0,0,.35);
-}
-
-/* ---------- سكرابوك · paper & polaroid ---------- */
-:root[data-skin="paper"]{
-  --bg:#F8F0DF; --bg2:#F3E7CE;
-  --surface:#FFFDF4; --surface-2:#F6EEDA; --sunk:#EFE3C8;
-  --ink:#4A3B28; --ink-2:#71614A; --ink-3:#9A8A6E;
-  --rose:#D96C6C; --rose-deep:#B94F4F; --rose-soft:#F6DCD2;
-  --gold:#C9A25E; --gold-soft:#F1E4C4; --gold-ink:#8F6A22;
-  --line:#E2D3B2;
-  --shadow:2px 4px 0 rgba(120,92,50,.14); --shadow-sm:1px 3px 0 rgba(120,92,50,.12);
-  --shadow-rose:2px 5px 0 rgba(185,79,79,.3);
-  --radius:10px; --radius-lg:12px; --radius-sm:6px;
-}
-:root[data-skin="paper"] body{
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .25 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E"),
-    var(--bg);
-}
-:root[data-skin="paper"] .feed .moment{rotate:.55deg}
-:root[data-skin="paper"] .feed .moment:nth-child(even){rotate:-.55deg}
-:root[data-skin="paper"] .moment{border-inline-start-width:1px;position:relative}
-:root[data-skin="paper"] .moment::after{
-  content:"";position:absolute;top:-11px;left:50%;width:86px;height:24px;margin-left:-43px;
-  background:linear-gradient(100deg,rgba(217,168,120,.5),rgba(230,190,140,.42));
-  rotate:-2.5deg;border-radius:2px;box-shadow:0 1px 2px rgba(90,60,20,.12);pointer-events:none;
-}
-:root[data-skin="paper"] :is(.m-photo,.carousel-img,.hit-thumb,.at-cover,.mem-thumb,.wc-photo,.bp-photo){
-  border:8px solid #FFFEFA;border-bottom-width:26px;border-radius:2px;
-  box-shadow:2px 5px 12px rgba(90,60,20,.22);
-}
-:root[data-skin="paper"] .home-card:nth-child(odd){rotate:.35deg}
-:root[data-skin="paper"] .home-card:nth-child(even){rotate:-.35deg}
-:root[data-skin="paper"] .tabbar{border-radius:14px;border-style:dashed;border-width:1.5px}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"])[data-skin="paper"]{
-    --bg:#241D12; --bg2:#2C2416; --surface:#2E2718; --surface-2:#282112; --sunk:#1E180C;
-    --ink:#F0E6D2; --ink-2:#C4B594; --ink-3:#8F8163;
-    --rose:#E08B7A; --rose-deep:#EDA391; --rose-soft:#4A2E24;
-    --gold:#D3AC64; --gold-soft:#3C3118; --gold-ink:#D3AC64;
-    --line:#463A22; --shadow:2px 4px 0 rgba(0,0,0,.35); --shadow-sm:1px 3px 0 rgba(0,0,0,.3);
-  }
-  :root:not([data-theme="light"])[data-skin="paper"] :is(.m-photo,.carousel-img,.hit-thumb,.at-cover,.mem-thumb,.wc-photo,.bp-photo){border-color:#3A331F}
-}
-:root[data-theme="dark"][data-skin="paper"]{
-  --bg:#241D12; --bg2:#2C2416; --surface:#2E2718; --surface-2:#282112; --sunk:#1E180C;
-  --ink:#F0E6D2; --ink-2:#C4B594; --ink-3:#8F8163;
-  --rose:#E08B7A; --rose-deep:#EDA391; --rose-soft:#4A2E24;
-  --gold:#D3AC64; --gold-soft:#3C3118; --gold-ink:#D3AC64;
-  --line:#463A22; --shadow:2px 4px 0 rgba(0,0,0,.35); --shadow-sm:1px 3px 0 rgba(0,0,0,.3);
-}
-:root[data-theme="dark"][data-skin="paper"] :is(.m-photo,.carousel-img,.hit-thumb,.at-cover,.mem-thumb,.wc-photo,.bp-photo){border-color:#3A331F}
-
-/* ---------- مخمل · midnight luxe (inherently dark) ---------- */
-:root[data-skin="velvet"]{
-  color-scheme:dark;
-  --bg:#170F1E; --bg2:#20142A;
-  --surface:#221733; --surface-2:#1B1229; --sunk:#120B1B;
-  --ink:#F3EADF; --ink-2:#C9B9A8; --ink-3:#8E7F70;
-  --rose:#D8B36A; --rose-deep:#E7C88A; --rose-soft:#3A2C18;
-  --gold:#D8B36A; --gold-soft:#332714; --gold-ink:#E9CE93;
-  --him:#8FA6C9; --him-soft:#22293A; --her:#C99AA8; --her-soft:#33222A;
-  --line:rgba(216,179,106,.28);
-  --shadow:0 18px 44px rgba(0,0,0,.55); --shadow-sm:0 8px 22px rgba(0,0,0,.45);
-  --shadow-rose:0 10px 26px rgba(0,0,0,.55);
-  --radius:22px; --radius-lg:28px;
-}
-:root[data-skin="velvet"] body{
-  background:
-    radial-gradient(70% 50% at 50% 0%, #2A1C38, transparent 70%),
-    radial-gradient(60% 45% at 85% 90%, #241430, transparent 70%),
-    linear-gradient(170deg,#150D1C,#1B1024);
-  background-attachment:fixed;
-}
-:root[data-skin="velvet"] .btn{color:#2A1F0E}
-:root[data-skin="velvet"] .btn.ghost{color:var(--ink-2)}
-:root[data-skin="velvet"] :is(.t-h1,.brand,.wc-num,.bp-title,.ms-big){
-  background:linear-gradient(120deg,#E9CE93,#D8B36A 45%,#F4E3B8 70%,#C9A05C);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-}
-:root[data-skin="velvet"] :is(.card,.moment,.hub-card,.game-tile,.q-tile){border-width:1px}
-:root[data-skin="velvet"] .tabbar{background:rgba(30,20,42,.85);border-color:var(--line)}
-:root[data-skin="velvet"] .together{background:var(--gold-soft);color:var(--gold-ink)}
-:root[data-skin="velvet"] #sky{opacity:.25}
-
 /* ---------- studio picker ---------- */
 .studio-grid{display:flex;flex-direction:column;gap:14px}
 .studio-card{display:flex;gap:14px;align-items:center;text-align:start;padding:16px;border-radius:var(--radius);
@@ -1248,8 +1065,6 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
   display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .dw-cta{margin-top:6px;align-self:flex-start;background:rgba(255,255,255,.22);padding:7px 15px;
   border-radius:var(--pill);font-weight:700;font-size:12.5px;backdrop-filter:blur(4px)}
-:root[data-skin="velvet"] .d-write{color:#2A1F0E}
-:root[data-skin="velvet"] .dw-cta{background:rgba(0,0,0,.12)}
 
 /* second row */
 .d-chat{grid-column:span 2}
@@ -1457,67 +1272,6 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .task-x{flex:none;width:24px;height:24px;border-radius:50%;color:var(--ink-3);font-size:17px;line-height:1;
   display:flex;align-items:center;justify-content:center}
 .task-x:active{color:var(--rose-deep)}
-
-/* ======================================================================
-   SKIN: URBAN — the workspace look. Near-black ground, hairline borders,
-   tight radii, small dense type, one hot accent, and real monospace on
-   every number and date. Always dark, like the tools it borrows from:
-   a half-lit version of this would be neither one thing nor the other.
-   ====================================================================== */
-:root[data-skin="urban"]{
-  color-scheme:dark;
-  --bg:#0C0D10; --bg2:#0C0D10;
-  --surface:#141619; --surface-2:#1A1D21; --sunk:#0A0B0D;
-  --ink:#E8EAED; --ink-2:#9AA1AB; --ink-3:#6B727C;
-  --rose:#F2545B; --rose-deep:#FF6B70; --rose-soft:#2A1417;
-  --gold:#F5A524; --gold-soft:#2A2010; --gold-ink:#F5A524;
-  --him:#5B9DF9; --him-soft:#12203A; --her:#F2545B; --her-soft:#2A1417;
-  --ok:#3FB950;
-  --line:#24272D;
-  --shadow:0 1px 0 rgba(255,255,255,.03), 0 8px 24px rgba(0,0,0,.5);
-  --shadow-sm:0 1px 0 rgba(255,255,255,.025);
-  --shadow-rose:0 6px 20px rgba(242,84,91,.28);
-  --radius:10px; --radius-lg:12px; --radius-sm:8px; --pill:7px;
-}
-:root[data-skin="urban"] body{
-  background:
-    radial-gradient(120% 60% at 50% -10%, #16181D, transparent 70%),
-    var(--bg);
-}
-/* the display serif belongs to the warm world; here everything is one grotesk */
-:root[data-skin="urban"] :is(.t-hero,.t-h1,.display,.dh-hello,.sh-title,.tb-title,.dw-t,.dt-label,.hub-t,.sec-title){
-  font-family:var(--font-body);font-weight:800;letter-spacing:-.02em;
-}
-/* numbers, dates and counters read as data, not as prose */
-:root[data-skin="urban"] :is(.ds-n,.stat-n,.chat-meta,.dm-now,.mono){
-  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  font-variant-numeric:tabular-nums;letter-spacing:-.02em;
-}
-:root[data-skin="urban"] :is(.card,.moment,.hub-card,.d-tile,.inbox-row,.task-row,.newsbar,.setting-card){
-  border-width:1px;
-}
-/* one hairline, no soft glow — depth comes from the border, not a shadow */
-:root[data-skin="urban"] :is(.d-tile,.inbox-row,.task-row,.newsbar,.hub-card){box-shadow:none}
-:root[data-skin="urban"] :is(.d-tile,.hub-card,.inbox-row,.task-row):active{background:var(--surface-2)}
-:root[data-skin="urban"] .tabbar{
-  bottom:0;border-radius:0;border-width:1px 0 0;background:color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter:blur(12px);box-shadow:none;
-}
-:root[data-skin="urban"] .tab-b{border-radius:var(--radius-sm)}
-:root[data-skin="urban"] .together{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
-:root[data-skin="urban"] .streak-chip{background:var(--gold-soft);color:var(--gold)}
-:root[data-skin="urban"] .d-write{
-  background:linear-gradient(135deg,#1D2026,#15171B);
-  border:1px solid var(--line);box-shadow:none;color:var(--ink);
-}
-:root[data-skin="urban"] .d-write::after{opacity:.06}
-:root[data-skin="urban"] .dw-ic{background:var(--rose);color:#fff}
-:root[data-skin="urban"] .dw-cta{background:var(--rose);color:#fff}
-:root[data-skin="urban"] .btn{border-radius:var(--radius-sm)}
-:root[data-skin="urban"] .field{border-radius:var(--radius-sm);background:var(--sunk)}
-:root[data-skin="urban"] .chip{border-radius:var(--radius-sm)}
-:root[data-skin="urban"] .nb-e,:root[data-skin="urban"] .ib-e{border-radius:var(--radius-sm)}
-:root[data-skin="urban"] #sky{opacity:.35}
 
 /* the dashboard's numbers, as a rail of small readings rather than chips */
 .d-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;align-items:stretch}

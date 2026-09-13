@@ -46,7 +46,7 @@ function wireDialog(scrim, panel, close, titleNode) {
 // bottom sheet. body = array of nodes. beforeClose(): return false / Promise<false> to veto. returns { close }.
 export function openSheet({ title, subtitle, body = [], wide = false, beforeClose = null } = {}) {
   const sheet = h("div", { class: "sheet" + (wide ? " wide" : ""), tabindex: "-1" }, h("div", { class: "grab" }));
-  const titleNode = title ? h("h3", {}, title) : null;
+  const titleNode = title ? h("h2", {}, title) : null;
   if (titleNode) sheet.appendChild(titleNode);
   if (subtitle) sheet.appendChild(h("div", { class: "muted sheet-sub" }, subtitle));
   body.flat().forEach((n) => n && sheet.appendChild(n));
@@ -62,7 +62,7 @@ export function openSheet({ title, subtitle, body = [], wide = false, beforeClos
 // centered modal. returns { close }.
 export function openModal({ title, body = [], wide = false } = {}) {
   const modal = h("div", { class: "modal" + (wide ? " wide" : ""), tabindex: "-1" });
-  const titleNode = title ? h("h3", {}, title) : null;
+  const titleNode = title ? h("h2", {}, title) : null;
   if (titleNode) modal.appendChild(titleNode);
   body.flat().forEach((n) => n && modal.appendChild(n));
   const scrim = h("div", { class: "scrim center" }, modal);
@@ -276,26 +276,43 @@ export function applyTheme() {
 // ---- backgrounds (preset gradients + your own photo, per person) ----
 export const BG_PRESETS = {
   default:  { name: "الأصل", dot: "linear-gradient(135deg,#FDF2EC,#FADEE4)", css: "" },
-  blush:    { name: "وردة", dot: "#FADEE4", css: "radial-gradient(120% 85% at 18% 0%,#FBE7DF,transparent 55%),radial-gradient(120% 85% at 92% 8%,#FADEE4,transparent 48%),#FDF2EC" },
-  dawn:     { name: "فجر", dot: "#F6C177", css: "linear-gradient(160deg,#FCE9D6,#FADEE4 60%,#F3D9E6)" },
-  lavender: { name: "خزامى", dot: "#C9B6EC", css: "linear-gradient(160deg,#EFE7FA,#F5DEEA)" },
-  ocean:    { name: "بحر", dot: "#8FCFD6", css: "linear-gradient(160deg,#DDF1F1,#EAF3F6 60%,#F3E9EC)" },
-  gold:     { name: "ذهب", dot: "#E3BE86", css: "radial-gradient(120% 80% at 50% 0%,#F7EAD5,transparent 60%),linear-gradient(160deg,#FBF3E4,#F7E3E9)" },
-  night:    { name: "ليل", dot: "#3A2A38", css: "radial-gradient(1.5px 1.5px at 18% 24%,#ffffffaa,transparent),radial-gradient(1.5px 1.5px at 68% 40%,#ffffff88,transparent),radial-gradient(1.5px 1.5px at 42% 72%,#ffffff77,transparent),radial-gradient(1.5px 1.5px at 82% 66%,#ffffff66,transparent),linear-gradient(165deg,#241A26,#3A2A3C)" },
+  blush:    { name: "وردة", dot: "#FADEE4", css: "radial-gradient(120% 85% at 18% 0%,#FBE7DF,transparent 55%),radial-gradient(120% 85% at 92% 8%,#FADEE4,transparent 48%),#FDF2EC", dark: "radial-gradient(120% 85% at 18% 0%,#4A2532,transparent 55%),radial-gradient(120% 85% at 92% 8%,#452038,transparent 48%),#1D1520" },
+  dawn:     { name: "فجر", dot: "#F6C177", css: "linear-gradient(160deg,#FCE9D6,#FADEE4 60%,#F3D9E6)", dark: "linear-gradient(160deg,#3B2528,#3A1F31 60%,#2B1D36)" },
+  lavender: { name: "خزامى", dot: "#C9B6EC", css: "linear-gradient(160deg,#EFE7FA,#F5DEEA)", dark: "linear-gradient(160deg,#231B3A,#35203B)" },
+  ocean:    { name: "بحر", dot: "#8FCFD6", css: "linear-gradient(160deg,#DDF1F1,#EAF3F6 60%,#F3E9EC)", dark: "linear-gradient(160deg,#0F2A2D,#152733 60%,#2A1E2B)" },
+  gold:     { name: "ذهب", dot: "#E3BE86", css: "radial-gradient(120% 80% at 50% 0%,#F7EAD5,transparent 60%),linear-gradient(160deg,#FBF3E4,#F7E3E9)", dark: "radial-gradient(120% 80% at 50% 0%,#3E2F1B,transparent 60%),linear-gradient(160deg,#231A13,#2F1C25)" },
+  night:    { name: "ليل", dot: "#3A2A38", css: "radial-gradient(1.5px 1.5px at 18% 24%,#ffffffaa,transparent),radial-gradient(1.5px 1.5px at 68% 40%,#ffffff88,transparent),radial-gradient(1.5px 1.5px at 42% 72%,#ffffff77,transparent),radial-gradient(1.5px 1.5px at 82% 66%,#ffffff66,transparent),linear-gradient(165deg,#241A26,#3A2A3C)", tone: "dark" },
 };
 function ensureBgEl() { let el = document.getElementById("bg"); if (!el) { el = h("div", { id: "bg" }); document.body.insertBefore(el, document.body.firstChild); } return el; }
+// The ground and the theme must agree. A pastel preset under the dark theme
+// left dark glass and light text floating on a light sky, so every light
+// preset has a night twin, and <html data-bg-tone> tells the CSS which way the
+// ground leans (only "night" leans dark whatever the theme).
+let photo = { val: null, url: null, at: 0 };   // the signed photo url, reused so a theme change only repaints
+function setTone(t) { const r = document.documentElement; if (t) r.setAttribute("data-bg-tone", t); else r.removeAttribute("data-bg-tone"); }
 export async function applyBackground() {
   const el = ensureBgEl();
   const val = (store.config && store.config["bg_" + (store.person || "him")]) || "";
-  if (!val || val === "preset:default") { el.style.background = ""; return; }
-  if (val.startsWith("preset:")) { const p = BG_PRESETS[val.slice(7)]; el.style.background = p ? p.css : ""; return; }
+  if (!val || val === "preset:default") { el.style.background = ""; setTone(null); return; }
+  if (val.startsWith("preset:")) {
+    const p = BG_PRESETS[val.slice(7)], dark = themeIsDark();
+    el.style.background = p ? (dark && p.dark) || p.css : "";
+    setTone(p ? p.tone || (dark ? "dark" : "light") : null);
+    return;
+  }
   try {
-    const r = await api.signDownload([val]);
-    const url = r.ok && r.data.urls && r.data.urls[val];
-    if (url) { const scrim = themeIsDark() ? "rgba(28,20,25,.62)" : "rgba(253,242,236,.55)"; el.style.background = `linear-gradient(${scrim},${scrim}), url("${url}") center/cover no-repeat`; }
-    else el.style.background = "";
-  } catch { el.style.background = ""; }
+    if (photo.val !== val || !photo.url || Date.now() - photo.at > 40 * 60000) {
+      const r = await api.signDownload([val]);
+      photo = { val, url: (r.ok && r.data.urls && r.data.urls[val]) || null, at: Date.now() };
+    }
+    if (!photo.url) { el.style.background = ""; setTone(null); return; }
+    const dark = themeIsDark(), scrim = dark ? "rgba(28,20,25,.62)" : "rgba(253,242,236,.55)";
+    el.style.background = `linear-gradient(${scrim},${scrim}), url("${photo.url}") center/cover no-repeat`;
+    setTone(dark ? "dark" : "light");
+  } catch { el.style.background = ""; setTone(null); }
 }
+// the phone turning dark or light on its own (at sunset, on a schedule)
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (store.theme === "system") { applyAccent(); applyBackground(); } }); } catch {}
 
 // fetch both avatars and cache their signed urls (~50 min, under the 1h signature)
 export async function refreshAvatars() {

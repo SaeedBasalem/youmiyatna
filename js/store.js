@@ -54,6 +54,18 @@ export const store = {
 
   get skin() { return localStorage.getItem("yn_skin") || "warm"; },
   set skin(v) { localStorage.setItem("yn_skin", v); },
+  // The four looks replaced the six skins. Someone who had picked a skin lands
+  // on the look closest to it rather than being reset to the default.
+  get look() {
+    const v = localStorage.getItem("yn_look");
+    if (v) return v;
+    const old = { glass: "dawn", bento: "dawn", paper: "ink", velvet: "grove", urban: "grove" }[localStorage.getItem("yn_skin") || ""];
+    return old || "auto";
+  },
+  set look(v) { localStorage.setItem("yn_look", v); },
+  // the last Today screen, drawn instantly on open while the fresh one loads
+  homeCache() { const c = readJSON("yn_home_cache", null); return c && c.person === this.person ? c.d : null; },
+  setHomeCache(d) { try { writeJSON("yn_home_cache", { at: Date.now(), person: this.person, d }); } catch {} },
   get accent() { return localStorage.getItem("yn_accent") || "default"; },
   set accent(v) { localStorage.setItem("yn_accent", v); },
 
