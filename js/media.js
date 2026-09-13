@@ -85,7 +85,14 @@ export async function uploadMany(items, { sign, onProgress, concurrency = 3 } = 
       try {
         const su = await sign(m.kind, m.contentType);
         if (su && su.ok && await uploadSigned(su.data.signedUrl, m.blob, m.contentType)) {
-          out[i] = { kind: m.kind, path: su.data.path, meta: m.meta || {} };
+          out[i] = { kind: m.kind, path: su.data.path, meta: { ...(m.meta || {}) } };
+          // the small copy grids use; losing it only costs a bigger download later
+          if (m.thumbBlob) {
+            try {
+              const st = await sign("photo", "image/jpeg");
+              if (st && st.ok && await uploadSigned(st.data.signedUrl, m.thumbBlob, "image/jpeg")) out[i].meta.thumb = st.data.path;
+            } catch { /* keep the photo without a thumbnail */ }
+          }
           done++;
           if (onProgress) onProgress(done, items.length);
           return;

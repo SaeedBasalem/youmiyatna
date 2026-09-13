@@ -8,8 +8,10 @@ import { PEOPLE, other, MOODS, moodEmoji, BADGES, DUA } from "../config.js";
 import { loader, go, openSheet, openModal, confirmAsk, ACCENT_PRESETS, applyTheme, applyAccent, applyBackground, BG_PRESETS, safeUrl, hashPin, encryptWithPin, commit, errorState, bioAvailable, bioEnroll, bioEnrolled, bioForget } from "../helpers.js";
 import { downscale, uploadSigned } from "../media.js";
 import { haptic } from "../haptics.js";
-import { SKINS, applySkin } from "../skins.js";
-import { makeSortable } from "../gestures.js";
+import { LOOKS, chosenLook, setLook } from "../looks.js";
+import { attachLongPress } from "../gestures.js";
+import { groveSection, AZIM_KEY, AZIM_TEXT } from "../grove.js";
+import { rt } from "../realtime.js";
 import { RIYADH, PRAYERS, nextPrayer, fmtTime, untilText } from "../prayer.js";
 import { openPushOnboarding, openPushDoctor, openInstallGuide, isStandalone, isIOS, pushBlockedUntilInstalled, canPromptInstall, promptInstall } from "../install.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
@@ -44,7 +46,7 @@ export function viewUs(content) {
   const c = clear(content);
   if (s) c.appendChild(h("div", { class: "sub-head" },
     h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => { usDir = "out"; go("us"); } }, "→"),
-    h("div", { class: "sh-title" }, SECTIONS[s]?.title || "نحن")));
+    h("h1", { class: "sh-title" }, SECTIONS[s]?.title || "عالمنا")));
   const pane = h("div", { class: usDir === "in" ? "page-in" : usDir === "out" ? "page-out" : "" });
   usDir = "";
   c.appendChild(pane);
@@ -53,6 +55,7 @@ export function viewUs(content) {
 
 const SECTIONS = {
   plan:       { title: "مهامّنا", render: (p) => planSection(p) },
+  grove:      { title: "بستاننا", render: (p) => groveSection(p) },
   jar:        { title: "لماذا أحبّك", render: (p) => jarSection(p) },
   firsts:     { title: "أوّليّاتنا", render: (p) => firstsSection(p) },
   goals:      { title: "أحلامنا", render: (p) => goalsSection(p) },
@@ -69,64 +72,102 @@ const SECTIONS = {
   settings:   { title: "الإعدادات", render: (p) => settingsSection(p) },
 };
 
-/* ---------------- hub ---------------- */
+/* ---------------- عالمنا: shelves ---------------- */
+// Nineteen equal cards gave the features they never opened as much room as the
+// ones they open every day. Now they sit on a few shelves by kind, each shelf
+// ordered by what this phone actually opens, the rest one tap away. Holding a
+// card pins it to «المفضّلة» at the top — the arranging stays theirs.
+const OPENS_KEY = "yn_opens", PINS_KEY = "yn_pins";
+const readObj = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch { return d; } };
+const opensMap = () => readObj(OPENS_KEY, {});
+const pinList = () => readObj(PINS_KEY, []);
+function countOpen(route) { const o = opensMap(); o[route] = (o[route] || 0) + 1; try { localStorage.setItem(OPENS_KEY, JSON.stringify(o)); } catch {} }
+function togglePin(route) {
+  const p = pinList(); const i = p.indexOf(route);
+  if (i >= 0) p.splice(i, 1); else p.unshift(route);
+  try { localStorage.setItem(PINS_KEY, JSON.stringify(p.slice(0, 6))); } catch {}
+  return i < 0;
+}
+function shelves() {
+  const me = store.person;
+  return [
+    { title: "روحانياتنا", sub: "ذكرٌ وصلاة ودعاء", items: [
+      ["🌴", "بستاننا", "كل تسبيحة نخلة", "grove", "#FBEBD0"],
+      ["🕌", "ركن الإيمان", "مسبحة وصلاة وختمة", "faith", "#FBEBD0"],
+      ["🌅", "أذكارنا", "الصباح والمساء", "adhkar", "#FFF1D6"],
+      ["🫙", "جرّة الصدقة", "نعطي معًا", "sadaqah", "#FCE3EA"]] },
+    { title: "قلوبنا", sub: "ما نشعر به ونحفظه", items: [
+      ["🌈", "مزاجنا", "كيف نشعر", "mood", "#FCDDE6"],
+      ["💛", "لماذا أحبّك", "جرّة أسبابنا", "jar", "#FFF1D6"],
+      ["🤲", "امتناننا", "شكرٌ كل يوم", "gratitude", "#FBEBD0"],
+      ["✨", "أوّليّاتنا", "أول كل شيء", "firsts", "#FBEBD0"],
+      ["🎵", "أغانينا", "قائمة أغانينا", "songs", "#FCDDE6"],
+      ["🏆", "إنجازاتنا", "أوسمة رحلتنا", "milestones", "#FFF1D6"]] },
+    { title: "نلعب", sub: "على جوّال واحد أو اثنين", items: [
+      ["🎲", "نلعب معًا", "مباشرةً على جوّالين", "__play/live", "#E6EDF7"],
+      ["🃏", "ألعابنا", "سؤال اليوم وستّ ألعاب", "__play", "#E6EDF7"]] },
+    { title: "خططنا", sub: "ما ننويه معًا", items: [
+      ["📋", "مهامّنا", "ما نحتاج فعله", "plan", "#E6EDF7"],
+      ["⏳", "التقويم والعدّاد", "مواعيدنا القادمة", "calendar", "#E6EDF7"],
+      ["🎯", "أحلامنا", "قائمة الأمنيات", "goals", "#E6EDF7"],
+      ["💌", "رسائل الغد", "تُفتح في يومها", "letters", "#FCE3EA"]] },
+    { title: "حكايتنا", sub: "كل ما جمعناه", items: [
+      ["📖", "كتابنا", "صفحاتنا مجلّدة", "__book", "#FCDDE6"],
+      ["🌾", "حصادنا", "قصّتنا بالأرقام", "__wrapped", "#FBEBD0"],
+      ["📈", "نبضنا", "إيقاعنا برسوم", "__pulse", "#E6EDF7"],
+      ["🗺️", "خريطتنا", "أماكن تعنينا", "__map", "#E6EDF7"],
+      ["🗞️", "كل ما جرى", "خيط حياتنا", "__inbox", "#FBEBD0"]] },
+    { title: "إعداداتنا", items: [
+      ["🎨", "مظهرنا", "أربعة أشكال للبيت", "studio", "#FCDDE6"],
+      ["⚙️", "الإعدادات", "التنبيهات والقفل والحساب", "settings", "#E6EDF7"],
+      ["🙂", "صفحتي", "صورتي ونبذتي", "__profile/" + me, "#FCE3EA"]] },
+  ];
+}
 function renderHub(pane) {
   const c = clear(pane);
-  c.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "كل ما يجمعنا")));
-  c.appendChild(h("div", { class: "hub-hint" }, "اضغطا مطوّلًا على بطاقة ثم اسحباها — رتّبا الصفحة كما تحبّان ✋"));
-  const grid = h("div", { class: "hub" },
-    hubCard("📋", "مهامّنا", "ما نحتاج فعله معًا", "plan", "him"),
-    hubCard("🗞️", "كل ما جرى", "خيط حياتنا", "__inbox", "gold"),
-    hubCard("💛", "لماذا أحبّك", "جرّة أسبابنا", "jar", "her"),
-    hubCard("✨", "أوّليّاتنا", "أول كل شيء", "firsts", "gold"),
-    hubCard("🎯", "أحلامنا", "قائمة الأمنيات", "goals", "him"),
-    hubCard("🌈", "مزاجنا", "كيف نشعر", "mood", "rose"),
-    hubCard("💌", "رسائل الغد", "رسائل تُفتح لاحقًا", "letters", "her"),
-    hubCard("⏳", "التقويم والعدّاد", "مواعيدنا القادمة", "calendar", "him"),
-    hubCard("🕌", "ركن الإيمان", "ذكر وختمة ودعاء", "faith", "gold"),
-    hubCard("🌅", "أذكارنا", "الصباح والمساء", "adhkar", "gold"),
-    hubCard("🫙", "جرّة الصدقة", "نعطي معًا", "sadaqah", "rose"),
-    hubCard("🎵", "أغانينا", "قائمة أغانينا", "songs", "rose"),
-    hubCard("🗺️", "خريطتنا", "أماكن تعنينا", "__map", "him"),
-    hubCard("📖", "كتابنا", "صفحاتنا مجلّدة", "__book", "rose"),
-    hubCard("✨", "حصادنا", "قصّتنا بالأرقام", "__wrapped", "gold"),
-    hubCard("📈", "نبضنا", "إيقاعنا برسوم", "__pulse", "him"),
-    hubCard("🏆", "إنجازاتنا", "أوسمة رحلتنا", "milestones", "gold"),
-    hubCard("🤲", "امتناننا", "شكرٌ كل يوم", "gratitude", "her"),
-    hubCard("⚙️", "الإعدادات", "المظهر والتنبيهات", "settings", "him"));
-  // The hub is theirs to arrange: hold a card and drag it. store.hubOrder is
-  // the whole order now, not a pinned few — anything it does not mention keeps
-  // its declared place at the end, so a new section appears without disturbing
-  // an arrangement they made months ago.
-  const saved = store.hubOrder || [];
-  const cards = [...grid.children];
-  cards.sort((a, b) => {
-    const ia = saved.indexOf(a.dataset.route), ib = saved.indexOf(b.dataset.route);
-    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-  });
-  cards.forEach((el) => grid.appendChild(el));
-  c.appendChild(grid);
-  makeSortable(grid, {
-    itemSelector: ".hub-card",
-    onOrder: (order) => {
-      store.hubOrder = order.map((el) => el.dataset.route);
-      order.forEach((el) => grid.appendChild(el));
-      sound.tab(); haptic.pick();
-      toast("رُتّبت كما تحبّان ✓");
-    },
-  });
+  c.appendChild(h("div", { class: "world-head section-title" }, h("h1", { class: "t-h1" }, "عالمنا")));
+  const all = shelves();
+  const byRoute = new Map(all.flatMap((s) => s.items.map((it) => [it[3], it])));
+  const world = h("div", { class: "world" });
+  const pinned = pinList().map((r) => byRoute.get(r)).filter(Boolean);
+  if (pinned.length) world.appendChild(shelf({ title: "المفضّلة", sub: "اضغطا مطوّلًا على بطاقة لإزالتها", items: pinned }, pane, true));
+  for (const s of all) world.appendChild(shelf(s, pane, false));
+  c.appendChild(world);
+  if (!pinned.length) c.appendChild(h("div", { class: "hub-hint", style: { marginTop: "14px" } }, "اضغطا مطوّلًا على أي بطاقة لتثبيتها في الأعلى ✋"));
 }
-function hubCard(emoji, title, sub, route, tone) {
-  const card = h("button", { class: "hub-card tone-" + tone, dataset: { route },
-    onclick: () => {
-      // a drag ends in a click on the card that was held; that click is not a tap
-      const grid = card.parentElement;
-      if (grid && grid._sortJustDragged && Date.now() - grid._sortJustDragged < 500) return;
-      sound.tab();
-      if (route.startsWith("__")) { go(route.slice(2)); return; }
-      usDir = "in"; go("us/" + route);
-    } },
-    h("span", { class: "hub-e" }, emoji), h("span", { class: "hub-t" }, title), h("span", { class: "hub-s" }, sub));
+function shelf(s, pane, isPins) {
+  const o = opensMap();
+  const items = isPins ? s.items
+    : s.items.map((it, i) => ({ it, i, n: o[it[3]] || 0 })).sort((a, b) => b.n - a.n || a.i - b.i).map((x) => x.it);
+  const grid = h("div", { class: "shelf-grid" });
+  const extra = [];
+  items.forEach((it, i) => {
+    const card = shelfCard(it, pane);
+    if (!isPins && i >= 4 && !(o[it[3]] > 0)) { card.classList.add("hidden"); extra.push(card); }
+    grid.appendChild(card);
+  });
+  const sec = h("section", { class: "shelf", "aria-label": s.title }, h("h2", {}, s.title, s.sub ? h("small", {}, s.sub) : null), grid);
+  if (extra.length) {
+    const more = h("button", { class: "shelf-more", onclick: () => { extra.forEach((x) => x.classList.remove("hidden")); more.remove(); } }, "المزيد (" + arNum(extra.length) + ")");
+    sec.appendChild(more);
+  }
+  return sec;
+}
+function shelfCard([emoji, title, subline, route, tone], pane) {
+  const ic = h("span", { class: "sc-ic", "aria-hidden": "true" }, emoji);
+  ic.style.setProperty("--tone", tone);
+  const card = h("button", { class: "shelf-card", dataset: { route } }, ic, h("span", { class: "sc-txt" }, h("b", {}, title), h("span", {}, subline)));
+  card.addEventListener("click", () => {
+    if (card._held) { card._held = false; return; }
+    sound.tab(); countOpen(route);
+    if (route.startsWith("__")) { go(route.slice(2)); return; }
+    usDir = "in"; go("us/" + route);
+  });
+  attachLongPress(card, () => {
+    card._held = true; haptic.pick();
+    toast(togglePin(route) ? "ثُبّتت في المفضّلة ⭐" : "أُزيلت من المفضّلة");
+    renderHub(pane);
+  });
   return card;
 }
 /* ---------------- lists helpers (jar / firsts / goals reuse jn_lists) ---------------- */
@@ -213,13 +254,13 @@ async function moodSection(pane) {
   grid.appendChild(h("div", { class: "t-h2", style: { marginBottom: "10px" } }, "آخر ٢١ يومًا"));
   const items = cal.ok ? cal.data.items : [];
   const byDay = {}; items.forEach((it) => { byDay[it.day] = byDay[it.day] || {}; byDay[it.day][it.author] = it.mood; });
-  const row = h("div", { class: "heat" });
+  const row = h("div", { class: "heat", tabIndex: 0, "aria-label": "مزاجكما في آخر ٢١ يومًا" });
   for (let d = 20; d >= 0; d--) {
     const dt = new Date(Date.now() + 180 * 60000 - d * 86400000).toISOString().slice(0, 10);
     const rec = byDay[dt] || {};
     row.appendChild(h("div", { class: "heat-cell", title: dt },
-      h("span", { class: "hc-him" }, rec.him ? moodEmoji(rec.him) : "·"),
-      h("span", { class: "hc-her" }, rec.her ? moodEmoji(rec.her) : "·")));
+      h("span", { class: "hc-him" + (rec.him ? "" : " none") }, rec.him ? moodEmoji(rec.him) : ""),
+      h("span", { class: "hc-her" + (rec.her ? "" : " none") }, rec.her ? moodEmoji(rec.her) : "")));
   }
   grid.appendChild(row);
   grid.appendChild(h("div", { class: "heat-legend muted" }, h("span", {}, "▲ " + PEOPLE[store.person].name + " (فوق)"), h("span", {}, PEOPLE[other(store.person)].name + " (تحت)")));
@@ -255,7 +296,7 @@ async function lettersSection(pane) {
 
   function compose() {
     const body = h("textarea", { class: "field", rows: 5, placeholder: __g("رسالتي لك بعد حين…", "رسالتي لك بعد حين…") });
-    const date = h("input", { class: "field", type: "date" });
+    const date = h("input", { class: "field", type: "date", "aria-label": "تاريخ فتح الرسالة" });
     const { close } = openSheet({ title: "رسالة إلى الغد 💌", subtitle: "ستُختم حتى التاريخ الذي تختارانه", body: [
       body, h("label", { class: "lbl" }, "تُفتح في"), date,
       h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"),
@@ -291,7 +332,7 @@ async function calendarSection(pane) {
 
   function addCd() {
     const title = h("input", { class: "field", placeholder: "المناسبة (عيدنا، سفرتنا…)" });
-    const date = h("input", { class: "field", type: "date" });
+    const date = h("input", { class: "field", type: "date", "aria-label": "تاريخ المناسبة" });
     const emo = h("input", { class: "field", placeholder: "إيموجي (اختياري)", maxLength: 2 });
     const { close } = openModal({ title: "عدّاد جديد ⏳", body: [h("label", { class: "lbl" }, "العنوان"), title, h("label", { class: "lbl" }, "التاريخ"), date, h("label", { class: "lbl" }, "رمز"), emo,
       h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"),
@@ -299,7 +340,7 @@ async function calendarSection(pane) {
   }
   function addEv() {
     const title = h("input", { class: "field", placeholder: "الموعد" });
-    const date = h("input", { class: "field", type: "date" });
+    const date = h("input", { class: "field", type: "date", "aria-label": "تاريخ الموعد" });
     const time = h("input", { class: "field", type: "time" });
     const note = h("input", { class: "field", placeholder: "ملاحظة (اختياري)" });
     const { close } = openModal({ title: "موعد جديد 📅", body: [h("label", { class: "lbl" }, "العنوان"), title, h("label", { class: "lbl" }, "التاريخ"), date, h("label", { class: "lbl" }, "الوقت"), time, h("label", { class: "lbl" }, "ملاحظة"), note,
@@ -386,7 +427,7 @@ function prayerCard() {
 
 async function faithSection(pane) {
   const c = clear(pane);
-  const [dk, kh, du] = await Promise.all([api.getDhikr(), api.getKhatmah(), api.listDuas()]);
+  const [dk, kh, du] = await Promise.all([api.dhikrToday(), api.getKhatmah(), api.listDuas()]);
 
   // ---- daily dhikr goal ring + tasbeeh ----
   c.appendChild(h("h2", { class: "t-h2", style: { margin: "2px 4px 10px" } }, "مسبحتنا 📿"));
@@ -421,36 +462,52 @@ async function faithSection(pane) {
     h("div", { class: "wk-d" }, kw.prompt),
     h("div", { class: "muted", style: { marginTop: "10px", fontSize: "13px" } }, "خطوةٌ هذا الأسبوع: " + kw.action)));
 
+  // Each tap now counts for the shared total AND for the one who tapped, so the
+  // ring below is YOUR day against YOUR goal (kept on the server, so it follows
+  // you to another phone) and the عبادة ring on Today can see it.
   function renderDhikr(box) {
     clear(box);
-    const counts = (dk.ok && dk.data.counts) || {};
-    const goal = Number(localStorage.getItem("yn_dhikr_goal") || 100);
-    let rec = safeJSON("yn_dhikr_day", {}); if (rec.date !== dayStr()) rec = { date: dayStr(), count: 0 };
-    const pct = () => Math.min(100, Math.round((rec.count / goal) * 100));
-    const ring = h("div", { class: "ring", style: { "--p": pct() } }, h("i", {}, arNum(rec.count)));
-    const gstreak = curStreak("yn_dhikr_last", "yn_dhikr_streak");
+    const d = dk.ok ? dk.data : {};
+    const counts = d.counts || {};
+    const goal = d.goal || Number(localStorage.getItem("yn_dhikr_goal") || 100);
+    let mineTotal = d.mine_total || 0;
+    const num = (n) => (n ? arNum(n) : "—");            // an Arabic zero (٠) reads as a bullet
+    const pct = () => Math.min(100, Math.round((mineTotal / goal) * 100));
+    const center = h("i", {}, num(mineTotal));
+    const ring = h("div", { class: "ring", role: "img", "aria-label": "ذكرك اليوم " + arNum(mineTotal) + " من " + arNum(goal) }, center);
+    ring.style.setProperty("--p", pct());
     box.appendChild(h("div", { class: "dhikr-goal" }, ring,
-      h("div", { class: "gb" }, h("b", {}, "هدف اليوم: " + arNum(goal)),
-        h("div", { class: "muted" }, "المجموع الكلّي: " + arNum((dk.ok && dk.data.total) || 0) + (gstreak ? " · 🔥 " + arNum(gstreak) + " يوم" : "")),
+      h("div", { class: "gb" }, h("b", {}, "هدفك اليوم: " + arNum(goal)),
+        h("div", { class: "muted" }, "مجموعنا كلّه: " + arNum(d.total || 0) + (d.streak ? " · 🔥 " + arNum(d.streak) + " يوم" : "")),
         h("button", { class: "btn ghost sm", style: { marginTop: "6px" }, onclick: setGoal }, "تغيير الهدف"))));
-    ADHKAR.forEach(([key, label]) => {
-      const cnt = h("span", { class: "dh-count" }, arNum(counts[key] || 0));
-      box.appendChild(h("button", { class: "dhikr-row", onclick: async () => {
-        counts[key] = (counts[key] || 0) + 1; cnt.textContent = arNum(counts[key]);
-        rec.count++; localStorage.setItem("yn_dhikr_day", JSON.stringify(rec));
-        ring.style.setProperty("--p", pct()); ring.querySelector("i").textContent = arNum(rec.count);
-        if (rec.count === goal) { const s = bumpStreak("yn_dhikr_last", "yn_dhikr_streak"); confetti(); sound.post(); toast("أتممتما هدف اليوم! 🔥 " + arNum(s)); }
+    const row = (key, label, note) => {
+      const cnt = h("span", { class: "dh-count" }, num(counts[key] || 0));
+      return h("button", { class: "dhikr-row" + (key === AZIM_KEY ? " azim" : ""), "aria-label": label, onclick: async () => {
+        counts[key] = (counts[key] || 0) + 1; cnt.textContent = num(counts[key]);
+        mineTotal++; ring.style.setProperty("--p", pct()); center.textContent = num(mineTotal);
+        if (mineTotal === goal) { confetti(); sound.post(); toast(__g("أتممتَ هدف اليوم 🤍", "أتممتِ هدف اليوم 🤍")); }
         haptic.soft(); sound.react();
-        await commit(() => api.incDhikr(key, 1), () => {
-          counts[key] = Math.max(0, (counts[key] || 1) - 1); cnt.textContent = arNum(counts[key]);
-          rec.count = Math.max(0, rec.count - 1); localStorage.setItem("yn_dhikr_day", JSON.stringify(rec));
-          ring.style.setProperty("--p", pct()); ring.querySelector("i").textContent = arNum(rec.count);
+        const ok = await commit(() => api.dhikrInc(key, 1), () => {
+          counts[key] = Math.max(0, (counts[key] || 1) - 1); cnt.textContent = num(counts[key]);
+          mineTotal = Math.max(0, mineTotal - 1); ring.style.setProperty("--p", pct()); center.textContent = num(mineTotal);
         });
-      } }, h("span", { class: "dh-label" }, label), cnt));
-    });
+        if (ok && key === AZIM_KEY) rt.signal("grove");
+      } }, h("span", { class: "dh-label" }, label), note ? h("span", { class: "dh-note" }, note) : null, cnt);
+    };
+    box.appendChild(row(AZIM_KEY, AZIM_TEXT, "🌴 نخلة"));
+    ADHKAR.forEach(([key, label]) => box.appendChild(row(key, label)));
+    box.appendChild(h("button", { class: "btn soft sm", style: { marginTop: "6px" }, onclick: () => go("us/grove") }, "🌴 افتحا بستانكما"));
     function setGoal() {
-      const inp = h("input", { class: "field", type: "number", value: goal, inputmode: "numeric" });
-      const { close } = openModal({ title: "هدف الذكر اليومي 📿", body: [inp, h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"), h("button", { class: "btn", onclick: () => { localStorage.setItem("yn_dhikr_goal", String(Number(inp.value) || 100)); close(); faithSection(pane); } }, "حفظ"))] });
+      const inp = h("input", { class: "field", type: "number", value: goal, inputmode: "numeric", id: "dhikr-goal", "aria-label": "هدف الذكر اليومي" });
+      const { close } = openModal({ title: "هدف الذكر اليومي 📿", body: [inp, h("div", { class: "row-btns", style: { marginTop: "14px" } },
+        h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"),
+        h("button", { class: "btn", onclick: async () => {
+          const g = Math.round(Number(inp.value) || 100);
+          if (g < 10 || g > 10000) { toast("اختر رقمًا بين ١٠ و١٠٠٠٠"); return; }
+          const r = await api.setGoal(g);
+          if (!r.ok) { toast(r.offline ? "لا اتصال — لم يُحفظ" : "تعذّر الحفظ"); return; }
+          localStorage.setItem("yn_dhikr_goal", String(g)); close(); faithSection(pane);
+        } }, "حفظ"))] });
     }
   }
 
@@ -489,7 +546,7 @@ async function faithSection(pane) {
       else if (daysLeft <= 0) box.appendChild(h("div", { class: "pace-line behind" }, "انتهى الموعد — بقي " + arNum(remaining) + " جزء"));
       else box.appendChild(h("div", { class: "pace-line" }, "⏳ بقي " + arNum(daysLeft) + " يوم · اقرآ ~" + arNum(Math.ceil(remaining / daysLeft)) + " جزء يوميًا"));
     } else {
-      box.appendChild(h("button", { class: "btn ghost sm", style: { marginBottom: "8px" }, onclick: () => { const inp = h("input", { class: "field", type: "date" }); const { close } = openModal({ title: "موعد ختمتكما 📖", body: [inp, h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"), h("button", { class: "btn", onclick: () => { if (inp.value) localStorage.setItem("yn_khatmah_target", inp.value); close(); faithSection(pane); } }, "حفظ"))] }); } }, "＋ حدّدا موعد الختمة"));
+      box.appendChild(h("button", { class: "btn ghost sm", style: { marginBottom: "8px" }, onclick: () => { const inp = h("input", { class: "field", type: "date", "aria-label": "موعد الختمة" }); const { close } = openModal({ title: "موعد ختمتكما 📖", body: [inp, h("div", { class: "row-btns", style: { marginTop: "14px" } }, h("button", { class: "btn ghost", onclick: () => close() }, "إلغاء"), h("button", { class: "btn", onclick: () => { if (inp.value) localStorage.setItem("yn_khatmah_target", inp.value); close(); faithSection(pane); } }, "حفظ"))] }); } }, "＋ حدّدا موعد الختمة"));
     }
     if (todayJuz) box.appendChild(h("div", { class: "muted", style: { fontSize: "13px", marginBottom: "10px" } }, "جزء اليوم: الجزء " + arNum(todayJuz)));
     const grid = h("div", { class: "juz-grid" });
@@ -701,7 +758,7 @@ async function settingsSection(pane) {
   // theme
   c.appendChild(settingCard("المظهر 🎨", [
     h("div", { class: "seg" }, ...[["system", "تلقائي"], ["light", "نهار"], ["dark", "ليل"]].map(([v, l]) =>
-      h("button", { class: "seg-b" + (store.theme === v ? " on" : ""), onclick: (e) => { store.theme = v; applyTheme(); c.querySelectorAll(".theme-seg .seg-b").forEach((x) => x.classList.remove("on")); e.currentTarget.classList.add("on"); } }, l))),
+      h("button", { class: "seg-b" + (store.theme === v ? " on" : ""), onclick: (e) => { store.theme = v; applyTheme(); applyBackground(); c.querySelectorAll(".theme-seg .seg-b").forEach((x) => x.classList.remove("on")); e.currentTarget.classList.add("on"); } }, l))),
   ], "theme-seg"));
   // accent
   const dots = h("div", { class: "accent-row" }, ...Object.entries(ACCENT_PRESETS).map(([key, p]) =>
@@ -815,7 +872,7 @@ async function settingsSection(pane) {
         toast("أُلغي القفل");
         settingsSection(pane); return;
       }
-    })]));
+    }, "قفل التطبيق")]));
   if (lockOn) {
     const bioBox = h("div", { class: "acct-hint" }, "…");
     c.appendChild(settingCard("فتحٌ بالبصمة 👆", [
@@ -832,19 +889,19 @@ async function settingsSection(pane) {
           catch (e) { toast(String(e && e.message) === "no_prf" ? "متصفحكما لا يدعم مفاتيح البصمة" : "أُلغيت العملية"); }
         } else { bioForget(); toast("أُلغيت البصمة"); }
         settingsSection(pane);
-      });
+      }, "الفتح بالبصمة");
       t.style.marginInlineStart = "auto";
       bioBox.replaceWith(h("div", { class: "acct-row" }, h("span", {}, on ? "مُفعّلة على هذا الجهاز ✓" : "غير مُفعّلة"), t));
     })();
   }
   // our story editor (anniversary + dedication + reply → set_config)
-  const annIn = h("input", { class: "field story-field", type: "date", value: store.config.anniversary_date || "" });
-  const dedIn = h("textarea", { class: "field story-field", rows: 3, placeholder: "إهداءٌ منك…", value: store.config.dedication || "" });
-  const repIn = h("textarea", { class: "field story-field", rows: 3, placeholder: "ردُّها…", value: store.config.reply || "" });
+  const annIn = h("input", { class: "field story-field", id: "set-ann", type: "date", value: store.config.anniversary_date || "" });
+  const dedIn = h("textarea", { class: "field story-field", id: "set-ded", rows: 3, placeholder: "إهداءٌ منك…", value: store.config.dedication || "" });
+  const repIn = h("textarea", { class: "field story-field", id: "set-rep", rows: 3, placeholder: "ردُّها…", value: store.config.reply || "" });
   c.appendChild(settingCard("قصّتنا 🤍", [
-    h("label", { class: "lbl" }, "تاريخ بدايتنا"), annIn,
-    h("label", { class: "lbl" }, "الإهداء"), dedIn,
-    h("label", { class: "lbl" }, "ردُّها"), repIn,
+    h("label", { class: "lbl", htmlFor: "set-ann" }, "تاريخ بدايتنا"), annIn,
+    h("label", { class: "lbl", htmlFor: "set-ded" }, "الإهداء"), dedIn,
+    h("label", { class: "lbl", htmlFor: "set-rep" }, "ردُّها"), repIn,
     h("button", { class: "btn sm", style: { marginTop: "12px", width: "auto" }, onclick: async () => {
       loader(true);
       const upd = {};
@@ -861,11 +918,11 @@ async function settingsSection(pane) {
     h("button", { class: "btn ghost sm", style: { marginTop: "12px" }, onclick: async () => { if (await confirmAsk("تسجيل الخروج من هذا الجهاز؟", { okText: "خروج" })) { store.clearAuth(); go("lock"); location.reload(); } } }, "تسجيل الخروج")]));
 }
 function settingCard(title, body, cls = "") { return h("div", { class: "card set-card " + cls }, h("div", { class: "t-h2", style: { marginBottom: "12px" } }, title), ...body); }
-function toggle(on, onchange) {
-  const t = h("button", { class: "toggle" + (on ? " on" : ""), role: "switch", "aria-checked": on ? "true" : "false", onclick: () => { const nv = !t.classList.contains("on"); t.classList.toggle("on", nv); t.setAttribute("aria-checked", nv ? "true" : "false"); onchange(nv); } }, h("span", { class: "knob" }));
+function toggle(on, onchange, label) {
+  const t = h("button", { class: "toggle" + (on ? " on" : ""), role: "switch", "aria-checked": on ? "true" : "false", "aria-label": label || null, onclick: () => { const nv = !t.classList.contains("on"); t.classList.toggle("on", nv); t.setAttribute("aria-checked", nv ? "true" : "false"); onchange(nv); } }, h("span", { class: "knob" }));
   return t;
 }
-function rowToggle(label, on, cb) { const t = toggle(on, cb); t.style.marginInlineStart = "auto"; return h("div", { class: "acct-row" }, h("span", {}, label), t); }
+function rowToggle(label, on, cb) { const t = toggle(on, cb, label); t.style.marginInlineStart = "auto"; return h("div", { class: "acct-row" }, h("span", {}, label), t); }
 function promptCode(title) {
   return new Promise((resolve) => {
     const inp = h("input", { class: "field pin", type: "password", inputmode: "numeric", maxLength: 12, placeholder: "••••" });
@@ -885,31 +942,37 @@ function promptPin(title) {
   });
 }
 
-/* ---------------- theme studio ---------------- */
+/* ---------------- مظهرنا: the four looks ---------------- */
 function studioSection(pane) {
   const c = clear(pane);
-  c.appendChild(h("div", { class: "muted intro" }, "خمسُ شخصياتٍ كاملة لبيتكما — اختارا ما يشبه مزاجكما اليوم، ولكلٍّ منكما ذوقه على جهازه 🎨"));
-  const grid = h("div", { class: "studio-grid stagger" });
+  c.appendChild(h("div", { class: "muted intro" }, "أربعة أشكالٍ كاملة لبيتكما — ولكلٍّ منكما اختياره على جوّاله 🎨"));
+  const grid = h("div", { class: "look-grid" });
   c.appendChild(grid);
-  paint();
-  function paint() {
+  // a few blocks in each preview, laid out the way that look lays out Today
+  const bits = { auto: [[8, 12, 38, 40], [54, 12, 38, 40], [8, 62, 84, 30]], dawn: [[8, 10, 84, 30], [8, 48, 40, 42], [52, 48, 40, 42]],
+                 ink: [[10, 16, 36, 42], [54, 22, 36, 42], [10, 74, 80, 7], [10, 86, 60, 7]], grove: [[8, 8, 84, 34], [8, 50, 40, 22], [52, 50, 40, 22], [8, 78, 84, 16]] };
+  const paint = () => {
     clear(grid);
-    for (const [key, sk] of Object.entries(SKINS)) {
-      const on = store.skin === key;
-      const card = h("button", { class: "studio-card" + (on ? " on" : ""), onclick: () => {
-        if (store.skin === key) return;
-        store.skin = key; applySkin(); sound.chime(); haptic.pick();
-        toast("لُبس المظهر: " + sk.name + " ✨");
+    for (const [key, L] of Object.entries(LOOKS)) {
+      const on = chosenLook() === key;
+      const prev = h("div", { class: "look-prev lp-" + key, "aria-hidden": "true" });
+      (bits[key] || []).forEach(([x, y, w, hh], i) => {
+        const el = h("i");
+        Object.assign(el.style, { insetInlineStart: x + "%", top: y + "%", width: w + "%", height: hh + "%" });
+        if (key === "ink" && i < 2) el.style.rotate = (i ? 3 : -3) + "deg";
+        prev.appendChild(el);
+      });
+      grid.appendChild(h("button", { class: "look-card" + (on ? " on" : ""), "aria-pressed": on ? "true" : "false", onclick: () => {
+        if (chosenLook() === key) return;
+        setLook(key); sound.chime(); haptic.pick();
+        toast("المظهر: " + L.name + " ✨");
         paint();
-      } },
-        h("span", { class: "studio-swatch" }, ...sk.chip.map((col) => { const i = h("i"); i.style.background = col; return i; })),
-        h("div", { class: "studio-meta" }, h("b", {}, sk.name), h("span", {}, sk.desc)),
-        on ? h("span", { class: "studio-tick" }, "✓") : null);
-      grid.appendChild(card);
+      } }, prev, h("b", {}, L.name, on ? h("span", { class: "look-tick", "aria-hidden": "true" }, "✓") : null), h("span", {}, L.desc)));
     }
-    grid.appendChild(h("div", { class: "acct-hint", style: { textAlign: "center" } },
-      "المظهر يُحفظ على هذا الجهاز فقط — الوضع الليلي والألوان والخلفية تعمل فوقه."));
-  }
+  };
+  paint();
+  c.appendChild(h("div", { class: "acct-hint", style: { textAlign: "center", marginTop: "12px" } },
+    "المظهر يُحفظ على هذا الجوّال. النهار والليل ولون البشرة والخلفية في الإعدادات، وتعمل مع «زجاج الفجر» و«حبر وورق»."));
 }
 
 /* ---------------- shared adder ---------------- */

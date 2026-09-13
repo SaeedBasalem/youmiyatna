@@ -8,13 +8,15 @@ import { h, clear, arNum, toast } from "./ui.js";
 import { api } from "./api.js";
 import { store } from "./store.js";
 import { PEOPLE } from "./config.js";
-import { go, openSheet } from "./helpers.js";
+import { go, openSheet, applyTheme, applyBackground } from "./helpers.js";
 import { icon } from "./icons.js";
 import { haptic } from "./haptics.js";
 import { sound } from "./sound.js";
 import { fold } from "./views/search.js";
-import { SKINS, applySkin } from "./skins.js";
+import { LOOKS, setLook } from "./looks.js";
 import { openPushOnboarding } from "./install.js";
+import { sendTouch } from "./touch.js";
+import { openWinddown } from "./winddown.js";
 
 const RECENT_KEY = "yn_palette_recent";
 let open = false;
@@ -32,11 +34,13 @@ function commands() {
   const nav = (emoji, label, route, keywords) => c.push({ kind: "nav", emoji, label, keywords: keywords || "", run: () => go(route) });
   const act = (emoji, label, keywords, run, hint) => c.push({ kind: "act", emoji, label, keywords: keywords || "", hint, run });
 
-  nav("🏠", "البيت", "home", "home dashboard الرئيسية");
-  nav("📖", "يومياتنا", "journal", "journal feed لحظات moments");
+  nav("☀️", "اليوم", "home", "home today dashboard الرئيسية البيت");
+  nav("📖", "ذكرياتنا", "journal", "journal feed لحظات moments يومياتنا");
   nav("💬", "همس", "chat", "chat whispers محادثة رسائل");
   nav("🎲", "نلعب", "play", "games play ألعاب سؤال");
-  nav("💛", "نحن", "us", "us hub نحن");
+  nav("🎲", "نلعب معًا", "play/live", "live games together مباشر جوالين");
+  nav("🌴", "بستاننا", "us/grove", "grove palm dhikr نخل تسبيح");
+  nav("💛", "عالمنا", "us", "us hub نحن عالمنا");
   nav("🗞️", "كل ما جرى", "inbox", "activity inbox أخبار جديد");
   nav("📋", "مهامّنا", "us/plan", "tasks todo plan مهام");
   nav("🖼️", "الألبوم", "journal", "album photos صور ألبوم");
@@ -53,13 +57,13 @@ function commands() {
   act("✍️", "اكتبا لحظة", "new moment write compose جديد", () => { go("journal"); setTimeout(() => document.querySelector(".hero-note, [aria-label='اكتب لحظة']")?.click(), 420); });
   act("🔔", "فعّلا التنبيهات", "notifications push تنبيه إشعار", () => openPushOnboarding());
   act(store.theme === "dark" ? "☀️" : "🌙", "بدّلا الليل والنهار", "dark light theme ليل نهار داكن", () => {
-    const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
-    store.theme = next; document.documentElement.setAttribute("data-theme", next); toast(next === "dark" ? "الوضع الليلي 🌙" : "الوضع النهاري ☀️");
+    const cur = document.documentElement.getAttribute("data-theme"), next = (cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches) ? "light" : "dark";
+    store.theme = next; applyTheme(); applyBackground(); toast(next === "dark" ? "الوضع الليلي 🌙" : "الوضع النهاري ☀️");
   });
-  for (const [key, s] of Object.entries(SKINS)) {
-    act(s.chip ? "🎨" : "🎨", "المظهر: " + s.name, "skin theme مظهر " + key, () => {
-      store.skin = key; applySkin(); toast("المظهر: " + s.name);
-    }, s.desc);
+  act("💓", "أرسلا نبضة", "touch heartbeat نبضة قلب", () => sendTouch());
+  act("🌙", "قبل النوم", "wind down night gratitude dua ليل دعاء امتنان", () => openWinddown());
+  for (const [key, L] of Object.entries(LOOKS)) {
+    act("🎨", "المظهر: " + L.name, "look theme مظهر شكل " + key, () => { setLook(key); toast("المظهر: " + L.name); }, L.desc);
   }
   return c;
 }
@@ -86,7 +90,7 @@ export function openPalette() {
     class: "pal-input", type: "search", autocomplete: "off", spellcheck: "false",
     "aria-label": "ابحثا أو نفّذا أمرًا", placeholder: "ابحثا في كل شيء، أو نفّذا أمرًا…",
   });
-  const list = h("div", { class: "pal-list", role: "listbox" });
+  const list = h("div", { class: "pal-list", role: "listbox", "aria-label": "النتائج" });
   const hintBar = h("div", { class: "pal-hint" },
     h("span", {}, "↑↓ للتنقّل"), h("span", {}, "↵ للفتح"), h("span", {}, "esc للإغلاق"));
   const box = h("div", { class: "pal-box", role: "dialog", "aria-modal": "true", "aria-label": "لوحة الأوامر" },

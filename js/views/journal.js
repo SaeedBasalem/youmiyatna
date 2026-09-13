@@ -12,6 +12,7 @@ import { icon } from "../icons.js";
 import { haptic } from "../haptics.js";
 import { attachLongPress } from "../gestures.js";
 import { art } from "../art.js";
+import { nowArchive } from "../now.js";
 
 let jsub = "feed";          // feed | album | timeline
 let feedCache = null;
@@ -19,12 +20,12 @@ let feedCache = null;
 export function viewJournal(content) {
   const c = clear(content);
   c.appendChild(h("div", { class: "section-title" },
-    h("h1", { class: "t-h1" }, "دفتر ذكرياتنا"),
+    h("h1", { class: "t-h1" }, "ذكرياتنا"),
     h("button", { class: "icon-btn", "aria-label": "شغّلا حكايتكما", style: { marginInlineStart: "auto" }, onclick: () => go("story") }, icon("play")),
     h("button", { class: "icon-btn", "aria-label": "بحث", onclick: () => go("search") }, icon("search")),
     h("button", { class: "icon-btn", "aria-label": "اكتب لحظة", onclick: () => openCompose({ onDone: () => { feedCache = null; if (jsub === "feed") renderFeed(pane); } }) }, icon("plus"))));
   c.appendChild(h("div", { class: "seg" },
-    segBtn("feed", "📖 لحظاتنا"), segBtn("album", "🖼️ الألبوم"), segBtn("timeline", "📜 حكايتنا")));
+    segBtn("feed", "📖 لحظاتنا"), segBtn("album", "🖼️ الألبوم"), segBtn("now", "📸 الآن"), segBtn("timeline", "📜 حكايتنا")));
   const pane = h("div", { class: "jpane" });
   c.appendChild(pane);
   renderSub(pane);
@@ -36,15 +37,13 @@ export function viewJournal(content) {
 function renderSub(pane) {
   if (jsub === "feed") return renderFeed(pane);
   if (jsub === "album") return renderAlbum(pane);
+  if (jsub === "now") return nowArchive(pane);
   return renderTimeline(pane);
 }
 
 /* ---------------- feed ---------------- */
 async function renderFeed(pane) {
   const c = clear(pane);
-  c.appendChild(h("button", { class: "hero-note slim", onclick: () => openCompose({ onDone: () => { feedCache = null; renderFeed(pane); } }) },
-    h("div", { class: "hn-t" }, __g("بماذا تشعر اليوم؟", "بماذا تشعرين اليوم؟")),
-    h("span", { class: "hn-cta" }, "✍️ " + __g("اكتب لحظة", "اكتبي لحظة"))));
   const list = h("div", { class: "feed" });
   c.appendChild(list);
   if (feedCache) paint(feedCache);
@@ -88,18 +87,25 @@ export function momentCard(e, opts = {}) {
   card.appendChild(momentFoot(e, card));
   if (!opts.detail) {
     card.addEventListener("dblclick", (ev) => { heartFly(ev.clientX, ev.clientY); toggleReact(e, "❤️", card); });
+    // A tap on the card opens it; keyboards and screen readers use the 💬 button
+    // in its footer — the card is no longer one big button wrapped around others.
     card.addEventListener("click", (ev) => { if (ev.target.closest("button,audio,a,.react-pill,.carousel-track,.m-photo")) return; go("moment/" + e.id); });
-    clickable(card, () => go("moment/" + e.id));
-    card.setAttribute("aria-label", "افتح هذه اللحظة");
   }
   return card;
+}
+// A photo keeps the shape it was taken in (within reason), and its space is
+// held before it loads — the feed used to jump each time a picture arrived.
+function shaped(img, meta) {
+  const w = meta && Number(meta.w), hh = meta && Number(meta.h);
+  if (w > 0 && hh > 0) { img.classList.add("shaped"); img.style.setProperty("--ar", String(Math.max(0.75, Math.min(1.9, w / hh)))); }
+  return img;
 }
 function mediaBlock(media) {
   if (!media || !media.length) return null;
   const box = h("div", { class: "m-media" });
   const photos = media.filter((m) => m.kind === "photo" && m.signed_url);
   const openAt = (i) => (ev) => { ev.stopPropagation(); openLightbox(photosOf(media), i); };
-  if (photos.length === 1) box.appendChild(h("img", { class: "m-photo", src: photos[0].signed_url, loading: "lazy", alt: "", onclick: openAt(0) }));
+  if (photos.length === 1) box.appendChild(shaped(h("img", { class: "m-photo", src: photos[0].signed_url, loading: "lazy", alt: "", onclick: openAt(0) }), photos[0].meta));
   else if (photos.length > 1) box.appendChild(carousel(photos, openAt));
   for (const m of media) {
     if (m.kind === "video" && m.signed_url) box.appendChild(h("video", { class: "m-video", src: m.signed_url, controls: true, preload: "metadata", playsInline: true }));
@@ -109,7 +115,7 @@ function mediaBlock(media) {
   return box;
 }
 function carousel(photos, openAt) {
-  const track = h("div", { class: "carousel-track" });
+  const track = h("div", { class: "carousel-track", tabindex: "0", role: "group", "aria-label": "صور اللحظة" });
   photos.forEach((p, i) => track.appendChild(h("img", { class: "carousel-img", src: p.signed_url, loading: "lazy", alt: "", onclick: openAt ? openAt(i) : null })));
   const dots = h("div", { class: "carousel-dots" });
   photos.forEach((_, i) => dots.appendChild(h("span", { class: "cdot" + (i === 0 ? " on" : "") })));
@@ -154,12 +160,12 @@ async function toggleReact(e, emoji, card) {
 /* ---------------- moment detail (route: moment/:id) ---------------- */
 export async function viewMoment(id) {
   const app = clear(document.getElementById("app"));
-  app.appendChild(h("div", { class: "topbar" },
-    h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => (history.length > 1 ? history.back() : go("journal")) }, "→"),
-    h("div", { class: "tb-title" }, "لحظة"),
-    h("button", { class: "icon-btn", "aria-label": "عدّل اللحظة", style: { marginInlineStart: "auto" }, onclick: () => editMoment(id) }, "✏️"),
-    h("button", { class: "icon-btn", "aria-label": "حذف اللحظة", onclick: () => delMoment(id) }, "🗑️")));
-  const content = h("div", { class: "view", style: { paddingTop: "6px" } }, h("div", { class: "empty" }, h("div", { class: "big" }, "🌙"), "نحمّل اللحظة…"));
+  app.appendChild(h("header", { class: "topbar" },
+    h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => (history.length > 1 ? history.back() : go("journal")) }, icon("fwd")),
+    h("h1", { class: "tb-title" }, "لحظة"),
+    h("button", { class: "icon-btn", "aria-label": "عدّل اللحظة", style: { marginInlineStart: "auto" }, onclick: () => editMoment(id) }, icon("brush")),
+    h("button", { class: "icon-btn", "aria-label": "حذف اللحظة", onclick: () => delMoment(id) }, icon("trash"))));
+  const content = h("main", { class: "view", style: { paddingTop: "6px" } }, h("div", { class: "empty" }, h("div", { class: "big" }, "🌙"), "نحمّل اللحظة…"));
   app.appendChild(content);
   const r = await api.moment(id);
   if (!r.ok) { clear(content).appendChild(h("div", { class: "empty" }, "تعذّر فتح اللحظة")); return; }
@@ -176,12 +182,12 @@ export async function viewMoment(id) {
   c.appendChild(h("div", { class: "card", style: { padding: "12px 14px", marginBottom: "14px" } }, h("div", { class: "muted", style: { fontWeight: 700, marginBottom: "8px", fontSize: "13px" } }, "تفاعلا:"), bar));
 
   const thread = h("div", { class: "notes" });
-  const paint = (list) => { clear(thread); if (!list.length) thread.appendChild(h("div", { class: "empty", style: { padding: "16px" } }, __g("لسا ما في همسة… قل شي حلو 💛", "لسا ما في همسة… قولي شي حلو 💛"))); list.forEach((n) => thread.appendChild(noteBubble(n))); };
+  const paint = (list) => { clear(thread); if (!list.length) thread.appendChild(h("div", { class: "empty", style: { padding: "16px" } }, __g("لا تعليقات بعد — قل شيئًا حلوًا 💛", "لا تعليقات بعد — قولي شيئًا حلوًا 💛"))); list.forEach((n) => thread.appendChild(noteBubble(n))); };
   paint(notes);
-  const input = h("input", { class: "field", placeholder: "همسة حبّ…" });
+  const input = h("input", { class: "field", placeholder: __g("اكتب تعليقًا…", "اكتبي تعليقًا…"), "aria-label": "تعليق" });
   async function send() { const body = input.value.trim(); if (!body) return; input.value = ""; const r2 = await api.addNote(e.id, body); if (r2.ok) { notes.push(r2.data.note); paint(notes); sound.post(); } else toast("تعذّر الإرسال"); }
   input.addEventListener("keydown", (ev) => { if (ev.key === "Enter") send(); });
-  c.appendChild(h("div", { class: "card" }, h("div", { class: "t-h2", style: { marginBottom: "10px" } }, "الهمسات"), thread,
+  c.appendChild(h("div", { class: "card" }, h("h2", { class: "t-h2", style: { margin: "0 0 10px" } }, "التعليقات"), thread,
     h("div", { class: "note-composer" }, input, h("button", { class: "btn sm", onclick: send }, __g("أرسل", "أرسلي")))));
 }
 function noteBubble(n) { const p = PEOPLE[n.author] || PEOPLE.him; return h("div", { class: "note " + p.cls }, h("div", { class: "who-line" }, p.name), n.body); }
@@ -205,7 +211,7 @@ async function editMoment(id) {
     } }, emo + " " + label);
     return chip;
   }));
-  const when = h("input", { class: "field", type: "date", value: (e.happened_at || e.created_at || "").slice(0, 10) });
+  const when = h("input", { class: "field", type: "date", "aria-label": "تاريخ اللحظة", value: (e.happened_at || e.created_at || "").slice(0, 10) });
   const err = h("div", { class: "err" });
 
   const { close } = openSheet({
@@ -241,14 +247,22 @@ async function delMoment(id) { if (!(await confirmAsk("إخفاء هذه الل�
 let shotsCache = null;      // [{ m, id }] every photo/video with the entry it belongs to
 let albumOpen = null;       // null = shelf, "__all" = everything, otherwise an album id
 
+// Every photo and video in one call, with small thumbnails for the grid. It
+// used to page through the whole feed — up to eight calls — and fill the grid
+// with full-size pictures.
 async function loadShots(force) {
   if (shotsCache && !force) return shotsCache;
+  const r = await api.shots();
+  if (r.ok) {
+    shotsCache = (r.data.items || []).map((x) => ({ id: x.id, m: { kind: x.kind, signed_url: x.url, thumb: x.thumb, meta: { w: x.w, h: x.h } } }));
+    return shotsCache;
+  }
   const shots = [];
   let cursor = null, pages = 0;
   do {
-    const r = await api.feed(cursor); if (!r.ok) break;
-    for (const e of r.data.items) for (const m of (e.media || [])) if ((m.kind === "photo" || m.kind === "video") && m.signed_url) shots.push({ m, id: e.id });
-    cursor = r.data.next_cursor; pages++;
+    const f = await api.feed(cursor); if (!f.ok) break;
+    for (const e of f.data.items) for (const m of (e.media || [])) if ((m.kind === "photo" || m.kind === "video") && m.signed_url) shots.push({ m, id: e.id });
+    cursor = f.data.next_cursor; pages++;
   } while (cursor && pages < 8);
   shotsCache = shots;
   return shots;
@@ -256,7 +270,7 @@ async function loadShots(force) {
 const albumsOf = (lists) => (lists || []).filter((l) => l.kind === "album");
 const coverOf = (m) => (m.kind === "video"
   ? h("video", { class: "at-cover", src: m.signed_url, muted: true, preload: "metadata", playsInline: true })
-  : h("img", { class: "at-cover", src: m.signed_url, alt: "", loading: "lazy" }));
+  : h("img", { class: "at-cover", src: m.thumb || m.signed_url, alt: "", loading: "lazy" }));
 
 // Upload straight into an album. The photos become one moment (that is where
 // photos live) which is then filed into the album, so nothing about the data
@@ -274,7 +288,8 @@ function uploadToAlbum(album, onDone) {
         const prepared = [];
         for (const f of files) {
           const ds = await downscale(f);
-          prepared.push({ kind: "photo", blob: ds.blob, contentType: "image/jpeg", meta: { w: ds.width, h: ds.height } });
+          const th = await downscale(ds.blob, 480, 0.78);            // the small copy grids use
+          prepared.push({ kind: "photo", blob: ds.blob, thumbBlob: th.blob, contentType: "image/jpeg", meta: { w: ds.width, h: ds.height } });
         }
         const media = await uploadMany(prepared, { sign: api.signUpload,
           onProgress: (d, n) => loaderNote(n > 1 ? `جارٍ الرفع ${arNum(d)} من ${arNum(n)}` : "جارٍ الحفظ…") });
@@ -299,6 +314,9 @@ function uploadToAlbum(album, onDone) {
   document.body.appendChild(input);
   input.click();
 }
+
+// The ＋ in the tab bar uploads straight to the gallery through this.
+export function uploadPhotos(album = null, onDone) { uploadToAlbum(album, () => { shotsCache = null; feedCache = null; onDone && onDone(); }); }
 
 // Hand a photo to whatever the phone can do with it — the share sheet where
 // there is one, a plain save where there is not.
@@ -388,7 +406,7 @@ function renderOneAlbum(c, pane, album, shots) {
   mine.forEach(({ m, id }) => {
     const cell = h("button", { class: "album-cell", onclick: () => { if (cell._held) { cell._held = false; return; } go("moment/" + id); } });
     if (m.kind === "video") { cell.appendChild(h("video", { src: m.signed_url, muted: true, preload: "metadata", playsInline: true })); cell.appendChild(h("span", { class: "vtag" }, "▶")); }
-    else cell.appendChild(h("img", { src: m.signed_url, loading: "lazy", alt: "" }));
+    else cell.appendChild(h("img", { src: m.thumb || m.signed_url, loading: "lazy", alt: "" }));
     // press and hold for what you would expect to be able to do with a photo
     attachLongPress(cell, () => {
       cell._held = true;
@@ -426,7 +444,7 @@ function pickForAlbum(pane, album, shots) {
     const cell = h("button", { class: "album-cell" + (chosen.has(id) ? " picked" : ""), onclick: () => { if (chosen.has(id)) chosen.delete(id); else chosen.add(id); cell.classList.toggle("picked", chosen.has(id)); sound.tab(); } });
     cell.appendChild(m.kind === "video"
       ? h("video", { src: m.signed_url, muted: true, preload: "metadata", playsInline: true })
-      : h("img", { src: m.signed_url, loading: "lazy", alt: "" }));
+      : h("img", { src: m.thumb || m.signed_url, loading: "lazy", alt: "" }));
     cell.appendChild(h("span", { class: "pick-tick" }, icon("check", { size: 16 })));
     grid.appendChild(cell);
   });
@@ -510,19 +528,19 @@ export function openCompose({ onDone } = {}) {
         h("button", { class: "prev-x", "aria-label": "إزالة", onclick: () => { draft.media.splice(i, 1); renderPreviews(); } }, "✕"));
       if (m.kind === "photo") wrapEl.appendChild(h("button", { class: "prev-art", "aria-label": "زخرفة الصورة", onclick: async () => {
         const edited = await openDoodle(m.blob);
-        if (edited) { try { URL.revokeObjectURL(m.preview); } catch {} m.blob = edited; m.preview = URL.createObjectURL(edited); renderPreviews(); }
+        if (edited) { try { URL.revokeObjectURL(m.preview); } catch {} m.blob = edited; try { m.thumbBlob = (await downscale(edited, 480, 0.78)).blob; } catch {} m.preview = URL.createObjectURL(edited); renderPreviews(); }
       } }, icon("brush", { size: 18 })));
       previews.appendChild(wrapEl);
     });
   }
-  const fileInput = h("input", { type: "file", accept: "image/*", multiple: true, class: "hidden", onchange: async (e) => { const files = [...e.target.files]; if (!files.length) return; e.target.value = ""; loader(true); for (const f of files) { const ds = await downscale(f); draft.media.push({ kind: "photo", blob: ds.blob, contentType: "image/jpeg", preview: URL.createObjectURL(ds.blob) }); } loader(false); renderPreviews(); } });
+  const fileInput = h("input", { type: "file", accept: "image/*", multiple: true, class: "hidden", onchange: async (e) => { const files = [...e.target.files]; if (!files.length) return; e.target.value = ""; loader(true); for (const f of files) { const ds = await downscale(f); const th = await downscale(ds.blob, 480, 0.78); draft.media.push({ kind: "photo", blob: ds.blob, thumbBlob: th.blob, meta: { w: ds.width, h: ds.height }, contentType: "image/jpeg", preview: URL.createObjectURL(ds.blob) }); } loader(false); renderPreviews(); } });
   const videoInput = h("input", { type: "file", accept: "video/*", class: "hidden", onchange: (e) => { const f = e.target.files[0]; if (!f) return; e.target.value = ""; if (f.size > 52428800) { toast("الفيديو كبير — الحد ٥٠ م.ب"); return; } draft.media.push({ kind: "video", blob: f, contentType: f.type || "video/mp4", preview: URL.createObjectURL(f) }); renderPreviews(); } });
   const rail = h("div", { class: "attach-rail" },
     h("button", { class: "attach", onclick: () => fileInput.click() }, "📷", h("span", {}, "صورة")),
     h("button", { class: "attach", onclick: () => videoInput.click() }, "🎬", h("span", {}, "فيديو")),
     h("button", { class: "attach", onclick: () => recordVoice(draft, renderPreviews) }, "🎙️", h("span", {}, "صوت")),
     h("button", { class: "attach", onclick: () => addSong(draft, renderPreviews) }, "🎵", h("span", {}, "أغنية")));
-  const dateInput = h("input", { class: "field", type: "date" });
+  const dateInput = h("input", { class: "field", type: "date", "aria-label": "تاريخ اللحظة" });
 
   async function post() {
     const t = body.value.trim();

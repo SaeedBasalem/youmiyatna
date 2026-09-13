@@ -12,6 +12,8 @@ import { openLightbox } from "../lightbox.js";
 import { attachLongPress } from "../gestures.js";
 import { haptic } from "../haptics.js";
 import { outbox } from "../outbox.js";
+import { rt } from "../realtime.js";
+import { icon } from "../icons.js";
 
 let msgs = [], scroller = null, pollTimer = null, seen = new Set(), lastSig = "";
 // Our own most recent reaction state per message, with the moment we set it.
@@ -56,16 +58,19 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && is
 
 export async function viewChat(content) {
   content.classList.add("chat-view");
+  subEl = h("div", { class: "cw-sub muted", "aria-live": "polite" });
   content.appendChild(h("div", { class: "chat-top" },
     h("div", { class: "chat-who" },
       h("span", { class: `avatar ${other(store.person)}` }, PEOPLE[other(store.person)].initial),
-      h("div", {}, h("div", { class: "cw-name" }, PEOPLE[other(store.person)].name), h("div", { class: "cw-sub muted" }, "همسٌ بينكما وحدكما 🤍"))),
-    h("button", { class: "think-btn", "aria-label": "أخبرها أنك تفكّر فيها", onclick: thinkingOfYou }, "💭")));
+      h("div", {}, h("h1", { class: "cw-name" }, PEOPLE[other(store.person)].name), subEl)),
+    h("button", { class: "think-btn", "aria-label": other(store.person) === "her" ? "أخبرها أنك تفكّر فيها" : "أخبريه أنكِ تفكّرين فيه", onclick: thinkingOfYou }, "💭")));
+  paintSub();
   scroller = h("div", { class: "chat-scroll" }, h("div", { class: "muted", style: { textAlign: "center", padding: "24px" } }, "…"));
   content.appendChild(scroller);
   content.appendChild(composer());
   await load(true);
   startPoll();
+  bindLive();
 }
 
 async function load(scroll) {
@@ -80,7 +85,8 @@ async function load(scroll) {
     const pend = msgs.filter((m) => m._pending && !serverIds.has(m.id));
     if (!olderMsgs.length) olderCursor = r.data.older_cursor || null;
     msgs = withOlder(server).concat(pend);
-    render(); if (scroll) scrollBottom(); api.markRead();
+    render(); if (scroll) scrollBottom();
+    markReadIfNeeded(server);
   } else if (!msgs.length) { clear(scroller).appendChild(h("div", { class: "empty" }, h("div", { class: "big" }, "😔"), h("div", {}, "تعذّر تحميل الهمس"), h("button", { class: "btn soft sm", onclick: () => load(true) }, "أعد المحاولة ↻"))); }
 }
 async function withSigned(items) {
@@ -118,7 +124,37 @@ async function loadOlder(btn) {
   haptic.tap();
 }
 
-function startPoll() { clearInterval(pollTimer); pollTimer = setInterval(poll, 4000); }
+// With the live line up, the other phone says "a whisper landed" the moment it
+// does, and polling is only the safety net; without it, polling is the line.
+function startPoll() { clearInterval(pollTimer); pollTimer = setInterval(poll, rt.connected ? 20000 : 4000); }
+
+// Mark as read only when something from the other one was actually unread.
+// Each phone announces its "read", which makes the other re-fetch — and without
+// this check each re-fetch would announce another "read", forever.
+function markReadIfNeeded(server) {
+  if (!server.some((m) => m.sender !== store.person && !m.read_at)) return;
+  api.markRead().then((r) => { if (r && r.ok) rt.signal("read"); });
+}
+let subEl = null, typingUntil = 0, typingTimer = null, liveBound = false;
+function paintSub() {
+  if (!subEl) return;
+  const she = other(store.person) === "her";
+  clear(subEl);
+  if (Date.now() < typingUntil) subEl.appendChild(h("span", { class: "typing" }, h("i"), h("i"), h("i"), " " + (she ? "تكتب…" : "يكتب…")));
+  else if (rt.partnerHere) subEl.appendChild(h("span", { class: "here-now" }, "هنا الآن"));
+  else subEl.appendChild(document.createTextNode("همسٌ بينكما وحدكما 🤍"));
+}
+function bindLive() {
+  if (liveBound) return;
+  liveBound = true;
+  const refresh = () => { if (isChatActive()) poll(); };
+  rt.on("msg", () => { typingUntil = 0; paintSub(); refresh(); });
+  rt.on("react", refresh);
+  rt.on("read", refresh);
+  rt.on("typing", () => { typingUntil = Date.now() + 3500; paintSub(); clearTimeout(typingTimer); typingTimer = setTimeout(paintSub, 3600); });
+  rt.on("presence", paintSub);
+  rt.on("status", () => { if (isChatActive()) startPoll(); });
+}
 let polling = false;
 async function poll() {
   if (!isChatActive()) { clearInterval(pollTimer); pollTimer = null; return; }
@@ -149,7 +185,7 @@ async function pollOnce() {
   if (!olderMsgs.length) olderCursor = r.data.older_cursor || null;
   msgs = withOlder(server).concat(pend);
   render();
-  if (newFromOther) { scrollBottom(); sound.react(); api.markRead(); }
+  if (newFromOther) { scrollBottom(); sound.react(); markReadIfNeeded(server); }
   else if (newReact) sound.heart();
 }
 
@@ -178,6 +214,13 @@ function bubble(m) {
   const mine = m.sender === store.person;
   const think = m.kind === "text" && m.body && m.body.startsWith("💭");
   const b = h("div", { class: "chat-msg " + (mine ? "mine" : "theirs") + " " + m.sender + (m._pending ? " pending" : "") + (m._failed ? " failed" : "") + (m._queued ? " queued" : "") + (think ? " think" : "") });
+  b.dataset.id = m.id;
+  const rq = m.meta && m.meta.reply;
+  if (rq && rq.body) b.appendChild(h("button", { class: "chat-reply", "aria-label": "الهمسة التي يردّ عليها", onclick: (e) => {
+    e.stopPropagation();
+    const t = scroller && [...scroller.querySelectorAll(".chat-msg")].find((x) => x.dataset.id === String(rq.id));
+    if (t) { t.scrollIntoView({ block: "center", behavior: "smooth" }); t.animate && t.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 700 }); }
+  } }, ((PEOPLE[rq.sender] || {}).name ? PEOPLE[rq.sender].name + ": " : "") + rq.body));
   if (m.kind === "image" && m.signed_url) b.appendChild(h("img", { class: "chat-img", src: m.signed_url, loading: "lazy", alt: "صورة", onclick: () => openLightbox([{ url: m.signed_url }]) }));
   else if (m.kind === "voice" && m.signed_url) b.appendChild(voiceMini(m));
   else b.appendChild(h("div", { class: "chat-text" }, m.body));
@@ -223,7 +266,7 @@ function openReactPicker(m) {
       h("button", {
         class: "rp-btn" + (((map[e] || []).includes(store.person)) ? " on" : ""),
         onclick: () => { close(); react(m, e); },
-      }, e)))],
+      }, e))), h("button", { class: "btn soft sm", style: { width: "100%" }, onclick: () => { close(); startReply(m); } }, "↩︎ ردّ على هذه الهمسة")],
   });
 }
 
@@ -250,6 +293,7 @@ async function react(m, emoji) {
     rLocal.set(id, { reactions: r.data.reactions, at: Date.now() });
     lastSig = sig(msgs.filter((x) => !x._pending));
     render();
+    rt.signal("react");
   } else {
     cur.reactions = before;
     rLocal.set(id, { reactions: before, at: Date.now() });
@@ -266,16 +310,38 @@ function voiceMini(m) {
   return h("div", { class: "voice-mini" }, btn, h("span", { class: "vm-dur" }, "🎙️ " + arNum(dur) + "ث"), audio);
 }
 
+let lastTyping = 0;
+let replyTo = null, replyBar = null, composerInput = null;
 function composer() {
   const input = h("textarea", { class: "chat-input", rows: 1, "aria-label": "اكتب همسة", placeholder: __g("اكتب همسة…", "اكتبي همسة…") });
-  input.addEventListener("input", () => autoGrow(input));
+  composerInput = input;
+  input.addEventListener("input", () => {
+    autoGrow(input);
+    // "typing…" on the other phone, at most once every few seconds
+    if (input.value.trim() && Date.now() - lastTyping > 2500) { lastTyping = Date.now(); rt.signal("typing"); }
+  });
   input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendText(input); } });
   const fileInput = h("input", { type: "file", accept: "image/*", class: "hidden", onchange: (e) => onImage(e) });
-  return h("div", { class: "chat-composer" },
+  replyBar = h("div", { class: "reply-bar hidden" });
+  return h("div", { class: "composer-wrap" }, replyBar, h("div", { class: "chat-composer" },
     h("button", { class: "c-att", "aria-label": "أرسل صورة", onclick: () => fileInput.click() }, "📷"),
     h("button", { class: "c-att", "aria-label": "سجّل همسة صوتية", onclick: () => recordVoice() }, "🎙️"),
     input, fileInput,
-    h("button", { class: "c-send", "aria-label": "إرسال", onclick: () => sendText(input) }, "➤"));
+    h("button", { class: "c-send", "aria-label": "إرسال", onclick: () => sendText(input) }, "➤")));
+}
+const previewOf = (m) => (m.kind === "text" ? String(m.body || "").slice(0, 80) : m.kind === "voice" ? "🎙️ رسالة صوتية" : "📷 صورة");
+function startReply(m) {
+  replyTo = { id: m.id, sender: m.sender, body: previewOf(m) };
+  paintReply();
+  if (composerInput) composerInput.focus();
+}
+function paintReply() {
+  if (!replyBar) return;
+  clear(replyBar);
+  replyBar.classList.toggle("hidden", !replyTo);
+  if (!replyTo) return;
+  replyBar.appendChild(h("span", {}, "↩︎ " + ((PEOPLE[replyTo.sender] || {}).name || "") + ": " + replyTo.body));
+  replyBar.appendChild(h("button", { "aria-label": "إلغاء الردّ", onclick: () => { replyTo = null; paintReply(); } }, icon("close", { size: 16 })));
 }
 function autoGrow(el) { el.style.height = "auto"; el.style.height = Math.min(120, el.scrollHeight) + "px"; }
 function scrollBottom() { setTimeout(() => { if (scroller) scroller.scrollTop = scroller.scrollHeight; }, 30); }
@@ -298,14 +364,17 @@ async function confirmSend(temp, r, queue) {
   if (idx >= 0) msgs[idx] = real; else if (!msgs.some((m) => m.id === real.id)) msgs.push(real);
   if (real.id) { seen.add(real.id); lastSig = sig(msgs.filter((m) => !m._pending)); }
   render(); scrollBottom();
+  rt.signal("msg");
 }
 
 async function sendText(input) {
   const body = input.value.trim(); if (!body) return;
   input.value = ""; autoGrow(input);
-  const temp = { id: "tmp" + Date.now(), cid: cid(), sender: store.person, kind: "text", body, created_at: new Date().toISOString(), read_at: null, _pending: true };
+  const meta = replyTo ? { reply: replyTo } : undefined;
+  replyTo = null; paintReply();
+  const temp = { id: "tmp" + Date.now(), cid: cid(), sender: store.person, kind: "text", body, meta, created_at: new Date().toISOString(), read_at: null, _pending: true };
   msgs.push(temp); render(); scrollBottom(); sound.post();
-  confirmSend(temp, await api.sendMessage({ kind: "text", body }), { kind: "text", body });
+  confirmSend(temp, await api.sendMessage({ kind: "text", body, meta }), { kind: "text", body, meta });
 }
 async function onImage(e) {
   const f = e.target.files[0]; if (!f) return; e.target.value = "";
