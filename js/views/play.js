@@ -9,15 +9,23 @@ import { PEOPLE, other } from "../config.js";
 import { openSheet, openModal, loader } from "../helpers.js";
 import { icon } from "../icons.js";
 import { convoCard, wouldYouRather, thisOrThat, dateIdea, knowMe, weeklyChallenge, seenCount } from "../generate.js";
+import { viewTogether } from "./together.js";
+import { go } from "../helpers.js";
 
 const dayIdx = () => Math.floor((Date.now() + 180 * 60000) / 86400000);
 const weekIdx = () => Math.floor(dayIdx() / 7);
 
 export async function viewPlay(content) {
+  const parts = (location.hash || "").replace(/^#\//, "").split("/");
+  if (parts[1] === "live") return viewTogether(content, parts[2] || null);
   const c = clear(content);
   c.appendChild(h("div", { class: "section-title" }, h("h1", { class: "t-h1" }, "نلعب سوا")));
   const q = h("div", { class: "card dq-card" }, h("div", { class: "muted", style: { textAlign: "center", padding: "10px" } }, "…"));
   c.appendChild(q);
+  c.appendChild(h("button", { class: "tcard plain play-card", style: { marginBottom: "12px" }, onclick: () => go("play/live") },
+    h("span", { class: "pc-ic", "aria-hidden": "true" }, "🎲"),
+    h("div", {}, h("b", {}, "نلعب معًا — على جوّالين"), h("span", {}, "هذا أو ذاك، وكم تعرفني… كلٌّ من جوّاله")),
+    h("span", { class: "go", "aria-hidden": "true" }, "‹")));
   c.appendChild(h("div", { class: "games stagger" },
     gameTile("💞", "كم تعرفني؟", "خمّنوا إجابات بعض", () => knowMeGame()),
     gameTile("⚖️", "هذا أو ذاك", "اختيار سريع", () => totGame()),
