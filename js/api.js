@@ -1,5 +1,5 @@
-// يومياتنا — single network module to the `journal` edge-function gate.
-import { FN, FN2, FN3, FN4, FN5, ANON } from "./config.js";
+// يومياتنا — the single network module: every gate, one token.
+import { FN, FN2, FN3, FN4, FN5, FN6, ANON } from "./config.js";
 
 let TOKEN = null;
 let onAuthFail = null;
@@ -7,61 +7,49 @@ let onAuthFail = null;
 export function setToken(t) { TOKEN = t || null; }
 export function setAuthFailHandler(fn) { onAuthFail = fn; }
 
-async function call(action, extra = {}) {
-  let res, data = {};
-  try {
-    res = await fetch(FN, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON },
-      body: JSON.stringify({ action, token: TOKEN, ...extra }),
-    });
-  } catch (e) {
-    return { ok: false, status: 0, offline: true, data: {} };
+// Reads are safe to repeat; writes are not. This project shares its database
+// with other apps whose jobs run on every :00 and :05, and in that minute a
+// call can hang for twenty seconds. A read now gives up after 9 s and tries
+// once more — by then the busy moment has usually passed — instead of leaving
+// a screen spinning. A write is never repeated: sending a whisper twice is
+// worse than saying it did not go.
+const READ = /^(get_|list_|status$|rituals_today$|chat_unread$|mood_calendar$|on_this_day$|activity$|search_all$|counts$|entries_to_embed$|period_moments$|home$|rt$|now_state$|now_history$|dhikr_today$|grove$|shots$|sign$|sign_download$|game_state$|game_open$|game_stats$)/;
+
+async function request(url, action, extra = {}, { authFail = true } = {}) {
+  const read = READ.test(action);
+  const attempts = read ? 2 : 1;
+  for (let i = 0; i < attempts; i++) {
+    const ctl = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = ctl ? setTimeout(() => ctl.abort(), read ? 9000 : 25000) : null;
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON },
+        body: JSON.stringify({ action, token: TOKEN, ...extra }),
+        signal: ctl ? ctl.signal : undefined,
+      });
+    } catch (e) {
+      clearTimeout(timer);
+      const timedOut = !!(e && e.name === "AbortError");
+      if (i < attempts - 1) continue;
+      return { ok: false, status: 0, offline: !timedOut, timeout: timedOut, data: {} };
+    }
+    clearTimeout(timer);
+    let data = {};
+    try { data = await res.json(); } catch { data = {}; }
+    if (res.status === 401 && authFail && action !== "unlock" && onAuthFail) onAuthFail();
+    if (read && res.status >= 500 && i < attempts - 1) continue;   // a server hiccup on a read gets one more go
+    return { ok: res.ok, status: res.status, data };
   }
-  try { data = await res.json(); } catch { data = {}; }
-  if (res.status === 401 && action !== "unlock" && onAuthFail) onAuthFail();
-  return { ok: res.ok, status: res.status, data };
 }
 
-// second gate (feature actions P5+), shares the same token
-async function call2(action, extra = {}) {
-  let res, data = {};
-  try {
-    res = await fetch(FN2, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action, token: TOKEN, ...extra }) });
-  } catch (e) { return { ok: false, status: 0, offline: true, data: {} }; }
-  try { data = await res.json(); } catch { data = {}; }
-  if (res.status === 401 && onAuthFail) onAuthFail();
-  return { ok: res.ok, status: res.status, data };
-}
-
-// third gate (per-person passcodes), same token scheme
-async function call3(action, extra = {}) {
-  let res, data = {};
-  try { res = await fetch(FN3, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action, token: TOKEN, ...extra }) }); }
-  catch (e) { return { ok: false, status: 0, offline: true, data: {} }; }
-  try { data = await res.json(); } catch { data = {}; }
-  return { ok: res.ok, status: res.status, data };
-}
-
-// fifth gate (activity stream, planner, export), same token scheme
-async function call5(action, extra = {}) {
-  let res, data = {};
-  try { res = await fetch(FN5, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action, token: TOKEN, ...extra }) }); }
-  catch (e) { return { ok: false, status: 0, offline: true, data: {} }; }
-  try { data = await res.json(); } catch { data = {}; }
-  if (res.status === 401 && onAuthFail) onAuthFail();
-  return { ok: res.ok, status: res.status, data };
-}
-
-// fourth gate (scheduled nudges + whisper reactions), same token scheme
-async function call4(action, extra = {}) {
-  let res, data = {};
-  try { res = await fetch(FN4, { method: "POST", headers: { "Content-Type": "application/json", apikey: ANON, Authorization: "Bearer " + ANON }, body: JSON.stringify({ action, token: TOKEN, ...extra }) }); }
-  catch (e) { return { ok: false, status: 0, offline: true, data: {} }; }
-  try { data = await res.json(); } catch { data = {}; }
-  if (res.status === 401 && onAuthFail) onAuthFail();
-  return { ok: res.ok, status: res.status, data };
-}
+const call  = (a, x) => request(FN, a, x);
+const call2 = (a, x) => request(FN2, a, x);
+const call3 = (a, x) => request(FN3, a, x, { authFail: false });   // unlock_personal answers 200 {ok:false} on a miss
+const call4 = (a, x) => request(FN4, a, x);
+const call5 = (a, x) => request(FN5, a, x);
+const call6 = (a, x) => request(FN6, a, x);
 
 export const api = {
   raw: call,
@@ -158,4 +146,25 @@ export const api = {
   exportAll:     ()               => call5("export_all"),
   searchAll:     (q, limit)       => call5("search_all", { q, limit }),
   editMoment:    (id, patch)      => call5("edit_moment", { id, ...patch }),
+  // Chapter Two (journal6)
+  home:          ()               => call6("home"),
+  rtTopic:       ()               => call6("rt"),
+  nowState:      ()               => call6("now_state"),
+  nowPost:       (path, meta, caption) => call6("now_post", { path, meta, caption }),
+  nowHistory:    (before)         => call6("now_history", { before }),
+  touch:         (partner_online) => call6("touch", { partner_online }),
+  gameNew:       (game, prompt, partner_online) => call6("game_new", { game, prompt, partner_online }),
+  gameNext:      (session, prompt)=> call6("game_next", { session, prompt }),
+  gameMove:      (round_id, move) => call6("game_move", { round_id, move }),
+  gameJudge:     (round_id, verdict) => call6("game_judge", { round_id, verdict }),
+  gameState:     (session)        => call6("game_state", { session }),
+  gameOpen:      ()               => call6("game_open"),
+  gameStats:     ()               => call6("game_stats"),
+  winddownSave:  (payload)        => call6("winddown_save", payload),
+  dhikrInc:      (key, by)        => call6("dhikr_inc", { key, by }),
+  dhikrToday:    ()               => call6("dhikr_today"),
+  setGoal:       (goal)           => call6("set_goal", { goal }),
+  grove:         ()               => call6("grove"),
+  shots:         ()               => call6("shots"),
+  sign6:         (paths)          => call6("sign", { paths }),
 };

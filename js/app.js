@@ -1,24 +1,29 @@
-// يومياتنا — warm romantic app. Shell + router; mounts the tab views.
+// يومياتنا — the shell and the router.
+// Chapter Two: اليوم · ذكرياتنا · ＋ · همس · عالمنا. The route names underneath
+// are the ones the app always had (home, journal, chat, us), so every link a
+// notification, the palette or a card has ever pointed at still arrives.
 import { api, setAuthFailHandler } from "./api.js";
 import { store } from "./store.js";
 import { sound } from "./sound.js";
-import { h, $, clear, avatar, toast, arNum, relTime, fullDate, moodChip, hijriDate, hijriParts, confetti, sparkleAt, clickable } from "./ui.js";
-import { PEOPLE, other, MOODS, moodEmoji, DUA } from "./config.js";
-import { loader, go, applyTheme, applyAccent, applyBackground, openSheet, openModal, hashPin, confirmAsk, encryptWithPin, decryptWithPin, bioEnrolled, bioUnlock, bioForget, refreshAvatars, commit } from "./helpers.js";
-import { sweetLine, convoCard, dateIdea, duaForSpouse } from "./generate.js";
-import { viewInbox, refreshActivityBadge } from "./views/inbox.js";
-import { newsBar, recommendations, newsFromActivity, interleave } from "./newsbar.js";
-import { installBanner, pushBanner } from "./install.js";
-import { startOutbox, outbox } from "./outbox.js";
-import { startPalette, openPalette } from "./palette.js";
+import { h, $, clear, avatar, toast, arNum, noMotion } from "./ui.js";
+import { PEOPLE } from "./config.js";
+import { loader, go, applyTheme, applyBackground, confirmAsk, hashPin, encryptWithPin, decryptWithPin, bioEnrolled, bioUnlock } from "./helpers.js";
+import { startOutbox } from "./outbox.js";
+import { startPalette } from "./palette.js";
 import { attachSwipe, attachPullToRefresh } from "./gestures.js";
 import { icon } from "./icons.js";
 import { haptic } from "./haptics.js";
 import { maybeWelcome } from "./onboarding.js";
-import { applySkin } from "./skins.js";
+import { startLooks } from "./looks.js";
 import { watchInstall, isStandalone } from "./install.js";
-import { startLiving, greetingFor, phaseNow, PHASE_AR } from "./living.js";
-import { viewJournal, viewMoment, openCompose } from "./views/journal.js";
+import { startLiving } from "./living.js";
+import { rt } from "./realtime.js";
+import { startTouchListener } from "./touch.js";
+import { openCapture } from "./capture.js";
+import { startGameInvites } from "./views/together.js";
+import { viewToday, todayOpenWinddown } from "./views/today.js";
+import { viewInbox } from "./views/inbox.js";
+import { viewJournal, viewMoment } from "./views/journal.js";
 import { viewChat } from "./views/chat.js";
 import { viewPlay } from "./views/play.js";
 import { viewUs } from "./views/us.js";
@@ -32,35 +37,53 @@ import { viewProfile } from "./views/profile.js";
 
 const APP = () => document.getElementById("app");
 
-/* ---------------- boot + router ---------------- */
-let homeData = null;
-store.init(); applyTheme(); applySkin(); applyBackground(); startLiving(); startOutbox(); startPalette();
-watchInstall(() => { if (currentRoute() === "home") { homeData = null; renderRoute(); } });
+/* ---------------- boot ---------------- */
+store.init(); applyTheme(); startLooks(); applyBackground(); startLiving(); startOutbox(); startPalette();
+watchInstall(() => { if (currentRoute() === "home") renderRoute(); });
 if (isStandalone()) document.documentElement.setAttribute("data-standalone", "1");
-setAuthFailHandler(() => { store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });
+setAuthFailHandler(() => { rt.stop(); store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("pointerdown", () => sound.resume(), { once: true });
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
   const hadController = !!navigator.serviceWorker.controller;
   let refreshing = false;
-  // when a new service worker takes control (an update shipped), reload once to pick up fresh assets
+  // a new service worker took control (an update shipped): reload once for the fresh files
   navigator.serviceWorker.addEventListener("controllerchange", () => { if (refreshing || !hadController) return; refreshing = true; location.reload(); });
-  // a tapped notification asks us to open a specific screen
-  navigator.serviceWorker.addEventListener("message", (e) => { const u = e.data && e.data.nav; if (typeof u === "string") { location.hash = u.includes("#") ? u.slice(u.indexOf("#")) : "#/home"; } });
+  // a tapped notification asks for a specific screen
+  navigator.serviceWorker.addEventListener("message", (e) => { const u = e.data && e.data.nav; if (typeof u === "string") location.hash = u.includes("#") ? u.slice(u.indexOf("#")) : "#/home"; });
   navigator.serviceWorker.register("sw.js").then((reg) => { try { reg.update(); } catch {} setInterval(() => { try { reg.update(); } catch {} }, 30 * 60 * 1000); }).catch(() => {});
 }
 
 const TABS = [
-  { key: "home", ic: "home", label: "البيت" },
-  { key: "journal", ic: "book", label: "يومياتنا" },
+  { key: "home", ic: "sun", label: "اليوم" },
+  { key: "journal", ic: "book", label: "ذكرياتنا" },
+  { plus: true },
   { key: "chat", ic: "chat", label: "همس" },
-  { key: "play", ic: "dice", label: "نلعب" },
-  { key: "us", ic: "heart", label: "نحن" },
+  { key: "us", ic: "grid", label: "عالمنا" },
 ];
-let slideDir = "";
+const SEQ = ["home", "journal", "chat", "us"];
+// Everything boot() touches must be declared ABOVE it: it renders synchronously
+// while this module is still being evaluated, so a let/const further down is not
+// initialised yet — a returning user reloading the app got a blank page.
+const SHELL = new Set(["home", "journal", "chat", "us", "play", "inbox", "search", "book", "wrapped", "map", "pulse", "profile"]);
+let rendered = false, lastRoute = null;
+let unreadN = 0;
+
+// once there is a token and a person: the live line, heartbeats, the welcome
+let live = false;
+function goLive() {
+  if (live || !store.token || !store.person) return;
+  live = true;
+  rt.start(); startTouchListener(); startGameInvites(); maybeWelcome();
+  rt.on("msg", () => { if (currentRoute() !== "chat") { refreshUnread(); toast("💬 همسة جديدة من " + PEOPLE[store.person === "him" ? "her" : "him"].name); sound.react(); } });
+}
 
 (function boot() {
-  const start = () => { if (store.token && store.person) { if (!location.hash) location.hash = "#/home"; renderRoute(); } else if (store.token) go("who"); else go("lock"); if (!location.hash) renderRoute(); };
+  const start = () => {
+    if (store.token && store.person) { if (!location.hash) location.hash = "#/home"; goLive(); renderRoute(); }
+    else if (store.token) go("who"); else go("lock");
+    if (!location.hash) renderRoute();
+  };
   const legacyLock = localStorage.getItem("yn_applock") === "on" && (localStorage.getItem("yn_applock_hash") || localStorage.getItem("yn_applock_pin"));
   if (store.person && store.sealed) appLockGate(start);              // token encrypted at rest — PIN required
   else if (store.token && store.person && legacyLock) appLockGate(start);
@@ -74,21 +97,52 @@ document.addEventListener("visibilitychange", () => {
   if (store.sealed && hiddenAt && Date.now() - hiddenAt > 5 * 60 * 1000) location.reload();
 });
 
-function navTo(route) { const seq = TABS.map((t) => t.key); const i = seq.indexOf(currentRoute()), j = seq.indexOf(route); if (i >= 0 && j >= 0 && i !== j) slideDir = j > i ? "slide-l" : "slide-r"; go(route); }
 function currentRoute() { return (location.hash || "#/home").replace(/^#\//, "").split("/")[0]; }
 function routeArg() { return (location.hash || "").replace(/^#\//, "").split("/")[1] || ""; }
 
+// Moving between the four main screens is a view transition where the browser
+// has them (Safari 18+, Chrome): the old screen fades up and out, the new one
+// settles in. Only between those four — never on the lock or "who" screens —
+// and never allowed to hold the screen: while a transition runs, the page
+// underneath does not receive taps, so one that stalls would freeze the app.
+// Any transition still running after 700 ms is finished by force.
 function renderRoute() {
+  const run = () => routeNow();
+  const route = currentRoute();
+  const smooth = rendered && lastRoute && SHELL.has(lastRoute) && SHELL.has(route) && store.person
+    && document.startViewTransition && !noMotion() && document.visibilityState === "visible";
+  lastRoute = route;
+  rendered = true;
+  if (smooth) {
+    try {
+      const t = document.startViewTransition(run);
+      for (const p of [t.ready, t.finished, t.updateCallbackDone]) if (p && p.catch) p.catch(() => {});
+      setTimeout(() => { try { t.skipTransition(); } catch {} }, 700);
+      return;
+    } catch { /* fall through to a plain render */ }
+  }
+  run();
+}
+
+function routeNow() {
   const route = currentRoute();
   if (!store.token && route !== "lock") return go("lock");
   if (store.token && !store.person && !["who", "lock"].includes(route)) return go("who");
   switch (route) {
     case "lock": return viewLock();
     case "who": return viewWho();
-    case "home": return shell("home", viewHome);
+    case "home": return shell("home", viewToday);
+    case "now": {          // the daily-photo notification: Today, with the photo card in view
+      history.replaceState(null, "", "#/home");
+      return shell("home", (c) => viewToday(c, { then: () => { const el = c.querySelector(".now-card"); if (el) { el.scrollIntoView({ block: "center", behavior: noMotion() ? "auto" : "smooth" }); el.animate && el.animate([{ transform: "scale(1)" }, { transform: "scale(1.02)" }, { transform: "scale(1)" }], { duration: 700 }); } } }));
+    }
+    case "winddown": {     // the night reminder: Today, with the wind-down sheet open
+      history.replaceState(null, "", "#/home");
+      return shell("home", (c) => viewToday(c, { then: () => todayOpenWinddown() }));
+    }
     case "journal": return shell("journal", viewJournal);
     case "chat": return shell("chat", viewChat);
-    case "play": return shell("play", viewPlay);
+    case "play": return shell("us", viewPlay);
     case "us": return shell("us", viewUs);
     case "search": return shell("journal", viewSearch);
     case "book": return shell("us", viewBook);
@@ -104,39 +158,51 @@ function renderRoute() {
 }
 
 function shell(active, viewFn) {
+  goLive();
   const app = clear(APP());
-  const content = h("main", { id: "main", class: "view" + (slideDir ? " " + slideDir : "") });
-  slideDir = "";
+  const content = h("main", { id: "main", class: "view" });
   app.appendChild(content);
   app.appendChild(tabbar(active));
   viewFn(content);
-  // swipe between tabs, and pull down at the top to refresh
-  const seq = TABS.map((t) => t.key), i = seq.indexOf(active);
+  if (active !== "home") refreshUnread();          // Today brings the count with it
+  const i = SEQ.indexOf(active);
   attachSwipe(content, {
-    onLeft: () => { if (i >= 0 && i < seq.length - 1) { sound.tab(); navTo(seq[i + 1]); } },
-    onRight: () => { if (i > 0) { sound.tab(); navTo(seq[i - 1]); } },
+    onLeft: () => { if (i >= 0 && i < SEQ.length - 1) { sound.tab(); go(SEQ[i + 1]); } },
+    onRight: () => { if (i > 0) { sound.tab(); go(SEQ[i - 1]); } },
   });
-  attachPullToRefresh(content, async () => { sound.tab(); if (active === "home") homeData = null; renderRoute(); await new Promise((r) => setTimeout(r, 400)); });
+  attachPullToRefresh(content, async () => { sound.tab(); routeNow(); await new Promise((r) => setTimeout(r, 400)); });
 }
+
 function tabbar(active) {
   const nav = h("nav", { class: "tabbar", "aria-label": "التنقّل" }, ...TABS.map((t) => {
-    const isOn = active === t.key;
-    const btn = h("button", { class: "tab" + (isOn ? " active" : ""), "aria-label": t.label, "aria-current": isOn ? "page" : null, onclick: () => { sound.tab(); haptic.tap(); navTo(t.key); } }, h("span", { class: "ic" }, icon(t.ic, { size: 23 })), t.label);
+    if (t.plus) return h("div", { class: "tab-plus" },
+      h("button", { class: "plus-btn", "aria-label": "أضيفا: لحظة، صورة، نبضة…", onclick: () => openCapture() }, icon("plus", { size: 26, stroke: 2.2 })));
+    const on = active === t.key;
+    const btn = h("button", { class: "tab" + (on ? " active" : ""), "aria-label": t.label, "aria-current": on ? "page" : null,
+      onclick: () => { sound.tab(); haptic.tap(); go(t.key); } }, h("span", { class: "ic" }, icon(t.ic, { size: 23 })), t.label);
     if (t.key === "chat") btn.dataset.tab = "chat";
     return btn;
   }));
-  refreshUnread(nav);
+  paintBadge(nav);
   return nav;
 }
-async function refreshUnread(nav) {
-  try { const r = await api.chatUnread(); const n = (r.ok && r.data.unread) || 0; const btn = nav.querySelector('[data-tab="chat"]'); if (btn && n > 0 && !btn.classList.contains("active")) btn.appendChild(h("span", { class: "tab-badge", "aria-label": "رسائل غير مقروءة" }, arNum(n))); } catch {}
+
+function paintBadge(root = document) {
+  const btn = root.querySelector('[data-tab="chat"]');
+  if (!btn) return;
+  const old = btn.querySelector(".tab-badge"); if (old) old.remove();
+  if (unreadN > 0 && !btn.classList.contains("active")) btn.appendChild(h("span", { class: "tab-badge", "aria-label": arNum(unreadN) + " لم تُقرأ" }, arNum(unreadN)));
 }
+async function refreshUnread() {
+  try { const r = await api.chatUnread(); if (r.ok) { unreadN = r.data.unread || 0; paintBadge(); } } catch {}
+}
+window.addEventListener("yn:unread", (e) => { unreadN = (e.detail && e.detail.unread) || 0; paintBadge(); });
 
 /* ---------------- app-lock gate ---------------- */
 function appLockGate(onOk) {
   const app = clear(APP());
-  const err = h("div", { class: "err" });
-  const pin = h("input", { class: "field pin", type: "password", inputmode: "numeric", maxLength: 4, placeholder: "····", autocomplete: "off" });
+  const err = h("div", { class: "err", role: "alert" });
+  const pin = h("input", { class: "field pin", type: "password", inputmode: "numeric", maxLength: 4, placeholder: "····", autocomplete: "off", "aria-label": "رمز القفل" });
   let fails = 0;
   const submit = async () => {
     const entered = pin.value;
@@ -158,8 +224,8 @@ function appLockGate(onOk) {
   };
   pin.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
   app.appendChild(h("div", { class: "lock view" },
-    h("div", { class: "heart" }, "🔒"),
-    h("div", { class: "brand", style: { fontSize: "clamp(38px,12vw,58px)" } }, "يومياتنا"),
+    h("div", { class: "heart", "aria-hidden": "true" }, "🔒"),
+    h("h1", { class: "brand", style: { fontSize: "clamp(38px,12vw,58px)", margin: 0 } }, "يومياتنا"),
     h("div", { class: "tag" }, "أدخلا رمز القفل"),
     h("div", { class: "box" }, pin, h("button", { class: "btn", onclick: submit }, "فتح"), err),
     bioEnrolled() ? h("button", { class: "btn soft", style: { marginTop: "12px", maxWidth: "340px" }, onclick: () => bioTry(true) }, "👆 افتح ببصمتك") : null,
@@ -176,9 +242,10 @@ function appLockGate(onOk) {
 
 /* ---------------- lock / who ---------------- */
 function viewLock() {
+  rendered = true;
   const app = clear(APP());
-  const err = h("div", { class: "err" });
-  const pin = h("input", { class: "field pin", type: "password", inputmode: "numeric", placeholder: "••••", autocomplete: "off", maxLength: 12 });
+  const err = h("div", { class: "err", role: "alert" });
+  const pin = h("input", { class: "field pin", type: "password", inputmode: "numeric", placeholder: "••••", autocomplete: "off", maxLength: 12, "aria-label": "كلمة الفتح" });
   async function submit() {
     sound.resume();
     const pass = pin.value.trim(); err.textContent = "";
@@ -190,18 +257,19 @@ function viewLock() {
     const r = await api.unlock(pass); loader(false);
     if (r.ok && r.data.token) { store.setAuth(r.data.token, null); sound.unlock(); go("who"); }
     else if (r.status === 429) { err.textContent = "محاولاتٌ كثيرة — انتظرا قليلًا"; sound.error(); }
-    else { err.textContent = "كلمة الفتح غير صحيحة"; sound.error(); const b = $(".lock .box"); b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); }
+    else { err.textContent = r.offline ? "لا اتصال — تحقّقا من الإنترنت" : "كلمة الفتح غير صحيحة"; sound.error(); const b = $(".lock .box"); b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); }
   }
   pin.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
   app.appendChild(h("div", { class: "lock view" },
-    h("div", { class: "heart" }, "🤍"),
+    h("div", { class: "heart", "aria-hidden": "true" }, "🤍"),
     h("div", { class: "bism" }, "بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيم"),
-    h("div", { class: "brand" }, "يومياتنا"),
+    h("h1", { class: "brand", style: { margin: 0 } }, "يومياتنا"),
     h("div", { class: "tag" }, "عالمٌ صغيرٌ لنا… نحفظ فيه أجمل أيّامنا، ونمضي بها إلى رضا الله."),
     h("div", { class: "box" }, pin, h("button", { class: "btn", onclick: submit }, __g("ادخل بيتنا", "ادخلي بيتنا")), err)));
   setTimeout(() => pin.focus(), 50);
 }
 function viewWho() {
+  rendered = true;
   const app = clear(APP());
   async function pick(person) {
     loader(true); const r = await api.chooseIdentity(person); loader(false);
@@ -209,316 +277,9 @@ function viewWho() {
     else toast(__g("تعذّر الدخول، حاول مجددًا", "تعذّر الدخول، حاولي مجددًا"));
   }
   app.appendChild(h("div", { class: "lock view" },
-    h("div", { class: "brand", style: { fontSize: "40px" } }, "مَن أنتِ الآن؟"),
+    h("h1", { class: "brand", style: { fontSize: "40px", margin: 0 } }, "مَن أنتِ الآن؟"),
     h("div", { class: "tag" }, "لنعرف صاحب كل كلمة 🤍"),
     h("div", { class: "who-cards" },
       h("button", { class: "who-card him", onclick: () => pick("him") }, avatar("him", "lg"), PEOPLE.him.name),
       h("button", { class: "who-card her", onclick: () => pick("her") }, avatar("her", "lg"), PEOPLE.her.name))));
 }
-
-/* ---------------- home ---------------- */
-function greetWord() { return greetingFor(); }
-function greetIcon() { return { dawn: "🌅", morning: "🌤️", noon: "☀️", sunset: "🌇", night: "🌙" }[phaseNow()] || "🌙"; }
-function daysTogether() { const a = store.config.anniversary_date; if (!a) return null; const now = new Date(Date.now() + 180 * 60000); const t = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()); const ad = new Date(a + "T00:00:00Z"); return Math.max(0, Math.round((t - Date.UTC(ad.getUTCFullYear(), ad.getUTCMonth(), ad.getUTCDate())) / 86400000)); }
-function dayIdx() { return Math.floor((Date.now() + 180 * 60000) / 86400000); }
-
-function nowLocal() { return new Date(Date.now() + 180 * 60000); }
-function weekIdx() { return Math.floor(dayIdx() / 7); }
-
-async function viewHome(content) {
-  renderHome(content, homeData, true);
-  const [boot, rt, feed, otd, ms, letters, playlist, msgs, unread, acts, tsks] = await Promise.all([
-    api.bootstrap(), api.ritualsToday(), api.feed(), api.onThisDay(), api.milestones(), api.listLetters(), api.listPlaylist(),
-    api.messages(), api.chatUnread(), api.activity(30), api.listTasks()]);
-  if (boot.ok) { store.setConfig(boot.data.config || {}); applyBackground(); }
-  refreshAvatars().then(() => { const heads = $(".avatars"); if (heads) { clear(heads); heads.append(avatar("him"), avatar("her")); } });
-  if (feed.ok) store.cacheFeed(feed.data.items);
-  maybeWelcome();
-  homeData = {
-    rt: rt.ok ? rt.data : null,
-    feed: feed.ok ? feed.data.items : store.cachedFeed(),
-    latest: (feed.ok && feed.data.items[0]) || store.cachedFeed()[0] || null,
-    otd: (otd.ok && otd.data.items[0]) || null,
-    ms: ms.ok ? ms.data : null,
-    letters: letters.ok ? letters.data.items : [],
-    playlist: playlist.ok ? playlist.data.items : [],
-    lastMsg: (msgs.ok && msgs.data.items && msgs.data.items[msgs.data.items.length - 1]) || null,
-    unread: (unread.ok && unread.data.unread) || 0,
-    activity: acts.ok ? acts.data.items : [],
-    activitySeen: acts.ok ? acts.data.seen_at : "",
-    activityUnseen: acts.ok ? acts.data.unseen : 0,
-    tasks: tsks.ok ? tsks.data.items : [],
-    offline: feed.offline,
-  };
-  store.activityUnseen = homeData.activityUnseen || 0;
-  renderHome(content, homeData, false);
-}
-
-// ---------------------------------------------------------------------------
-// The dashboard. Everything that matters sits in one screenful — no scrolling.
-// A CSS grid whose rows are fr-based fills exactly the viewport minus the nav,
-// so tiles breathe on a big phone and compress on a small one without spilling.
-// ---------------------------------------------------------------------------
-function renderHome(content, d, loading) {
-  const c = clear(content);
-  content.classList.add("dash-view");
-  const me = store.person, meName = PEOPLE[me]?.name || "", partner = other(me);
-  const refresh = () => { homeData = null; viewHome(content); };
-  const grid = h("div", { class: "dash" });
-  c.appendChild(grid);
-
-  /* ---- row: greeting + faces ---- */
-  grid.appendChild(h("div", { class: "d-head" },
-    h("div", { class: "dh-text" },
-      h("h1", { class: "dh-hello" }, greetWord() + " يا " + meName),
-      h("div", { class: "dh-sub" }, fullDate(new Date().toISOString()), " · ", h("span", { class: "hijri" }, hijriDate()))),
-    h("button", { class: "d-find", "aria-label": "ابحثا أو نفّذا أمرًا", onclick: () => openPalette() }, icon("search", { size: 17 })),
-    h("div", { class: "avatars" },
-      clickable(h("span", { class: "av-tap", onclick: () => go("profile/" + me) }, avatar(me)), () => go("profile/" + me)),
-      clickable(h("span", { class: "av-tap", onclick: () => go("profile/" + partner) }, avatar(partner)), () => go("profile/" + partner)))));
-
-  /* ---- row: the running numbers, read as data rather than as chips ---- */
-  const dt = daysTogether();
-  const streak = (d && d.ms && d.ms.streak_current) || 0;
-  const occ = occasionToday();
-  const weekAgo = Date.now() - 7 * 86400000;
-  const weekCount = ((d && d.feed) || []).filter((e) => new Date(e.created_at) >= weekAgo).length;
-  const fresh = (d && d.activityUnseen) || 0;
-  const meta = h("div", { class: "d-meta" });
-  // Arabic-Indic zero is a dot, which at this size reads as a bullet rather
-  // than as a number — an em dash says "nothing yet" far more clearly.
-  const stat = (n, label, tone, onclick) => h("button", { class: "d-stat" + (tone ? " " + tone : ""), onclick },
-    h("span", { class: "ds-n" + (n ? "" : " zero") }, n ? arNum(n) : "—"), h("span", { class: "ds-l" }, label));
-  if (dt != null) meta.appendChild(stat(dt, "يومًا معًا", "", () => go("us")));
-  meta.appendChild(stat(streak, "سلسلة", streak > 0 ? "hot" : "", () => go("journal")));
-  meta.appendChild(stat(weekCount, "هذا الأسبوع", "", () => go("journal")));
-  meta.appendChild(stat(fresh, "جديد", fresh > 0 ? "new" : "", () => go("inbox")));
-  if (occ) meta.appendChild(h("span", { class: "occ-chip d-occ" }, occ.emoji + " " + occ.title));
-  if (d && d.offline) meta.appendChild(h("span", { class: "occ-chip d-occ" }, "🌙 دون اتصال"));
-  grid.appendChild(meta);
-
-  /* ---- row: the news bar — what to do, and what the other one just did ---- */
-  const news = newsBar(interleave(recommendations(d, (d && d.tasks) || []),
-                                  newsFromActivity((d && d.activity) || [], d && d.activitySeen)),
-                       { onOpen: () => go("inbox") });
-  if (news) grid.appendChild(news);
-
-  /* ---- optional row: install, then notifications (only one at a time) ---- */
-  const inst = installBanner();
-  if (inst) grid.appendChild(inst);
-  else { const pb = pushBanner(); if (pb) grid.appendChild(pb); }
-
-  /* ---- celebration (monthiversary / round day) ---- */
-  const cel = isMilestoneToday(dt);
-  if (cel && localStorage.getItem("yn_celebrated") !== cel.key) {
-    localStorage.setItem("yn_celebrated", cel.key);
-    setTimeout(() => { confetti(); sound.celebrate(); haptic.celebrate(); toast(cel.title); }, 400);
-  }
-
-  /* ---- hero: write a moment ---- */
-  grid.appendChild(h("button", { class: "d-tile d-write", onclick: () => { haptic.tap(); openCompose({ onDone: refresh }); } },
-    h("span", { class: "dw-ic" }, icon("plus", { size: 26 })),
-    h("span", { class: "dw-t" }, __g("بماذا تشعر اليوم؟", "بماذا تشعرين اليوم؟")),
-    h("span", { class: "dw-s" }, "دوّنا لحظةً تبقى — كلمة، صورة، أو همسة صوتية"),
-    h("span", { class: "dw-cta" }, "✍️ " + __g("اكتب لحظة", "اكتبي لحظة"))));
-
-  /* ---- همس: unread + a peek at the last whisper ---- */
-  const lastMsg = d && d.lastMsg;
-  const unread = (d && d.unread) || 0;
-  const peek = !lastMsg ? "ابدآ الهمس 💛"
-    : lastMsg.kind === "text" ? String(lastMsg.body || "").slice(0, 42)
-    : lastMsg.kind === "voice" ? "🎙️ رسالة صوتية" : "📷 صورة";
-  grid.appendChild(h("button", { class: "d-tile d-chat" + (unread ? " has-new" : ""), onclick: () => { haptic.tap(); navTo("chat"); } },
-    h("span", { class: "dt-ic" }, icon("chat", { size: 20 })),
-    h("span", { class: "dt-label" }, "همس"),
-    unread ? h("span", { class: "dt-badge" }, arNum(unread)) : null,
-    h("span", { class: "dt-peek" }, peek),
-    lastMsg ? h("span", { class: "dt-foot" }, (PEOPLE[lastMsg.sender]?.name || "") + " · " + relTime(lastMsg.created_at)) : null));
-
-  /* ---- سؤال اليوم ---- */
-  const rt = d && d.rt;
-  const q = rt && rt.question;
-  const answered = rt && rt.prompt && rt.prompt.mine != null;
-  const revealed = rt && rt.prompt && rt.prompt.revealed;
-  grid.appendChild(h("button", { class: "d-tile d-ask" + (!answered ? " nudge" : ""), onclick: () => { haptic.tap(); navTo("play"); } },
-    h("span", { class: "dt-ic" }, "🌟"),
-    h("span", { class: "dt-label" }, "سؤال اليوم"),
-    h("span", { class: "dt-peek" }, q || "…"),
-    h("span", { class: "dt-foot" }, !answered ? __g("أجِب الآن ‹", "أجيبي الآن ‹") : revealed ? "انكشفت إجاباتكما 💛" : "بانتظار " + (PEOPLE[partner]?.name || ""))));
-
-  /* ---- مزاجي: one tap, right here ---- */
-  const myMood = rt && rt.checkin ? rt.checkin.mine : null;
-  const moodTile = h("div", { class: "d-tile d-mood" },
-    h("span", { class: "dt-ic" }, "🌈"),
-    h("span", { class: "dt-label" }, myMood && myMood.mood ? "شعورك اليوم" : __g("كيف تشعر؟", "كيف تشعرين؟")));
-  if (myMood && myMood.mood) {
-    moodTile.appendChild(h("span", { class: "dm-now" }, (moodEmoji(myMood.mood) || "") + " " + myMood.mood));
-    moodTile.appendChild(h("button", { class: "dt-foot as-link", onclick: () => go("us/mood") }, "غيّره ‹"));
-  } else {
-    const row = h("div", { class: "dm-row" });
-    MOODS.slice(0, 5).forEach(([label, emo]) => row.appendChild(
-      h("button", { class: "dm-pick", "aria-label": label, onclick: async () => {
-        haptic.pick();
-        const ok = await commit(() => api.setCheckin(label, null));
-        if (ok) { sound.react(); toast("سُجّل شعورك " + emo); refresh(); }
-      } }, emo)));
-    moodTile.appendChild(row);
-  }
-  grid.appendChild(moodTile);
-
-  /* ---- ما ينتظركما: the single most timely thing ---- */
-  grid.appendChild(waitingTile(d, refresh));
-
-  /* ---- quick nav + today's extras ---- */
-  grid.appendChild(h("div", { class: "d-nav" },
-    navTile("book", "يومياتنا", () => navTo("journal")),
-    navTile("dice", "نلعب", () => navTo("play")),
-    navTile("heart", "نحن", () => navTo("us")),
-    navTile("sparkle", "اليوم", () => openToday(d, refresh), true)));
-}
-
-function navTile(ic, label, onclick, accent) {
-  return h("button", { class: "d-navt" + (accent ? " accent" : ""), onclick: () => { haptic.tap(); onclick(); } },
-    h("span", { class: "dn-ic" }, icon(ic, { size: 19 })), h("span", {}, label));
-}
-
-// Picks the one thing that most deserves their attention right now.
-function waitingTile(d, refresh) {
-  const now = Date.now();
-  const mk = (emoji, title, sub, onclick, cls) =>
-    h("button", { class: "d-tile d-next " + (cls || ""), onclick: () => { haptic.tap(); onclick(); } },
-      h("span", { class: "dt-ic" }, emoji), h("span", { class: "dt-label" }, title),
-      h("span", { class: "dt-peek" }, sub), h("span", { class: "dt-foot" }, "افتح ‹"));
-
-  const letter = (d && d.letters || []).find((L) => !L.opened_at && new Date(L.unlock_at).getTime() <= now);
-  if (letter) return mk("💌", "رسالة جاهزة", "من " + (PEOPLE[letter.author]?.name || "") + " — حان وقت فتحها", () => go("us/letters"), "warm");
-
-  const cds = (d && d.rt && d.rt.countdowns) || [];
-  const soon = cds.map((cd) => ({ cd, days: Math.ceil((new Date(cd.target_date).getTime() - now) / 86400000) }))
-    .filter((x) => x.days >= 0 && x.days <= 7).sort((a, b) => a.days - b.days)[0];
-  if (soon) return mk(soon.cd.emoji || "⏳", soon.cd.title, soon.days === 0 ? "اليوم! 🎉" : "بعد " + arNum(soon.days) + " يوم", () => go("us/calendar"), "warm");
-
-  const partner = other(store.person);
-  const theirMood = d && d.rt && d.rt.checkin ? d.rt.checkin.theirs : null;
-  const tender = theirMood && theirMood.mood && ["شوق", "حنين", "متعب بس ممنون"].includes(theirMood.mood);
-  if (tender) return mk(moodEmoji(theirMood.mood) || "💓", PEOPLE[partner].name + " تشعر بـ" + theirMood.mood,
-    __g("أرسل لها لمسة 🤍", "أرسلي له لمسة 🤍"), () => navTo("chat"), "warm");
-
-  const mem = d && (d.otd || d.latest);
-  if (mem) return mk(d.otd ? "🔁" : "📖", d.otd ? "في مثل هذا اليوم" : "آخر ذكرى",
-    (mem.body || "لحظةٌ بلا كلمات").slice(0, 46), () => go("moment/" + mem.id));
-
-  return mk("🌱", "صفحتكما الأولى", "لا ذكرياتٍ بعد — ابدآ الآن", () => openCompose({ onDone: refresh }));
-}
-
-// Everything that used to stretch the page now lives one tap away.
-function openToday(d, refresh) {
-  const partner = other(store.person);
-  const body = [];
-  const seed = "x" + dayIdx();
-
-  // sealed surprise
-  const key = String(dayIdx());
-  const item = pickSurprise(d);
-  if (item) {
-    const opened = localStorage.getItem("yn_surprise_day") === key;
-    body.push(h("div", { class: "card home-card " + (opened ? "" : "surprise-card"), onclick: opened ? null : function () {
-      localStorage.setItem("yn_surprise_day", key); sound.post(); haptic.success();
-      sparkleAt(innerWidth / 2, innerHeight / 3, ["🎁", "✨", "💛", "🤍"]);
-      const box = this;
-      clear(box); box.classList.remove("surprise-card");
-      box.appendChild(h("div", { class: "hc-head" }, h("span", { class: "em" }, "🎁"), item.title));
-      box.appendChild(h("div", { class: "surprise-open" }, item.text));
-    } },
-      opened ? h("div", { class: "hc-head" }, h("span", { class: "em" }, "🎁"), item.title) : h("div", { class: "st" }, "🎁 مفاجأة اليوم"),
-      opened ? h("div", { class: "surprise-open" }, item.text) : h("div", { class: "ss" }, "اضغطا لكشفها 🤍")));
-  }
-
-  // sweet line
-  const line = sweetLine(partner === "her", { seed: "s" + dayIdx(), remember: false });
-  body.push(h("div", { class: "card home-card" },
-    h("div", { class: "hc-head" }, h("span", { class: "em" }, "💌"), "بادرة اليوم"),
-    h("div", { style: { fontFamily: "var(--font-quote)", fontSize: "17px", lineHeight: "1.9", marginBottom: "10px" } }, line),
-    h("button", { class: "btn sm", style: { width: "auto" }, onclick: async () => {
-      const r = await api.sendMessage({ kind: "text", body: line });
-      if (r.ok) { sound.post(); haptic.love(); sparkleAt(innerWidth / 2, innerHeight / 2, ["💌", "💗", "🤍"]); toast("أُرسلت إلى همس 💌"); }
-      else toast("تعذّر الإرسال");
-    } }, "أرسلها الآن ✨")));
-
-  // song of the week
-  const songs = (d && d.playlist) || [];
-  if (songs.length) {
-    const s = songs[Math.floor(dayIdx() / 7) % songs.length];
-    body.push(h("div", { class: "card home-card", onclick: () => (s.url ? window.open(s.url, "_blank", "noreferrer") : go("us/songs")) },
-      h("div", { class: "hc-head" }, h("span", { class: "em" }, "🎵"), "أغنية أسبوعنا"),
-      h("div", { class: "song-pill" }, h("span", { class: "cassette" }, "🎵"),
-        h("div", { class: "meta" }, h("b", {}, s.title), h("span", { class: "muted" }, (s.artist || "") + " · " + (PEOPLE[s.added_by]?.name || ""))))));
-  }
-
-  // du'a of the day
-  body.push(h("div", { class: "card home-card dua-card" },
-    h("div", { class: "dq" }, DUA[dayIdx() % DUA.length]), h("div", { class: "dl" }, "دعوةُ اليوم 🤲")));
-
-  // weekly recap, once a week
-  const wk = String(Math.floor(dayIdx() / 7));
-  if (d && d.feed && localStorage.getItem("yn_recap_week") !== wk) {
-    body.push(h("button", { class: "btn soft", onclick: () => { localStorage.setItem("yn_recap_week", wk); openRecap(d); } }, "🤍 افتحا ملخّص أسبوعكما"));
-  }
-
-  openSheet({ title: "لكما اليوم ✨", subtitle: fullDate(new Date().toISOString()), body });
-}
-
-function pickSurprise(d) {
-  const pool = [];
-  const mems = (d && d.feed) || [];
-  if (mems.length) { const m = mems[dayIdx() % mems.length]; if (m && m.body) pool.push({ title: "ذكرى منكما 📖", text: "“" + m.body + "”", cta: { label: "افتح اللحظة", fn: () => go("moment/" + m.id) } }); }
-  const seed = "x" + dayIdx();
-  pool.push({ title: "سؤالٌ لكما 🃏", text: convoCard({ seed, remember: false }) });
-  pool.push({ title: "فكرة سهرة 🎡", text: dateIdea({ seed, remember: false }) });
-  pool.push({ title: "دعوةٌ لكما 🤲", text: duaForSpouse({ seed, remember: false }) });
-  return pool.length ? pool[dayIdx() % pool.length] : null;
-}
-
-function openRecap(d) {
-  const now = Date.now();
-  const week = (d.feed || []).filter((m) => now - new Date(m.created_at).getTime() <= 7 * 86400000);
-  const photos = week.reduce((n, m) => n + ((m.media || []).filter((x) => x.kind === "photo").length), 0);
-  const moods = {}; week.forEach((m) => { if (m.mood) moods[m.mood] = (moods[m.mood] || 0) + 1; });
-  const top = Object.entries(moods).sort((a, b) => b[1] - a[1])[0];
-  const stat = (e, n, l) => h("div", { class: "ms-stat" }, h("span", { class: "mss-e" }, e), h("b", {}, arNum(n)), h("span", { class: "muted" }, l));
-  openSheet({ title: "ملخّص أسبوعنا 🤍", subtitle: "طُويت صفحةُ أسبوعٍ جميل", body: [
-    h("div", { class: "ms-stats" }, stat("📔", week.length, "لحظة"), stat("📸", photos, "صورة"), stat("🔥", (d.ms && d.ms.streak_current) || 0, "سلسلة"), stat("💛", (d.ms && d.ms.days_together) || 0, "يوم")),
-    top ? h("div", { class: "muted", style: { textAlign: "center", marginTop: "12px" } }, "أكثر شعورٍ هذا الأسبوع: " + moodEmoji(top[0]) + " " + top[0]) : null] });
-}
-
-function occasionToday() {
-  const hp = hijriParts(); if (!hp) return null;
-  const { day, month } = hp;
-  const dow = nowLocal().getUTCDay();
-  const mk = (emoji, title, sub, key) => ({ emoji, title, sub, key });
-  if (month === 9) { if (day >= 21) return mk("🌙", "العشر الأواخر من رمضان", "تحرّيا ليلة القدر وأكثرا من الدعاء", "occ-ram-last-" + day); return mk("🌙", "رمضان مبارك", "تقبّل الله صيامكما وقيامكما", "occ-ramadan"); }
-  if (month === 10 && day === 1) return mk("🎉", "عيد الفطر المبارك", "تقبّل الله منّا ومنكم", "occ-eidfitr");
-  if (month === 12 && day <= 10) { if (day === 9) return mk("🕋", "يوم عرفة", "صيامٌ يكفّر سنتين — وأكثرا من الدعاء", "occ-arafah"); if (day === 10) return mk("🎉", "عيد الأضحى المبارك", "تقبّل الله منّا ومنكم", "occ-eidadha"); return mk("🕋", "عشر ذي الحجة", "أفضل أيام الدنيا — أكثرا من الذكر", "occ-dhj-" + day); }
-  if (month === 1 && day === 1) return mk("🌙", "رأس السنة الهجرية", "عامٌ هجريٌّ مبارك", "occ-hijri-new");
-  if (month === 1 && day === 10) return mk("🤍", "عاشوراء", "صيامٌ يكفّر السنة الماضية", "occ-ashura");
-  if (dow === 5) return mk("🕌", "جمعةٌ مباركة", "سورة الكهف والصلاة على النبي ﷺ", "occ-fri-" + dayIdx());
-  if (day === 13 || day === 14 || day === 15) return mk("🌕", "أيام البيض", "صيام ثلاثة أيام من كل شهر سنّة", "occ-white-" + month + "-" + day);
-  return null;
-}
-
-function isMilestoneToday(dt) {
-  if (dt == null || dt <= 0) return null;
-  if (dt % 365 === 0) return { title: "🎉 " + arNum(dt / 365) + " سنة معًا!", sub: "كل عام وأنتما بخير 🤍", key: "cel-" + dt };
-  if (dt % 100 === 0) return { title: "💯 " + arNum(dt) + " يوم معًا!", sub: "مبارك لكما هذا اليوم", key: "cel-" + dt };
-  const ann = store.config.anniversary_date;
-  if (ann) {
-    const now = nowLocal(), annDay = Number(ann.slice(8, 10));
-    if (now.getUTCDate() === annDay && dt < 365 && dt % 30 !== 0) {
-      const months = Math.round(dt / 30.4);
-      if (months >= 1) return { title: "🌙 " + arNum(months) + " أشهر معًا", sub: "تمرّ الأيام وأنتما أجمل", key: "cel-mo-" + now.getUTCFullYear() + "-" + now.getUTCMonth() };
-    }
-  }
-  return null;
-}
-
-function tile(emoji, label, onclick) { return h("button", { class: "q-tile", onclick }, h("span", { class: "qe" }, emoji), h("span", { class: "ql" }, label)); }

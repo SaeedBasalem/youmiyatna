@@ -2,7 +2,7 @@
 // Kept deliberately conservative: anything that could steal a horizontal scroll
 // (carousels, the mood strip, the juz grid) or fire under an open dialog is ignored.
 
-const NO_SWIPE = ".carousel-track,.heat,.chat-scroll,.juz-grid,.bg-swatches,.dua-chip-row,.chip-wrap,input,textarea";
+const NO_SWIPE = ".carousel-track,.heat,.chat-scroll,.juz-grid,.bg-swatches,.dua-chip-row,.chip-wrap,.mood-picks,.wind-chips,.now-history,.live-opts,input,textarea";
 const H_MIN = 60;      // px before a horizontal drag counts as a swipe
 const V_SLOP = 45;     // vertical drift that cancels it
 const PULL_MAX = 90;   // px of pull that triggers a refresh
