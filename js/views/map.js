@@ -47,7 +47,7 @@ export async function viewMap(content) {
   const c = clear(content);
   c.appendChild(h("div", { class: "sub-head" },
     h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => go("us") }, icon("back")),
-    h("div", { class: "sh-title" }, "خريطتنا")));
+    h("h1", { class: "sh-title" }, "خريطتنا")));
   const hint = h("div", { class: "muted map-hint" }, "اضغطا على الخريطة لتثبيت مكانٍ يعنيكما 📍");
   c.appendChild(hint);
   const box = h("div", { class: "map-box" }, h("div", { class: "muted", style: { textAlign: "center", padding: "40px" } }, "نفتح الخريطة…"));

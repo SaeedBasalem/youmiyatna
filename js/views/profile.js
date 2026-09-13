@@ -17,7 +17,7 @@ export async function viewProfile(content, who) {
   const c = clear(content);
   c.appendChild(h("div", { class: "sub-head" },
     h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => go("home") }, icon("back")),
-    h("div", { class: "sh-title" }, isMe ? "أنا" : p.name)));
+    h("h1", { class: "sh-title" }, isMe ? "أنا" : p.name)));
 
   const box = h("div", { class: "profile stagger" }, h("div", { class: "muted", style: { textAlign: "center", padding: "24px" } }, "…"));
   c.appendChild(box);

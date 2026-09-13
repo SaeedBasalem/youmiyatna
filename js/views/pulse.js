@@ -30,7 +30,7 @@ export async function viewPulse(content) {
   const c = clear(content);
   c.appendChild(h("div", { class: "sub-head" },
     h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => go("us") }, icon("back")),
-    h("div", { class: "sh-title" }, "نبضنا")));
+    h("h1", { class: "sh-title" }, "نبضنا")));
   const box = h("div", { class: "pulse stagger" }, h("div", { class: "muted", style: { textAlign: "center", padding: "30px" } }, "نقيس نبضكما…"));
   c.appendChild(box);
 

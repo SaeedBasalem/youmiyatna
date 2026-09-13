@@ -87,7 +87,7 @@ export async function viewWrapped(content) {
   c.classList.add("wrap-view");
   c.appendChild(h("div", { class: "sub-head" },
     h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => go("us") }, icon("back")),
-    h("div", { class: "sh-title" }, "حصادنا"),
+    h("h1", { class: "sh-title" }, "حصادنا"),
     h("button", { class: "btn ghost sm", style: { marginInlineStart: "auto" }, onclick: () => { period = period === "all" ? "year" : "all"; viewWrapped(content); } },
       period === "all" ? "كل الوقت" : "سنة " + arNum(yearNow()))));
   const stage = h("div", { class: "wrap-stage" }, h("div", { class: "muted", style: { textAlign: "center", padding: "40px" } }, "نحسب حصادكما…"));

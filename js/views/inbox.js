@@ -47,7 +47,7 @@ export async function viewInbox(content) {
   c.appendChild(h("div", { class: "sub-head" },
     h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => (location.hash = "#/home") }, "→"),
     h("div", {},
-      h("div", { class: "sh-title" }, "كل ما جرى"),
+      h("h1", { class: "sh-title" }, "كل ما جرى"),
       h("div", { class: "muted", style: { fontSize: "12px" } }, "خيطُ حياتكما، بترتيبه"))));
 
   const chips = h("div", { class: "chip-wrap inbox-filters" });

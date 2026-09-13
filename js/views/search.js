@@ -42,7 +42,7 @@ export async function viewSearch(content) {
   const c = clear(content);
   c.appendChild(h("div", { class: "sub-head" },
     h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => go("journal") }, icon("back")),
-    h("div", { class: "sh-title" }, "بحث")));
+    h("h1", { class: "sh-title" }, "بحث")));
 
   const input = h("input", { class: "field search-field", type: "search", "aria-label": "ابحث", placeholder: "ابحثا عن كلمة، ذكرى، شعور…", value: lastQuery });
   c.appendChild(h("div", { class: "search-bar" }, h("span", { class: "search-ic" }, icon("search", { size: 20 })), input));

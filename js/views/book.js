@@ -71,7 +71,7 @@ export async function viewBook(content) {
   c.classList.add("book-view");
   c.appendChild(h("div", { class: "sub-head no-print" },
     h("button", { class: "icon-btn", "aria-label": "رجوع", onclick: () => go("us") }, icon("back")),
-    h("div", { class: "sh-title" }, "كتابنا"),
+    h("h1", { class: "sh-title" }, "كتابنا"),
     h("button", { class: "icon-btn", "aria-label": "اطبع أو احفظ PDF", style: { marginInlineStart: "auto" }, onclick: () => { toast("اختارا «حفظ كـ PDF» من نافذة الطباعة"); setTimeout(() => window.print(), 400); } }, icon("download"))));
 
   const stage = h("div", { class: "book-stage" });
@@ -97,7 +97,7 @@ export async function viewBook(content) {
 
   function paint() {
     clear(stage);
-    const track = h("div", { class: "book-track" });
+    const track = h("div", { class: "book-track", tabindex: "0", role: "region", "aria-label": "صفحات كتابنا" });
     PAGES.forEach((p, i) => track.appendChild(pageEl(p, i)));
     stage.appendChild(track);
 

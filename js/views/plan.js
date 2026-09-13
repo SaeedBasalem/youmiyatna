@@ -108,7 +108,7 @@ export async function planSection(pane) {
   function openTaskSheet(prefill) {
     const ti = h("input", { class: "field", placeholder: "المهمة", value: prefill || "", maxLength: 200 });
     const no = h("input", { class: "field", placeholder: "تفصيل صغير (اختياري)", maxLength: 500 });
-    const da = h("input", { class: "field", type: "date" });
+    const da = h("input", { class: "field", type: "date", "aria-label": "موعد المهمة" });
     let who = "both";
     const whoRow = h("div", { class: "seg" }, ...[["both", "لكلينا"], ["him", PEOPLE.him.name], ["her", PEOPLE.her.name]]
       .map(([k, label]) => {
