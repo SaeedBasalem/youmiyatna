@@ -21,6 +21,9 @@ import { rt } from "./realtime.js";
 import { startTouchListener } from "./touch.js";
 import { openCapture } from "./capture.js";
 import { startGameInvites } from "./views/together.js";
+import { startTrack, track } from "./track.js";
+import { startSky } from "./sky.js";
+import { captureNow } from "./now.js";
 import { viewToday, todayOpenWinddown } from "./views/today.js";
 import { viewInbox } from "./views/inbox.js";
 import { viewJournal, viewMoment } from "./views/journal.js";
@@ -38,7 +41,7 @@ import { viewProfile } from "./views/profile.js";
 const APP = () => document.getElementById("app");
 
 /* ---------------- boot ---------------- */
-store.init(); applyTheme(); startLooks(); applyBackground(); startLiving(); startOutbox(); startPalette();
+store.init(); applyTheme(); startLooks(); applyBackground(); startLiving(); startOutbox(); startPalette(); startTrack(); startSky();
 watchInstall(() => { if (currentRoute() === "home") renderRoute(); });
 if (isStandalone()) document.documentElement.setAttribute("data-standalone", "1");
 setAuthFailHandler(() => { rt.stop(); store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });
@@ -132,9 +135,19 @@ function routeNow() {
     case "lock": return viewLock();
     case "who": return viewWho();
     case "home": return shell("home", viewToday);
-    case "now": {          // the daily-photo notification: Today, with the photo card in view
+    case "now": {          // the daily-photo notification: straight into the viewfinder
       history.replaceState(null, "", "#/home");
-      return shell("home", (c) => viewToday(c, { then: () => { const el = c.querySelector(".now-card"); if (el) { el.scrollIntoView({ block: "center", behavior: noMotion() ? "auto" : "smooth" }); el.animate && el.animate([{ transform: "scale(1)" }, { transform: "scale(1.02)" }, { transform: "scale(1)" }], { duration: 700 }); } } }));
+      track("open_from_push", { kind: "now" });
+      return shell("home", (c) => viewToday(c, { then: (d) => {
+        // already photographed today? then it only wants to be looked at
+        if (d && d.now && d.now.mine) {
+          const el = c.querySelector(".now-card");
+          if (el) { el.scrollIntoView({ block: "center", behavior: noMotion() ? "auto" : "smooth" });
+            el.animate && el.animate([{ transform: "scale(1)" }, { transform: "scale(1.02)" }, { transform: "scale(1)" }], { duration: 700 }); }
+          return;
+        }
+        captureNow(() => window.dispatchEvent(new CustomEvent("yn:changed")));
+      } }));
     }
     case "winddown": {     // the night reminder: Today, with the wind-down sheet open
       history.replaceState(null, "", "#/home");

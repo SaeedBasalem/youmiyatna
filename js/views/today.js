@@ -10,7 +10,7 @@
 import { api } from "../api.js";
 import { store } from "../store.js";
 import { sound } from "../sound.js";
-import { h, clear, avatar, toast, arNum, relTime, hijriDate, hijriParts, confetti, sparkleAt } from "../ui.js";
+import { h, clear, avatar, toast, arNum, relTime, hijriDate, hijriParts, confetti, sparkleAt, noMotion } from "../ui.js";
 import { PEOPLE, other, MOODS, moodEmoji } from "../config.js";
 import { go, applyBackground, commit, errorState, refreshAvatars } from "../helpers.js";
 import { icon } from "../icons.js";
@@ -22,26 +22,30 @@ import { resolvedLook } from "../looks.js";
 import { greetingFor } from "../living.js";
 import { ringsView, ringsHint } from "../rings.js";
 import { groveHero } from "../grove.js";
-import { nowCard } from "../now.js";
+import { nowCard, captureNow } from "../now.js";
 import { sendTouch } from "../touch.js";
 import { windCard, fromNightCard, openWinddown } from "../winddown.js";
 import { convoCard, dateIdea, duaForSpouse } from "../generate.js";
+import { pickAsk, markSeen } from "../ask.js";
+import { track } from "../track.js";
 
 const TZ = 180 * 60000;
 const localDay = () => new Date(Date.now() + TZ).toISOString().slice(0, 10);
 const dayIdx = () => Math.floor((Date.now() + TZ) / 86400000);
 
 let mounted = null;
+let painted = false;
 let data = null;
 let fetching = false, again = false, lastFetch = 0;
 let avatarsAsked = false;
 
 export function viewToday(content, { then } = {}) {
   mounted = content;
+  painted = false;
   content.classList.add("today-view");
   data = store.homeCache();
   paint();
-  load().then(() => then && then());
+  load().then(() => then && then(data));
   bindLive();
   if (!avatarsAsked) { avatarsAsked = true; refreshAvatars().then(() => { if (isMounted()) paint(); }); }
 }
@@ -95,7 +99,8 @@ function paint() {
   const d = data || {};
   const me = store.person, partner = other(me);
   const look = resolvedLook();
-  const t = h("div", { class: "today" });
+  const t = h("div", { class: "today" + (painted ? "" : " stagger") });
+  painted = true;
   c.appendChild(t);
 
   const inst = installBanner();
@@ -103,24 +108,26 @@ function paint() {
   if (d._stale) t.appendChild(h("div", { class: "offline-banner" }, d._offline ? "🌙 أنتما دون اتصال — نعرض آخر ما حُفظ" : "نعرض آخر ما حُفظ — سنحدّث بعد لحظة"));
 
   t.appendChild(look === "ink" ? masthead(d) : header(d));
-  if (look === "grove") t.appendChild(groveHero(d.grove || {}, { onOpen: () => go("us/grove") }));
+  // The one thing the day asks for, before anything that merely reports.
+  if (data) t.appendChild(heroCard(d));
 
-  if (d.rings) t.appendChild(h("section", { class: "tcard glass", "aria-label": "حلقات يومنا" },
+  if (d.rings) t.appendChild(h("section", { class: "tcard glass rings-card", "aria-label": "حلقات يومنا" },
     h("div", { class: "tk" }, h("span", { class: "dot" }), "حلقات يومنا"),
     ringsView(d.rings, me, partner),
     h("div", { class: "rings-note" }, ringsHint(d.rings, me))));
   else if (!data) t.appendChild(h("div", { class: "tcard plain" }, h("div", { class: "sk-line w40" }), h("div", { class: "sk-line" }), h("div", { class: "sk-line w70" })));
 
   if (data) {
+    t.appendChild(h("div", { class: "rest-head" }, h("span", {}, "بقية اليوم")));
     t.appendChild(nowCard(d.now, { onChange: () => load() }));
-    t.appendChild(questionCard(d));
+    if (lastAsk !== "question" && lastAsk !== "qreveal") t.appendChild(questionCard(d));
     t.appendChild(touchRow(d));
     const wc = windCard(d, () => load()); if (wc) t.appendChild(wc);
     const fn = fromNightCard(d); if (fn) t.appendChild(fn);
     t.appendChild(playCard());
     t.appendChild(moodCard(d));
     const mc = memoryCard(d); if (mc) t.appendChild(mc);
-    if (look !== "grove") t.appendChild(groveHero(d.grove || {}, { onOpen: () => go("us/grove") }));
+    t.appendChild(groveHero(d.grove || {}, { onOpen: () => go("us/grove") }));
     t.appendChild(surpriseCard(d));
     celebrate(d);
   }
@@ -328,4 +335,70 @@ function celebrate(d) {
   if (seen === cel.key) return;
   try { localStorage.setItem("yn_celebrated", cel.key); } catch {}
   setTimeout(() => { confetti(); sound.celebrate(); haptic.celebrate(); toast(cel.title); }, 500);
+}
+
+// ---------------------------------------------------------------------------
+// The hero: one ask, finishable where it stands. js/ask.js decides which one;
+// this only knows what each kind does when it is tapped.
+// ---------------------------------------------------------------------------
+let lastAsk = "";
+let toldAsk = "";
+function heroCard(d) {
+  const ask = pickAsk(d);
+  lastAsk = ask.key;
+  if (ask.key !== toldAsk) { toldAsk = ask.key; track("ask_shown", { key: ask.key }); }
+  const done = () => track("ask_done", { key: ask.key });
+  const card = h("section", { class: "hero tone-" + ask.tone, "aria-label": ask.kicker });
+  card.appendChild(h("div", { class: "hero-k" }, ask.kicker));
+  card.appendChild(h("h2", { class: "hero-t" }, ask.title));
+  if (ask.sub) card.appendChild(h("p", { class: "hero-s" }, ask.sub));
+  const big = (label, run) => h("button", { class: "btn hero-go", onclick: run }, label);
+  const small = (label, run) => h("button", { class: "btn ghost hero-alt", onclick: run }, label);
+  const bring = (sel) => { const el = mounted && mounted.querySelector(sel); if (el) el.scrollIntoView({ block: "center", behavior: noMotion() ? "auto" : "smooth" }); };
+
+  if (ask.key === "photo" || ask.key === "photo-early") {
+    card.appendChild(big(ask.cta, () => captureNow(() => { done(); load(); })));
+  } else if (ask.key === "reveal") {
+    card.appendChild(big(ask.cta, () => { markSeen("reveal"); done(); paint(); bring(".now-card"); }));
+  } else if (ask.key === "winddown") {
+    card.appendChild(big(ask.cta, () => { done(); todayOpenWinddown(); }));
+  } else if (ask.key === "question") {
+    const ta = h("textarea", { class: "field hero-field", rows: 2, "aria-label": "إجابتك", placeholder: __g("اكتب إجابتك…", "اكتبي إجابتك…") });
+    const send = h("button", { class: "btn hero-go", onclick: async () => {
+      const a = ta.value.trim(); if (!a) { ta.focus(); return; }
+      send.disabled = true;
+      const r = await api.answerPrompt(a);
+      send.disabled = false;
+      if (!r.ok) { toast(r.offline ? "لا اتصال — لم تُرسل" : "تعذّر الحفظ"); return; }
+      sound.post(); haptic.success(); rt.signal("answer"); done();
+      sparkleAt(innerWidth / 2, innerHeight / 3, ["🌟", "✨", "💛"]);
+      load();
+    } }, ask.cta);
+    card.appendChild(h("div", { class: "hero-form" }, ta, send));
+  } else if (ask.key === "qreveal") {
+    card.appendChild(big(ask.cta, () => { markSeen("qreveal"); done(); paint(); bring(".qcard"); }));
+  } else if (ask.key === "whisper") {
+    const heart = h("button", { class: "btn hero-go", onclick: () => { sendTouch(heart); done(); setTimeout(() => load(), 900); } }, ask.cta);
+    card.appendChild(heart);
+    card.appendChild(small("✍️ أو همسة في همس", () => { done(); go("chat"); }));
+  } else if (ask.key === "dhikr") {
+    let n = 0, timer = null;
+    const count = h("b", { class: "hero-count" }, arNum(0));
+    const btn = h("button", { class: "btn hero-go", onclick: () => {
+      n++; count.textContent = arNum(n); haptic.soft(); sound.react();
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const by = n; n = 0;
+        const r = await api.dhikrInc("azim", by);
+        if (r.ok) { rt.signal("grove"); done(); load(); }
+      }, 900);
+    } }, ask.cta);
+    card.appendChild(h("div", { class: "hero-form" }, btn, count));
+  } else if (ask.key === "moment") {
+    card.appendChild(big(ask.cta, () => { done(); import("./journal.js").then((m) => m.openCompose({ onDone: () => load() })); }));
+  } else {
+    card.appendChild(h("div", { class: "hero-done", "aria-hidden": "true" }, "🤍"));
+    card.appendChild(small("✍️ اكتبا ذكرى على أي حال", () => import("./journal.js").then((m) => m.openCompose({ onDone: () => load() }))));
+  }
+  return card;
 }

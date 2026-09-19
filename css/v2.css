@@ -230,7 +230,7 @@
     linear-gradient(180deg,#110D1D 0%,#1A1230 55%,#26163A 100%);
   background-attachment:fixed;
 }
-:root[data-look="grove"] :is(#bg,#sky){display:none}
+:root[data-look="grove"] #bg{display:none}
 
 /* ======================================================================
    TYPE — Readex Pro for the interface; Ruqaa kept for the few words that
@@ -343,10 +343,11 @@ h1,h2,h3,.t-h1,.t-h2{text-wrap:balance}
    TODAY
    ====================================================================== */
 .today{display:flex;flex-direction:column;gap:14px;padding-block:14px 12px}
+:root[data-sky] .today{padding-block:22px 12px}   /* a little sky above the day */
 .th{display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;row-gap:4px}
 .th-text{flex:1;min-width:0}
-.th-hello{margin:0;font-size:clamp(21px,5.8vw,26px);font-weight:600;line-height:1.25;color:var(--on-ground);text-wrap:balance}
-:root[data-look="dawn"] .th-hello{font-family:var(--font-hand);font-weight:700;font-size:clamp(24px,6.8vw,30px);color:var(--rose-deep)}
+.th-hello{margin:0;font-size:clamp(21px,5.8vw,26px);font-weight:600;line-height:1.35;color:var(--on-ground);text-wrap:balance}
+:root[data-look="dawn"] .th-hello{font-family:var(--font-hand);font-weight:700;font-size:clamp(24px,6.8vw,30px);line-height:1.6;padding-top:2px;color:var(--rose-deep)}
 :root[data-look="dawn"][data-bg-tone="dark"] .th-hello{color:#FFE3EC}
 :root[data-look="dawn"][data-theme="dark"] .th-hello{color:var(--rose-deep)}
 .th-date{flex-basis:100%;font-size:12.5px;line-height:1.55;color:var(--on-ground-2)}
@@ -674,3 +675,127 @@ h1,h2,h3,.t-h1,.t-h2{text-wrap:balance}
   .presence,.heart-btn::after,.live-dot.wait{animation:none}
   .heart-btn.beat,.touch-overlay .big-heart,.palm-new{animation:none}
 }
+
+/* ======================================================================
+   THE ONE ASK — Chapter Three
+   Today used to open with eleven cards and ask for nothing in particular:
+   in the six days after it shipped, not one photo, wind-down or heartbeat
+   happened. It opens with a single finishable thing now, big enough that
+   nobody has to scroll to find what the day wants.
+   ====================================================================== */
+.hero{position:relative;overflow:hidden;border-radius:var(--radius-lg);padding:20px 18px 18px;
+  display:flex;flex-direction:column;gap:10px;border:1px solid var(--glass-edge);box-shadow:var(--glass-hi),var(--shadow);
+  background:var(--glass-strong);-webkit-backdrop-filter:blur(20px) saturate(165%);backdrop-filter:blur(20px) saturate(165%)}
+.hero-k{font-size:12.5px;font-weight:600;color:var(--rose-deep);display:flex;align-items:center;gap:7px}
+.hero-k::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.hero-t{margin:0;font-family:var(--font-display);font-size:clamp(20px,5.4vw,25px);font-weight:600;line-height:1.45;text-wrap:balance;color:var(--ink)}
+.hero-s{margin:0;font-size:14px;line-height:1.75;color:var(--ink-2)}
+.hero-go{margin-top:6px;min-height:54px;font-size:16.5px;font-weight:600;border-radius:18px}
+.hero-alt{min-height:44px;font-size:14px;border-radius:14px}
+.hero-form{display:flex;gap:8px;align-items:stretch;margin-top:6px}
+.hero-form .hero-go{margin-top:0;flex:none;padding-inline:20px}
+.hero-field{flex:1;min-height:54px;resize:none;font-size:15px}
+.hero-count{align-self:center;font-size:26px;font-weight:600;color:var(--gold-ink);font-variant-numeric:tabular-nums;min-width:52px;text-align:center}
+.hero-done{font-size:34px;text-align:center;padding:4px 0 0}
+/* the tone is the mood of the thing being asked for */
+.hero.tone-warm{background:linear-gradient(152deg,color-mix(in srgb,var(--rose) 20%,transparent),color-mix(in srgb,var(--gold) 12%,transparent)),var(--glass-strong)}
+.hero.tone-night{background:linear-gradient(152deg,color-mix(in srgb,#5a49a8 24%,transparent),color-mix(in srgb,#2a1f47 16%,transparent)),var(--glass-strong)}
+.hero.tone-grove{background:linear-gradient(152deg,color-mix(in srgb,var(--palm) 20%,transparent),color-mix(in srgb,var(--gold) 12%,transparent)),var(--glass-strong)}
+.hero.tone-calm{background:linear-gradient(152deg,color-mix(in srgb,var(--him) 14%,transparent),transparent),var(--glass-strong)}
+.hero.tone-done{background:linear-gradient(152deg,color-mix(in srgb,var(--ok) 15%,transparent),transparent),var(--glass-strong)}
+/* paper does not pretend to be glass */
+:root[data-look="ink"] .hero{background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-sm);
+  -webkit-backdrop-filter:none;backdrop-filter:none;border-inline-start:3px solid var(--rose)}
+:root[data-look="ink"] .hero.tone-grove{border-inline-start-color:var(--ok)}
+:root[data-look="ink"] .hero.tone-night{border-inline-start-color:var(--him)}
+@media (prefers-reduced-transparency:reduce){
+  .hero{background:var(--surface-solid)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+}
+/* everything that merely reports lives under this line */
+.rest-head{display:flex;align-items:center;gap:10px;margin-top:2px;color:var(--ink-3);font-size:12.5px}
+.rest-head span{flex:none}
+.rest-head::before,.rest-head::after{content:"";height:1px;flex:1;background:var(--line)}
+.rings-card{padding-block:12px}
+
+/* ======================================================================
+   THE VIEWFINDER — the camera that never leaves the page
+   ====================================================================== */
+body.cam-open{overflow:hidden}
+.cam{position:fixed;inset:0;z-index:120;background:#07070b;color:#fff;display:flex;flex-direction:column;
+  animation:camin .22s var(--ease-out,ease-out)}
+@keyframes camin{from{opacity:0;transform:scale(1.02)}to{opacity:1;transform:none}}
+.cam-top{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
+.cam-top b{font-family:var(--font-display);font-size:15.5px;font-weight:600}
+.cam-close,.cam-flip{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;
+  display:flex;align-items:center;justify-content:center;flex:none}
+.cam-close:active,.cam-flip:active{background:rgba(255,255,255,.24)}
+.cam-frame{position:relative;flex:1;overflow:hidden;background:#000}
+.cam-video{width:100%;height:100%;object-fit:cover;display:block}
+.cam-video.mirrored{transform:scaleX(-1)}
+.cam-grid{position:absolute;inset:0;pointer-events:none;opacity:.7;
+  background:
+    linear-gradient(to right,transparent 33.2%,rgba(255,255,255,.16) 33.3% 33.45%,transparent 33.55%,transparent 66.4%,rgba(255,255,255,.16) 66.5% 66.65%,transparent 66.75%),
+    linear-gradient(to bottom,transparent 33.2%,rgba(255,255,255,.16) 33.3% 33.45%,transparent 33.55%,transparent 66.4%,rgba(255,255,255,.16) 66.5% 66.65%,transparent 66.75%)}
+.cam-note{text-align:center;font-size:13.5px;opacity:.82;padding:11px 18px 0;line-height:1.6}
+.cam-bar{display:flex;align-items:center;justify-content:center;padding:14px 0 calc(18px + env(safe-area-inset-bottom))}
+.cam-shutter{width:78px;height:78px;border-radius:50%;background:rgba(255,255,255,.2);
+  display:flex;align-items:center;justify-content:center;transition:transform .12s var(--ease-out,ease-out)}
+.cam-shutter span{width:62px;height:62px;border-radius:50%;background:#fff;display:block}
+.cam-shutter:active{transform:scale(.92)}
+.cam-shutter:disabled{opacity:.55}
+.cam.flash::after{content:"";position:absolute;inset:0;background:#fff;pointer-events:none;animation:camflash .34s ease-out forwards}
+@keyframes camflash{from{opacity:.85}to{opacity:0}}
+@media (prefers-reduced-motion:reduce){ .cam{animation:none} .cam.flash::after{animation:none;opacity:0} }
+
+/* ======================================================================
+   THE LIVING SKY — Chapter Three
+   Four small layers behind the glass: the hour as colour, the sun or the
+   real moon crossing it, their own palms along the horizon, and the
+   weather their city is actually having. No canvas and no animation loop —
+   a background should cost a phone nothing to sit behind a closed screen.
+   ====================================================================== */
+.sky-extra{position:absolute;inset:0;overflow:hidden;will-change:transform}
+.sky-body{position:absolute;width:44px;height:44px;border-radius:50%;
+  background:radial-gradient(circle at 34% 32%,#FFF7E0,#FFD27A 58%,#F5B043);
+  box-shadow:0 0 46px 14px rgba(255,203,120,.32);
+  transition:top 2.4s linear,inset-inline-start 2.4s linear,opacity .8s}
+.sky-body.is-moon{background:#F2E3C2;box-shadow:0 0 28px 7px rgba(242,227,194,.2);--moon-shade:rgba(18,14,32,.94)}
+.sky-body.is-moon::after{content:"";position:absolute;inset:0;border-radius:50%;
+  box-shadow:inset var(--moon-x,10px) 0 0 0 var(--moon-shade)}
+.sky-grove{position:absolute;inset-inline:0;bottom:0;height:120px;opacity:.52;color:#0B0912}
+.sky-grove svg{width:100%;height:100%;display:block}
+:root[data-sky="day"] .sky-grove{opacity:.2;color:#3A2A3C}
+:root[data-look="grove"] .sky-grove{opacity:.85;color:#07050F}
+/* the weather, drifting */
+.sky-weather{position:absolute;inset:-12% -12% 0 -12%;pointer-events:none}
+.sky-weather.is-clouds::before,.sky-weather.is-fog::before,.sky-weather.is-storm::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(38% 20% at 22% 22%,rgba(255,255,255,.5),transparent 70%),
+             radial-gradient(44% 18% at 72% 14%,rgba(255,255,255,.4),transparent 72%),
+             radial-gradient(30% 16% at 48% 30%,rgba(255,255,255,.32),transparent 74%);
+  animation:skydrift 120s linear infinite}
+.sky-weather.is-fog::before{filter:blur(7px);opacity:.85}
+.sky-weather.is-rain::after,.sky-weather.is-storm::after{content:"";position:absolute;inset:0;opacity:.45;
+  background:repeating-linear-gradient(104deg,rgba(255,255,255,.3) 0 1px,transparent 1px 8px);
+  animation:skyrain 1.15s linear infinite}
+.sky-weather.is-snow::after{content:"";position:absolute;inset:0;opacity:.75;
+  background:radial-gradient(2px 2px at 18% 12%,#fff,transparent),radial-gradient(2px 2px at 58% 28%,#fff,transparent),
+             radial-gradient(2px 2px at 82% 58%,#fff,transparent),radial-gradient(1.6px 1.6px at 38% 72%,#fff,transparent);
+  animation:skysnow 11s linear infinite}
+@keyframes skydrift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-16%,0,0)}}
+@keyframes skyrain{from{transform:translate3d(0,-14px,0)}to{transform:translate3d(-7px,14px,0)}}
+@keyframes skysnow{from{transform:translate3d(0,-12px,0)}to{transform:translate3d(6px,46px,0)}}
+.sky-weather.still::before,.sky-weather.still::after{animation:none}
+@media (prefers-reduced-motion:reduce){
+  .sky-extra{transform:none!important}
+  .sky-weather::before,.sky-weather::after{animation:none}
+  .sky-body{transition:none}
+}
+
+/* the day's one ask arrives in weight, the way Arabic is written: not sliding */
+@keyframes heroIn{
+  from{opacity:0;transform:translateY(5px);font-variation-settings:"wght" 250}
+  to{opacity:1;transform:none;font-variation-settings:"wght" 600}
+}
+.hero-t{animation:heroIn .5s var(--ease-out,ease-out) both}
+@media (prefers-reduced-motion:reduce){.hero-t{animation:none}}

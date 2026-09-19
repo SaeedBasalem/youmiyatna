@@ -10,12 +10,14 @@ import { h, clear, arNum, toast, sparkleAt, fullDate } from "./ui.js";
 import { api } from "./api.js";
 import { store } from "./store.js";
 import { PEOPLE, other } from "./config.js";
-import { downscale, uploadSigned } from "./media.js";
+import { uploadSigned } from "./media.js";
 import { loader, loaderNote, errorState } from "./helpers.js";
 import { icon } from "./icons.js";
 import { haptic } from "./haptics.js";
 import { sound } from "./sound.js";
 import { rt } from "./realtime.js";
+import { takePhoto } from "./camera.js";
+import { track } from "./track.js";
 import { openLightbox } from "./lightbox.js";
 
 const ON_TIME_MIN = 10;
@@ -90,34 +92,38 @@ export function nowCard(raw, { onChange } = {}) {
   return card;
 }
 
-// Open the camera (the rear one where the phone has a choice), downscale, upload, post.
-export function captureNow(onDone) {
-  const input = h("input", { type: "file", accept: "image/*", class: "hidden" });
-  input.setAttribute("capture", "environment");
-  input.addEventListener("change", async () => {
-    const f = input.files && input.files[0];
-    input.remove();
-    if (!f) return;
-    loader(true); loaderNote("نجهّز لحظتك…");
-    try {
-      const ds = await downscale(f, 1440, 0.86);
-      const su = await api.signUpload("photo", "image/jpeg");
-      if (!su.ok) throw new Error("sign");
-      loaderNote("جارٍ الرفع…");
-      if (!(await uploadSigned(su.data.signedUrl, ds.blob, "image/jpeg"))) throw new Error("upload");
-      const r = await api.nowPost(su.data.path, { w: ds.width, h: ds.height });
-      loader(false);
-      if (!r.ok) { toast(r.offline ? "لا اتصال — لم تُحفظ لحظتك" : "تعذّر حفظ لحظتك"); return; }
-      sound.post(); haptic.success();
-      rt.signal("now");
-      const st = r.data.state;
-      if (st && st.revealed) { sparkleAt(innerWidth / 2, innerHeight / 3, ["📸", "✨", "🤍"]); toast("انكشفت لحظتكما 📸"); }
-      else toast("حُفظت لحظتك — بانتظار " + PEOPLE[other(store.person)].name);
-      onDone && onDone(st);
-    } catch { loader(false); toast("تعذّر رفع الصورة — جرّبا مرة أخرى"); }
-  });
-  document.body.appendChild(input);
-  input.click();
+// One photo, from the viewfinder inside the app. The hand-off to the phone
+// camera still exists underneath (js/camera.js falls back to it when a phone
+// refuses the stream), but nothing about this path leaves the page any more.
+export async function captureNow(onDone) {
+  const shot = await takePhoto();
+  if (!shot) return;
+  loader(true); loaderNote("نحفظ لحظتك…");
+  try {
+    const su = await api.signUpload("photo", "image/jpeg");
+    if (!su.ok) throw new Error("sign");
+    loaderNote("جارٍ الرفع…");
+    if (!(await uploadSigned(su.data.signedUrl, shot.blob, "image/jpeg"))) throw new Error("upload");
+    // the other one sees it live when they are in the app, so no notification then
+    const r = await api.nowPost(su.data.path, { w: shot.width, h: shot.height }, null, rt.partnerHere);
+    loader(false);
+    if (!r.ok) {
+      track("photo_failed", { status: r.status || 0, offline: !!r.offline });
+      toast(r.offline ? "لا اتصال — لم تُحفظ لحظتك" : "تعذّر حفظ لحظتك");
+      return;
+    }
+    track("photo_posted", { facing: shot.facing, w: shot.width, h: shot.height });
+    sound.post(); haptic.success();
+    rt.signal("now");
+    const st = r.data.state;
+    if (st && st.revealed) { sparkleAt(innerWidth / 2, innerHeight / 3, ["📸", "✨", "🤍"]); toast("انكشفت لحظتكما 📸"); }
+    else toast("حُفظت لحظتك — بانتظار " + PEOPLE[other(store.person)].name);
+    onDone && onDone(st);
+  } catch (e) {
+    loader(false);
+    track("photo_failed", { m: String((e && e.message) || e).slice(0, 40) });
+    toast("تعذّر رفع الصورة — جرّبا مرة أخرى");
+  }
 }
 
 // Every day on which both posted, as pairs — for ذكرياتنا.

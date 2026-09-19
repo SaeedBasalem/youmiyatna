@@ -1,5 +1,5 @@
 // يومياتنا — service worker: the offline shell, a photo cache, and web push.
-const CACHE = "yn-r30";
+const CACHE = "yn-r32";
 const MEDIA = "yn-photos-v1";
 const MEDIA_MAX = 400;
 const ICON = "icons/icon-192.png";
@@ -8,7 +8,13 @@ const CORE = [
   "js/app.js", "js/config.js", "js/api.js", "js/store.js", "js/sound.js", "js/ui.js",
   "js/helpers.js", "js/generate.js", "js/media.js", "js/adhkar.js", "js/gestures.js",
   "js/icons.js", "js/art.js", "js/living.js", "js/haptics.js", "js/onboarding.js", "js/doodle.js",
-  "js/looks.js", "js/realtime.js", "js/rings.js", "js/grove.js", "js/now.js", "js/touch.js", "js/winddown.js", "js/capture.js",
+  "js/looks.js", "js/realtime.js", "js/rings.js", "js/grove.js", "js/now.js",
+  "js/camera.js",
+  "js/track.js",
+  "js/ask.js",
+  "js/sky.js",
+  "js/weather.js",
+  "js/views/together.js", "js/touch.js", "js/winddown.js", "js/capture.js",
   "js/views/today.js", "js/views/search.js", "js/views/book.js", "js/views/wrapped.js", "js/views/map.js",
   "js/lightbox.js", "js/views/story.js", "js/views/pulse.js", "js/views/profile.js", "js/install.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",
