@@ -16,9 +16,22 @@ import { icon } from "../icons.js";
 import { sound } from "../sound.js";
 import { haptic } from "../haptics.js";
 import { rt } from "../realtime.js";
-import { thisOrThat, knowMe } from "../generate.js";
+import { thisOrThat, knowMe, wouldYouRather, truthQ, finishLine } from "../generate.js";
 
+// Five games, two mechanics. `game` is the shape the server keeps (both choose
+// at once, or one answers and the other guesses); `kind` is which game it
+// actually was, so a round can say its own name.
+const MODES = {
+  tot:    { game: "tot",    name: "هذا أو ذاك",   emoji: "⚖️", desc: "تختاران في اللحظة نفسها — وتريان كم تتشابهان", gen: () => thisOrThat() },
+  wyr:    { game: "tot",    name: "لو خيّروك",    emoji: "🔀", desc: "خياران صعبان — أيّهما تختاران معًا؟", gen: () => wouldYouRather() },
+  knowme: { game: "knowme", name: "كم تعرفني",    emoji: "💞", desc: "واحدٌ يجيب عن نفسه والآخر يخمّن", gen: () => ({ q: knowMe() }) },
+  truth:  { game: "knowme", name: "صراحة",        emoji: "🫧", desc: "سؤالٌ أقرب — والإجابة بلا مجاملة", gen: () => ({ q: truthQ() }) },
+  finish: { game: "knowme", name: "أكمل الجملة",  emoji: "✍️", desc: "جملةٌ ناقصة: واحدٌ يكملها والآخر يخمّن", gen: () => ({ q: finishLine() }) },
+};
 const GAME_NAME = { tot: "هذا أو ذاك", knowme: "كم تعرفني" };
+const nameOf = (kindOrGame) => (MODES[kindOrGame] && MODES[kindOrGame].name) || GAME_NAME[kindOrGame] || "لعبة";
+// what this session is playing, from the first round that carries a kind
+const kindOf = (st) => (st && st.rounds && st.rounds.length && st.rounds[0].prompt && st.rounds[0].prompt.kind) || (st && st.game) || "tot";
 let session = null, state = null, stage = null, root = null, pollT = null, bound = false, busy = false;
 
 const partner = () => other(store.person);
@@ -69,30 +82,30 @@ async function lobby() {
     const o = open.data.open;
     stage.appendChild(h("button", { class: "tcard glass play-card", onclick: () => join(o.session) },
       h("span", { class: "pc-ic", "aria-hidden": "true" }, "🎲"),
-      h("div", {}, h("b", {}, pn() + (she() ? " بدأت " : " بدأ ") + "«" + GAME_NAME[o.game] + "»"), h("span", {}, __g("انضمّ الآن", "انضمّي الآن"))),
+      h("div", {}, h("b", {}, pn() + (she() ? " بدأت " : " بدأ ") + "«" + nameOf(o.game) + "»"), h("span", {}, __g("انضمّ الآن", "انضمّي الآن"))),
       h("span", { class: "go", "aria-hidden": "true" }, icon("back", { size: 18 }))));
   }
-  const pick = (game, emoji, desc) => h("button", { class: "tcard plain play-card", onclick: () => start(game) },
-    h("span", { class: "pc-ic", "aria-hidden": "true" }, emoji), h("div", {}, h("b", {}, GAME_NAME[game]), h("span", {}, desc)),
+  const pick = (kind, emoji, desc) => h("button", { class: "tcard plain play-card", onclick: () => start(kind) },
+    h("span", { class: "pc-ic", "aria-hidden": "true" }, emoji), h("div", {}, h("b", {}, nameOf(kind)), h("span", {}, desc)),
     h("span", { class: "go", "aria-hidden": "true" }, icon("back", { size: 18 })));
-  stage.appendChild(pick("tot", "⚖️", "تختاران في اللحظة نفسها — وتريان كم تتشابهان"));
-  stage.appendChild(pick("knowme", "💞", "واحدٌ يجيب عن نفسه والآخر يخمّن"));
+  for (const k of ["tot", "wyr", "knowme", "truth", "finish"]) stage.appendChild(pick(k, MODES[k].emoji, MODES[k].desc));
   const st = await api.gameStats();
   if (st.ok && mounted() && !session) stage.appendChild(statsCard(st.data.stats));
 }
 
 function join(sid) { session = sid; history.replaceState(null, "", "#/play/live/" + sid); haptic.tap(); refresh(); }
 
-async function start(game) {
+async function start(kind) {
   if (busy) return;
   busy = true; haptic.tap(); sound.tab();
-  const prompt = game === "tot" ? thisOrThat() : { q: knowMe() };
-  const r = await api.gameNew(game, prompt, rt.partnerHere);
+  const mode = MODES[kind] || MODES.tot;
+  const prompt = { ...mode.gen(), kind };
+  const r = await api.gameNew(mode.game, prompt, rt.partnerHere);
   busy = false;
   if (!r.ok) { toast(r.offline ? "لا اتصال — لم تبدأ اللعبة" : "تعذّر بدء اللعبة"); return; }
   state = r.data.state; session = state.session;
   history.replaceState(null, "", "#/play/live/" + session);
-  rt.signal("game", { session, invite: true, game });
+  rt.signal("game", { session, invite: true, game: mode.game, kind });
   toast(rt.partnerHere ? "وصلت الدعوة إلى " + pn() + " 🎲" : "أُرسلت الدعوة إلى " + pn() + " 🎲");
   render(); poll();
 }
@@ -142,7 +155,8 @@ async function judge(cur, verdict) {
 async function next() {
   if (busy) return;
   busy = true;
-  const prompt = state.game === "tot" ? thisOrThat() : { q: knowMe() };
+  const kind = kindOf(state);
+  const prompt = { ...((MODES[kind] || MODES.tot).gen()), kind };
   const r = await api.gameNext(session, prompt);
   busy = false;
   if (!r.ok) { toast("تعذّرت الجولة التالية"); return; }
@@ -159,7 +173,7 @@ function render() {
   const score = state.game === "tot"
     ? "تطابقتما " + arNum(s.match) + " من " + arNum(s.played)
     : PEOPLE.him.name + " " + arNum(s.points.him) + " · " + PEOPLE.her.name + " " + arNum(s.points.her);
-  stage.appendChild(h("div", { class: "live-top" }, h("b", {}, GAME_NAME[state.game] + " · الجولة " + arNum(cur.idx + 1)), h("span", { class: "live-score" }, score)));
+  stage.appendChild(h("div", { class: "live-top" }, h("b", {}, nameOf(kindOf(state)) + " · الجولة " + arNum(cur.idx + 1)), h("span", { class: "live-score" }, score)));
   if (state.game === "tot") renderTot(cur); else renderKnow(cur);
   const done = state.rounds.filter((r) => r.revealed && r.id !== cur.id).slice(-4).reverse();
   if (done.length) {
@@ -251,7 +265,7 @@ export function startGameInvites() {
     const from = PEOPLE[p.from] ? PEOPLE[p.from].name : "";
     const el = h("div", { class: "invite-banner", role: "status" },
       h("span", { "aria-hidden": "true" }, "🎲"),
-      h("span", { class: "ib-t" }, from + (p.from === "her" ? " تدعوك إلى «" : " يدعوكِ إلى «") + (GAME_NAME[p.game] || "لعبة") + "»"),
+      h("span", { class: "ib-t" }, from + (p.from === "her" ? " تدعوك إلى «" : " يدعوكِ إلى «") + nameOf(p.kind || p.game) + "»"),
       h("button", { class: "btn sm", onclick: () => { el.remove(); go("play/live/" + p.session); } }, __g("انضمّ", "انضمّي")),
       h("button", { class: "ib-x", "aria-label": "إغلاق", onclick: () => el.remove() }, icon("close", { size: 16 })));
     document.body.appendChild(el);

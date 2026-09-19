@@ -460,8 +460,8 @@ label.lbl{display:block;font-weight:700;font-size:13px;color:var(--ink-2);margin
 .dhikr-row:active{transform:scale(.98)}
 .dh-label{font-family:var(--font-quote);font-size:18px}
 .dh-count{margin-inline-start:auto;font-family:var(--font-display);font-weight:700;font-size:22px;color:var(--rose-deep);min-width:40px;text-align:center}
-.juz-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
-.juz{aspect-ratio:1;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);font-weight:700;font-size:14px;color:var(--ink-2)}
+.juz-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.juz{aspect-ratio:1;min-width:0;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);font-weight:700;font-size:14px;color:var(--ink-2)}
 .juz.on{background:linear-gradient(135deg,var(--gold),#d9a862);color:#fff;border-color:transparent}
 .dua-item{margin-bottom:10px}
 .dua-text{font-family:var(--font-quote);font-size:17px;line-height:1.9;margin-bottom:10px}
