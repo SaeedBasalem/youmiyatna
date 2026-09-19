@@ -799,3 +799,86 @@ body.cam-open{overflow:hidden}
 }
 .hero-t{animation:heroIn .5s var(--ease-out,ease-out) both}
 @media (prefers-reduced-motion:reduce){.hero-t{animation:none}}
+
+/* ======================================================================
+   THE THREE WORLDS — Chapter Three
+   What they are building, the distance between two days, worship as two
+   people, and the letter their month writes.
+   ====================================================================== */
+.kind-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.kind-chip{padding:9px 13px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);
+  font-size:13.5px;font-weight:500;color:var(--ink-2);min-height:40px}
+.kind-chip.on{background:var(--rose-soft);border-color:var(--rose);color:var(--rose-deep);font-weight:600}
+.menu-list{display:flex;flex-direction:column;gap:8px}
+
+/* ---- مشروعنا ---- */
+.project{display:flex;flex-direction:column;gap:10px}
+.project.is-done{opacity:.72}
+.pj-head{display:flex;align-items:center;gap:10px}
+.pj-ic{font-size:24px;flex:none}
+.pj-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.pj-t b{font-family:var(--font-display);font-size:16.5px}
+.pj-t span{font-size:12.5px;color:var(--ink-3)}
+.pj-note{margin:0;font-size:14px;color:var(--ink-2);line-height:1.7}
+.pj-bar{height:9px;border-radius:999px;background:var(--ring-track);overflow:hidden}
+.pj-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--rose),var(--gold));transition:width .5s var(--ease-out,ease-out)}
+.pj-pct{font-size:12px;color:var(--ink-3);text-align:end;margin-top:-4px;font-variant-numeric:tabular-nums}
+.pj-money{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--ink-2);flex-wrap:wrap}
+.pj-money b{font-size:17px;color:var(--gold-ink);font-variant-numeric:tabular-nums}
+.pj-steps{display:flex;flex-direction:column;gap:6px}
+.pj-step{display:flex;align-items:center;gap:10px;width:100%;text-align:start;padding:11px 12px;border-radius:14px;
+  background:var(--surface-2);border:1px solid transparent;min-height:46px}
+.pj-step.on{background:transparent;border-color:var(--line)}
+.pj-step.on .pj-step-t{text-decoration:line-through;color:var(--ink-3)}
+.pj-box{width:22px;height:22px;border-radius:7px;border:1.5px solid var(--line);display:flex;align-items:center;
+  justify-content:center;font-size:13px;color:#fff;flex:none}
+.pj-step.on .pj-box{background:var(--ok);border-color:transparent}
+.pj-step-t{flex:1;min-width:0;font-size:14.5px}
+.pj-who{font-size:11.5px;color:var(--ink-3);flex:none}
+
+/* ---- في الطريق ---- */
+.journey{display:flex;flex-direction:column;gap:12px}
+.jr-head{display:flex;align-items:center;gap:12px}
+.jr-ic{font-size:26px;flex:none}
+.jr-head b{display:block;font-family:var(--font-display);font-size:16px}
+.jr-eta{font-size:13px;color:var(--gold-ink);font-variant-numeric:tabular-nums}
+.same-sky{gap:6px}
+.cd-row{display:flex;align-items:center;gap:12px;width:100%;text-align:start}
+.cd-emo{font-size:22px;flex:none}
+.cd-row b{display:block;font-size:15px}
+.cd-row span{font-size:12.5px;color:var(--ink-3)}
+
+/* ---- عبادتنا معًا ---- */
+.wp-big{display:flex;align-items:baseline;gap:6px}
+.wp-big b{font-size:30px;font-weight:600;color:var(--gold-ink);font-variant-numeric:tabular-nums}
+.wp-big span{font-size:13.5px;color:var(--ink-2)}
+.wp-log{display:flex;flex-wrap:wrap;gap:6px}
+.wp-chip{font-size:11.5px;padding:4px 9px;border-radius:999px;background:var(--surface-2);color:var(--ink-2)}
+.wp-streaks{display:flex;gap:14px;font-size:12.5px;color:var(--ink-3);flex-wrap:wrap}
+.adh-row{display:flex;align-items:center;gap:10px}
+.adh-cell{flex:1;display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;background:var(--surface-2);
+  border:1px solid transparent;text-align:start;min-height:56px}
+.adh-cell.on{background:color-mix(in srgb,var(--ok) 16%,transparent);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.adh-emo{font-size:22px;flex:none}
+.adh-t{flex:1;min-width:0;font-size:14.5px;font-weight:500}
+.adh-state{font-size:11.5px;color:var(--ink-3)}
+.adh-them{font-size:12px;color:var(--ink-3);flex:none;min-width:64px;text-align:end}
+.adh-them.on{color:var(--ok)}
+.dua.answered{border-inline-start:3px solid var(--ok)}
+.dua-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:12px}
+.dua-ans{flex:none}
+
+/* ---- رسالة الشهر ---- */
+.lt-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.lt-nav b{font-family:var(--font-display);font-size:17px}
+.letter-card{display:flex;flex-direction:column;gap:12px}
+.lt-line{margin:0;font-family:var(--font-quote);font-size:16.5px;line-height:2;color:var(--ink)}
+.lt-quote{margin:0;padding:14px 16px;border-radius:16px;background:var(--surface-2);font-family:var(--font-quote);
+  font-size:16px;line-height:1.95;color:var(--ink)}
+.lt-quote cite{display:block;margin-top:6px;font-family:var(--font-body);font-size:12px;color:var(--ink-3);font-style:normal}
+.lt-list{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:6px;font-size:14.5px;color:var(--ink-2);line-height:1.8}
+.lt-dua{margin:0;font-family:var(--font-quote);font-size:15.5px;color:var(--gold-ink);line-height:1.9}
+.lt-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.lt-stat{background:var(--surface-2);border-radius:14px;padding:12px 6px;text-align:center}
+.lt-stat b{display:block;font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+.lt-stat span{font-size:11px;color:var(--ink-3)}

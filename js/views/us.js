@@ -12,6 +12,10 @@ import { LOOKS, chosenLook, setLook } from "../looks.js";
 import { attachLongPress } from "../gestures.js";
 import { groveSection, AZIM_KEY, AZIM_TEXT } from "../grove.js";
 import { rt } from "../realtime.js";
+import { plansSection } from "./plans.js";
+import { apartSection } from "./apart.js";
+import { worshipSection } from "./worship.js";
+import { letterSection } from "./letter.js";
 import { RIYADH, PRAYERS, nextPrayer, fmtTime, untilText } from "../prayer.js";
 import { openPushOnboarding, openPushDoctor, openInstallGuide, isStandalone, isIOS, pushBlockedUntilInstalled, canPromptInstall, promptInstall } from "../install.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
@@ -55,6 +59,10 @@ export function viewUs(content) {
 
 const SECTIONS = {
   plan:       { title: "مهامّنا", render: (p) => planSection(p) },
+  plans:      { title: "مشروعنا", render: (p) => plansSection(p) },
+  apart:      { title: "في الطريق", render: (p) => apartSection(p) },
+  worship:    { title: "عبادتنا معًا", render: (p) => worshipSection(p) },
+  letter:     { title: "رسالة الشهر", render: (p) => letterSection(p) },
   grove:      { title: "بستاننا", render: (p) => groveSection(p) },
   jar:        { title: "لماذا أحبّك", render: (p) => jarSection(p) },
   firsts:     { title: "أوّليّاتنا", render: (p) => firstsSection(p) },
@@ -93,6 +101,7 @@ function shelves() {
   return [
     { title: "روحانياتنا", sub: "ذكرٌ وصلاة ودعاء", items: [
       ["🌴", "بستاننا", "كل تسبيحة نخلة", "grove", "#FBEBD0"],
+      ["🤍", "عبادتنا معًا", "ختمتنا وأذكارنا ودعاؤنا", "worship", "#DDF0E4"],
       ["🕌", "ركن الإيمان", "مسبحة وصلاة وختمة", "faith", "#FBEBD0"],
       ["🌅", "أذكارنا", "الصباح والمساء", "adhkar", "#FFF1D6"],
       ["🫙", "جرّة الصدقة", "نعطي معًا", "sadaqah", "#FCE3EA"]] },
@@ -107,12 +116,15 @@ function shelves() {
       ["🎲", "نلعب معًا", "مباشرةً على جوّالين", "__play/live", "#E6EDF7"],
       ["🃏", "ألعابنا", "سؤال اليوم وستّ ألعاب", "__play", "#E6EDF7"]] },
     { title: "خططنا", sub: "ما ننويه معًا", items: [
+      ["🏗️", "مشروعنا", "بيتٌ ورحلةٌ وادّخار", "plans", "#E6EDF7"],
+      ["🚗", "في الطريق", "متى نلتقي", "apart", "#FCE3EA"],
       ["📋", "مهامّنا", "ما نحتاج فعله", "plan", "#E6EDF7"],
       ["⏳", "التقويم والعدّاد", "مواعيدنا القادمة", "calendar", "#E6EDF7"],
       ["🎯", "أحلامنا", "قائمة الأمنيات", "goals", "#E6EDF7"],
       ["💌", "رسائل الغد", "تُفتح في يومها", "letters", "#FCE3EA"]] },
     { title: "حكايتنا", sub: "كل ما جمعناه", items: [
       ["📖", "كتابنا", "صفحاتنا مجلّدة", "__book", "#FCDDE6"],
+      ["✉️", "رسالة الشهر", "ما كتبه شهرنا", "letter", "#FCE3EA"],
       ["🌾", "حصادنا", "قصّتنا بالأرقام", "__wrapped", "#FBEBD0"],
       ["📈", "نبضنا", "إيقاعنا برسوم", "__pulse", "#E6EDF7"],
       ["🗺️", "خريطتنا", "أماكن تعنينا", "__map", "#E6EDF7"],

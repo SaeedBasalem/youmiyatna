@@ -1,5 +1,5 @@
 // يومياتنا — the single network module: every gate, one token.
-import { FN, FN2, FN3, FN4, FN5, FN6, ANON } from "./config.js";
+import { FN, FN2, FN3, FN4, FN5, FN6, FN7, ANON } from "./config.js";
 
 let TOKEN = null;
 let onAuthFail = null;
@@ -13,7 +13,7 @@ export function setAuthFailHandler(fn) { onAuthFail = fn; }
 // once more — by then the busy moment has usually passed — instead of leaving
 // a screen spinning. A write is never repeated: sending a whisper twice is
 // worse than saying it did not go.
-const READ = /^(get_|list_|status$|rituals_today$|chat_unread$|mood_calendar$|on_this_day$|activity$|search_all$|counts$|entries_to_embed$|period_moments$|home$|rt$|now_state$|now_history$|dhikr_today$|grove$|shots$|sign$|sign_download$|game_state$|game_open$|game_stats$)/;
+const READ = /^(get_|list_|status$|rituals_today$|chat_unread$|mood_calendar$|on_this_day$|activity$|search_all$|counts$|entries_to_embed$|period_moments$|home$|rt$|now_state$|now_history$|dhikr_today$|grove$|shots$|sign$|sign_download$|game_state$|game_open$|game_stats$|recall$|month_letter$|projects$|apart$|worship$)/;
 
 async function request(url, action, extra = {}, { authFail = true } = {}) {
   const read = READ.test(action);
@@ -50,6 +50,7 @@ const call3 = (a, x) => request(FN3, a, x, { authFail: false });   // unlock_per
 const call4 = (a, x) => request(FN4, a, x);
 const call5 = (a, x) => request(FN5, a, x);
 const call6 = (a, x) => request(FN6, a, x);
+const call7 = (a, x) => request(FN7, a, x);
 
 export const api = {
   raw: call,
@@ -152,6 +153,22 @@ export const api = {
   nowState:      ()               => call6("now_state"),
   nowPost:       (path, meta, caption, partner_online) => call6("now_post", { path, meta, caption, partner_online }),
   log:           (events) => call6("log", { events }),
+  // ---- Chapter Three: the worlds (journal7) ----
+  recall:        (q)                      => call7("recall", { q }),
+  monthLetter:   (period, fresh)          => call7("month_letter", { period, fresh }),
+  projects:      ()                       => call7("projects"),
+  projectAdd:    (p, online)              => call7("project_add", { ...p, partner_online: online }),
+  projectEdit:   (id, patch)              => call7("project_edit", { id, ...patch }),
+  projectDel:    (id)                     => call7("project_del", { id }),
+  stepAdd:       (project_id, title, assignee, sort) => call7("step_add", { project_id, title, assignee, sort }),
+  stepToggle:    (id)                     => call7("step_toggle", { id }),
+  stepDel:       (id)                     => call7("step_del", { id }),
+  apart:         ()                       => call7("apart"),
+  journeyStart:  (kind, minutes, label, online) => call7("journey_start", { kind, minutes, label, partner_online: online }),
+  journeyArrive: (online)                 => call7("journey_arrive", { partner_online: online }),
+  worship:       ()                       => call7("worship"),
+  adhkarDone:    (kind)                   => call7("adhkar_done", { kind }),
+  duaAnswered:   (id, online)             => call7("dua_answered", { id, partner_online: online }),
   nowHistory:    (before)         => call6("now_history", { before }),
   touch:         (partner_online) => call6("touch", { partner_online }),
   gameNew:       (game, prompt, partner_online) => call6("game_new", { game, prompt, partner_online }),
