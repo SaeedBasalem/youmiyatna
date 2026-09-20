@@ -1,5 +1,5 @@
 // يومياتنا — service worker: the offline shell, a photo cache, and web push.
-const CACHE = "yn-r34";
+const CACHE = "yn-r35";
 const MEDIA = "yn-photos-v1";
 const MEDIA_MAX = 400;
 const ICON = "icons/icon-192.png";
