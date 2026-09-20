@@ -18,6 +18,7 @@ import { haptic } from "../haptics.js";
 import { installBanner, pushBanner } from "../install.js";
 import { openPalette } from "../palette.js";
 import { rt } from "../realtime.js";
+import { RIYADH, PRAYERS, nextPrayer, fmtTime, untilText, adhkarWindow } from "../prayer.js";
 import { resolvedLook } from "../looks.js";
 import { greetingFor } from "../living.js";
 import { ringsView, ringsHint } from "../rings.js";
@@ -111,6 +112,7 @@ function paint() {
   // The one thing the day asks for, before anything that merely reports.
   if (data) t.appendChild(heroCard(d));
   if (data) t.appendChild(archiveInvite());
+  if (data) t.appendChild(waqtCard());
 
   if (d.rings) t.appendChild(h("section", { class: "tcard glass rings-card", "aria-label": "حلقات يومنا" },
     h("div", { class: "tk" }, h("span", { class: "dot" }), "حلقات يومنا"),
@@ -344,6 +346,68 @@ function celebrate(d) {
 // ---------------------------------------------------------------------------
 let lastAsk = "";
 let toldAsk = "";
+// ---- وقتنا: the day's shape, given before anything is asked ----
+//
+// Worship in this app was eight screens deep and, by the record, never used:
+// no juz' was ever logged and no adhkar ever marked. The answer is not another
+// duty on اليوم. This card mostly GIVES — the next prayer, computed on the
+// device and right without a signal — and only asks when the sunnah window for
+// the adhkar is actually open, and only for one tap.
+let waqtThem = { at: 0, mine: [], theirs: [] };
+function waqtCard() {
+  const card = h("section", { class: "tcard glass waqt", "aria-label": "وقتنا" });
+  const where = (() => {
+    try { const raw = localStorage.getItem("yn_place"); if (raw) { const p = JSON.parse(raw); if (p && isFinite(p.lat) && isFinite(p.lng)) return p; } } catch {}
+    return RIYADH;
+  })();
+  const nameOf = (k) => (PRAYERS.find((p) => p[0] === k) || [])[1] || "";
+  const emojiOf = (k) => (PRAYERS.find((p) => p[0] === k) || [])[2] || "";
+
+  const paint = () => {
+    const now = new Date();
+    const next = nextPrayer(now, where);
+    const win = adhkarWindow(now, where);
+    clear(card);
+
+    card.appendChild(h("div", { class: "wq-top" },
+      h("div", { class: "wq-next" },
+        h("span", { class: "wq-e", "aria-hidden": "true" }, emojiOf(next.key)),
+        h("div", {}, h("b", {}, nameOf(next.key)), h("span", {}, untilText(next.inHours)))),
+      h("div", { class: "wq-at" }, fmtTime(next.at))));
+
+    if (!win.open) return;                       // outside the window it stays a clock
+    const day = new Date(Date.now() + 180 * 60000).toISOString().slice(0, 10);
+    let mineDone = false;
+    try { mineDone = !!localStorage.getItem("yn_adh_sent_" + win.kind + "_" + day); } catch {}
+    const theirs = waqtThem.theirs.includes(win.kind);
+    const pn = PEOPLE[other(store.person)].name;
+
+    const row = h("div", { class: "wq-adh" + (mineDone ? " done" : "") },
+      h("button", { class: "wq-go", onclick: () => { track("waqt_adhkar", { kind: win.kind }); go("us/adhkar"); } },
+        h("span", { class: "wq-e", "aria-hidden": "true" }, win.emoji),
+        h("span", { class: "wq-t" }, win.label),
+        h("span", { class: "wq-cta" }, mineDone ? "✓ " + __g("قرأتَها", "قرأتِها") : __g("اقرأها", "اقرئيها"))),
+      h("span", { class: "wq-them" + (theirs ? " on" : "") }, pn + (theirs ? " ✓" : " —")));
+    card.appendChild(row);
+
+    // the other person's state is the only part that needs the network, so it
+    // is fetched only while a window is open, and at most once every ten minutes
+    if (Date.now() - waqtThem.at > 600000) {
+      waqtThem.at = Date.now();
+      api.worship().then((r) => {
+        if (!r.ok || !r.data.adhkar) return;
+        waqtThem = { at: Date.now(), mine: r.data.adhkar.mine || [], theirs: r.data.adhkar.theirs || [] };
+        if (card.isConnected) paint();
+      }).catch(() => {});
+    }
+  };
+  // the first paint happens before the card is appended, so the detached
+  // check belongs on the repeat rather than inside paint()
+  const tick = setInterval(() => { if (!card.isConnected) { clearInterval(tick); return; } paint(); }, 60000);
+  paint();
+  return card;
+}
+
 // ---- the one-time thing that fills the app ----
 // Every memory feature the app has is searching ~90 rows of their life until
 // their real history is imported. The last ritual nobody could find died of

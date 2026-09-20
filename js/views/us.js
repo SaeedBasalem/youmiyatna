@@ -17,7 +17,7 @@ import { apartSection } from "./apart.js";
 import { worshipSection } from "./worship.js";
 import { letterSection } from "./letter.js";
 import { archiveSection } from "./archive.js";
-import { RIYADH, PRAYERS, nextPrayer, fmtTime, untilText } from "../prayer.js";
+import { RIYADH, PRAYERS, nextPrayer, fmtTime, untilText, adhkarWindow } from "../prayer.js";
 import { openPushOnboarding, openPushDoctor, openInstallGuide, isStandalone, isIOS, pushBlockedUntilInstalled, canPromptInstall, promptInstall } from "../install.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
 import { planSection } from "./plan.js";
@@ -626,10 +626,16 @@ async function faithSection(pane) {
 }
 
 /* ---------------- adhkar (morning / evening) ---------------- */
+const adhkarKey = (kind) => "yn_adh_sent_" + kind + "_" + dayStr();
+function sentToday(kind) { try { return !!localStorage.getItem(adhkarKey(kind)); } catch { return false; } }
+function markSent(kind) { try { localStorage.setItem(adhkarKey(kind), "1"); } catch {} }
+
 function adhkarSection(pane) {
   const c = clear(pane);
   c.appendChild(h("div", { class: "muted intro" }, "أذكار الصباح والمساء — أتمّاها معًا كل يوم 🌅"));
-  let evening = hourLocal() >= 16 || hourLocal() < 4;
+  // which set is due is a solar question: hourLocal() >= 16 called 15:00
+  // the evening in December and the afternoon in June
+  let evening = adhkarWindow(new Date(), whereWeAre()).kind === "evening";
   let i = 0, remaining = 0;
   const streak = curStreak("yn_adhkar_last", "yn_adhkar_streak");
   const seg = h("div", { class: "seg" },
@@ -652,6 +658,12 @@ function adhkarSection(pane) {
     clear(stage);
     if (i >= list.length) {
       const s = bumpStreak("yn_adhkar_last", "yn_adhkar_streak");
+      // this screen kept its streak on the device and told nobody, which is why
+      // jn_adhkar_log was empty while عبادتنا offered a shared streak to watch
+      const kind = evening ? "evening" : "morning";
+      if (!sentToday(kind)) {
+        api.adhkarDone(kind).then((r) => { if (r.ok) { markSent(kind); rt.signal("worship"); } });
+      }
       bar.firstChild.style.width = "100%"; document.getElementById("adh-count") && (document.getElementById("adh-count").textContent = arNum(list.length) + " / " + arNum(list.length));
       confetti(); sound.post();
       stage.appendChild(h("div", { class: "adhkar-card done" }, h("div", { class: "adhkar-txt" }, evening ? "تقبّل الله أذكار مسائكما 🌙" : "تقبّل الله أذكار صباحكما 🌅"), h("div", { class: "muted" }, "🔥 سلسلة " + arNum(s) + " يومًا"), h("button", { class: "btn", style: { marginTop: "8px" }, onclick: () => { i = 0; draw(); } }, "من جديد ↻")));

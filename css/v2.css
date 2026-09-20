@@ -1006,3 +1006,24 @@ body.cam-open{overflow:hidden}
 .ai-top p{margin:0;font-size:13px;line-height:1.75;color:var(--ink-2)}
 .ai-row{display:flex;gap:10px;align-items:center;margin-top:13px}
 .ai-row .hero-go{flex:1;min-width:0}
+
+/* وقتنا — the day's shape */
+.waqt{padding:13px 15px}
+.wq-top{display:flex;align-items:center;gap:12px}
+.wq-next{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.wq-next b{font-family:var(--font-display);font-size:15.5px;font-weight:600;display:block}
+.wq-next span{font-size:12px;color:var(--ink-3)}
+.wq-e{font-size:19px;line-height:1;flex:none}
+.wq-at{font-family:var(--font-display);font-size:16px;font-weight:600;
+  font-variant-numeric:tabular-nums;color:var(--ink-2);flex:none}
+.wq-adh{display:flex;align-items:center;gap:10px;margin-top:11px;padding-top:11px;
+  border-top:1px solid var(--line)}
+.wq-go{display:flex;align-items:center;gap:9px;flex:1;min-width:0;text-align:start;
+  background:var(--glass);border:1px solid var(--line);border-radius:12px;padding:9px 11px;color:var(--ink)}
+.wq-go:active{background:var(--glass-strong)}
+.wq-t{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wq-cta{margin-inline-start:auto;font-size:12px;color:var(--rose-deep);flex:none;font-weight:600}
+.wq-adh.done .wq-go{opacity:.72}
+.wq-adh.done .wq-cta{color:var(--ok,var(--ink-3));font-weight:400}
+.wq-them{font-size:11.5px;color:var(--ink-3);flex:none}
+.wq-them.on{color:var(--ok,var(--rose-deep))}

@@ -115,3 +115,30 @@ export function untilText(hours) {
   const h = Math.floor(mins / 60), m = mins % 60;
   return m ? `بعد ${h} س و${m} د` : `بعد ${h} ساعات`;
 }
+
+// Which adhkar the hour is actually asking for.
+//
+// The screen used to decide with `hour >= 16`, which is the evening in Riyadh
+// in December and the middle of the afternoon in June. The sunnah windows are
+// solar, so they are read from the same times everything else here is: the
+// morning is from Fajr until Dhuhr, the evening from Asr until Isha. Outside
+// both, the nearer one is named but reported closed, so the screen can offer
+// it without pretending it is due.
+export function adhkarWindow(now, where) {
+  const tz = isFinite(where.tz) ? where.tz : -now.getTimezoneOffset() / 60;
+  const shift = tz - -now.getTimezoneOffset() / 60;
+  const t = prayerTimes(now, { ...where, tz });
+  const nowH = now.getHours() + now.getMinutes() / 60 + shift;
+  if (isFinite(t.fajr) && isFinite(t.dhuhr) && nowH >= t.fajr && nowH < t.dhuhr) {
+    return { kind: "morning", label: "أذكار الصباح", emoji: "🌅", open: true, closesAt: t.dhuhr };
+  }
+  if (isFinite(t.asr) && isFinite(t.isha) && nowH >= t.asr && nowH < t.isha) {
+    return { kind: "evening", label: "أذكار المساء", emoji: "🌇", open: true, closesAt: t.isha };
+  }
+  // between Dhuhr and Asr the evening is next; after Isha and before Fajr the
+  // night belongs to the morning that is coming
+  const evening = isFinite(t.asr) && nowH >= t.dhuhr && nowH < t.asr;
+  return evening
+    ? { kind: "evening", label: "أذكار المساء", emoji: "🌇", open: false, opensAt: t.asr }
+    : { kind: "morning", label: "أذكار الصباح", emoji: "🌅", open: false, opensAt: t.fajr };
+}
