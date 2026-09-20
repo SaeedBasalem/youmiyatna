@@ -1,5 +1,5 @@
 // يومياتنا — service worker: the offline shell, a photo cache, and web push.
-const CACHE = "yn-r33";
+const CACHE = "yn-r34";
 const MEDIA = "yn-photos-v1";
 const MEDIA_MAX = 400;
 const ICON = "icons/icon-192.png";
@@ -12,13 +12,13 @@ const CORE = [
   "js/camera.js",
   "js/track.js",
   "js/ask.js",
-  "js/sky.js",
+  "js/sky.js", "js/zip.js", "js/wa.js",
   "js/weather.js",
   "js/views/together.js",
   "js/views/plans.js",
   "js/views/apart.js",
   "js/views/worship.js",
-  "js/views/letter.js", "js/touch.js", "js/winddown.js", "js/capture.js",
+  "js/views/letter.js", "js/views/archive.js", "js/touch.js", "js/winddown.js", "js/capture.js",
   "js/views/today.js", "js/views/search.js", "js/views/book.js", "js/views/wrapped.js", "js/views/map.js",
   "js/lightbox.js", "js/views/story.js", "js/views/pulse.js", "js/views/profile.js", "js/install.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png",

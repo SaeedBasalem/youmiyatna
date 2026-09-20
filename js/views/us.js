@@ -16,6 +16,7 @@ import { plansSection } from "./plans.js";
 import { apartSection } from "./apart.js";
 import { worshipSection } from "./worship.js";
 import { letterSection } from "./letter.js";
+import { archiveSection } from "./archive.js";
 import { RIYADH, PRAYERS, nextPrayer, fmtTime, untilText } from "../prayer.js";
 import { openPushOnboarding, openPushDoctor, openInstallGuide, isStandalone, isIOS, pushBlockedUntilInstalled, canPromptInstall, promptInstall } from "../install.js";
 import { MORNING_ADHKAR, EVENING_ADHKAR } from "../adhkar.js";
@@ -58,6 +59,7 @@ export function viewUs(content) {
 }
 
 const SECTIONS = {
+  archive:    { title: "أرشيفنا", render: (p) => archiveSection(p) },
   plan:       { title: "مهامّنا", render: (p) => planSection(p) },
   plans:      { title: "مشروعنا", render: (p) => plansSection(p) },
   apart:      { title: "في الطريق", render: (p) => apartSection(p) },
@@ -123,6 +125,7 @@ function shelves() {
       ["🎯", "أحلامنا", "قائمة الأمنيات", "goals", "#E6EDF7"],
       ["💌", "رسائل الغد", "تُفتح في يومها", "letters", "#FCE3EA"]] },
     { title: "حكايتنا", sub: "كل ما جمعناه", items: [
+      ["🗂️", "أرشيفنا", "كل ما قيل قبل اليوم", "archive", "#E6EDF7"],
       ["📖", "كتابنا", "صفحاتنا مجلّدة", "__book", "#FCDDE6"],
       ["✉️", "رسالة الشهر", "ما كتبه شهرنا", "letter", "#FCE3EA"],
       ["🌾", "حصادنا", "قصّتنا بالأرقام", "__wrapped", "#FBEBD0"],

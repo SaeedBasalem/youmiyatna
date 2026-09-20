@@ -1,5 +1,5 @@
 // يومياتنا — the single network module: every gate, one token.
-import { FN, FN2, FN3, FN4, FN5, FN6, FN7, ANON } from "./config.js";
+import { FN, FN2, FN3, FN4, FN5, FN6, FN7, FN8, ANON } from "./config.js";
 
 let TOKEN = null;
 let onAuthFail = null;
@@ -13,7 +13,7 @@ export function setAuthFailHandler(fn) { onAuthFail = fn; }
 // once more — by then the busy moment has usually passed — instead of leaving
 // a screen spinning. A write is never repeated: sending a whisper twice is
 // worse than saying it did not go.
-const READ = /^(get_|list_|status$|rituals_today$|chat_unread$|mood_calendar$|on_this_day$|activity$|search_all$|counts$|entries_to_embed$|period_moments$|home$|rt$|now_state$|now_history$|dhikr_today$|grove$|shots$|sign$|sign_download$|game_state$|game_open$|game_stats$|recall$|month_letter$|projects$|apart$|worship$)/;
+const READ = /^(get_|list_|status$|rituals_today$|chat_unread$|mood_calendar$|on_this_day$|activity$|search_all$|counts$|entries_to_embed$|period_moments$|home$|rt$|now_state$|now_history$|dhikr_today$|grove$|shots$|sign$|sign_download$|game_state$|game_open$|game_stats$|recall$|month_letter$|projects$|apart$|worship$|archive_months$|archive_stats$|archive_slice$|archive_search$|archive_on_this_day$|archive_month$|archive_random$|imports$)/;
 
 async function request(url, action, extra = {}, { authFail = true } = {}) {
   const read = READ.test(action);
@@ -51,6 +51,7 @@ const call4 = (a, x) => request(FN4, a, x);
 const call5 = (a, x) => request(FN5, a, x);
 const call6 = (a, x) => request(FN6, a, x);
 const call7 = (a, x) => request(FN7, a, x);
+const call8 = (a, x) => request(FN8, a, x);
 
 export const api = {
   raw: call,
@@ -184,5 +185,20 @@ export const api = {
   setGoal:       (goal)           => call6("set_goal", { goal }),
   grove:         ()               => call6("grove"),
   shots:         ()               => call6("shots"),
+  // ---- Chapter Four: the archive (journal8) ----
+  importStart:   (kind, label)    => call8("import_start", { kind, label }),
+  archiveAdd:    (batch, rows)    => call8("archive_add", { batch, rows }),
+  archiveMedia:  (items)          => call8("archive_media", { items }),
+  signMany:      (n, content_type)=> call8("sign_many", { n, content_type }),
+  importDone:    (batch, first_at, last_at) => call8("import_done", { batch, first_at, last_at }),
+  imports:       ()               => call8("imports"),
+  archiveUndo:   (batch)          => call8("archive_undo", { batch }),
+  archiveMonths: ()               => call8("archive_months"),
+  archiveStats:  ()               => call8("archive_stats"),
+  archiveSlice:  (q)              => call8("archive_slice", q),
+  archiveSearch: (q, author)      => call8("archive_search", { q, author }),
+  archiveOnThisDay: (month, day)  => call8("archive_on_this_day", { month, day }),
+  archiveMonth:  (ym)             => call8("archive_month", { ym }),
+  archiveRandom: ()               => call8("archive_random"),
   sign6:         (paths)          => call6("sign", { paths }),
 };
