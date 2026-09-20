@@ -997,3 +997,12 @@ body.cam-open{overflow:hidden}
   .imp-bar i{transition:none}
   .imp-busy .spin{animation-duration:2s}
 }
+
+/* the one-time invitation that fills the app */
+.arc-invite{padding:15px 16px;border-color:color-mix(in srgb,var(--rose) 30%,var(--line))}
+.ai-top{display:flex;gap:12px;align-items:flex-start}
+.ai-ic{font-size:26px;line-height:1.1;flex:none}
+.ai-top b{font-family:var(--font-display);font-size:15.5px;font-weight:600;display:block;margin-bottom:5px}
+.ai-top p{margin:0;font-size:13px;line-height:1.75;color:var(--ink-2)}
+.ai-row{display:flex;gap:10px;align-items:center;margin-top:13px}
+.ai-row .hero-go{flex:1;min-width:0}

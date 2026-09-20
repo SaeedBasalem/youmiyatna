@@ -110,6 +110,7 @@ function paint() {
   t.appendChild(look === "ink" ? masthead(d) : header(d));
   // The one thing the day asks for, before anything that merely reports.
   if (data) t.appendChild(heroCard(d));
+  if (data) t.appendChild(archiveInvite());
 
   if (d.rings) t.appendChild(h("section", { class: "tcard glass rings-card", "aria-label": "حلقات يومنا" },
     h("div", { class: "tk" }, h("span", { class: "dot" }), "حلقات يومنا"),
@@ -343,6 +344,50 @@ function celebrate(d) {
 // ---------------------------------------------------------------------------
 let lastAsk = "";
 let toldAsk = "";
+// ---- the one-time thing that fills the app ----
+// Every memory feature the app has is searching ~90 rows of their life until
+// their real history is imported. The last ritual nobody could find died of
+// exactly that, so this asks from Today rather than waiting on a shelf.
+const ARC_SEEN = "yn_arc_state";      // {n, at} — cached a day, so Today costs no extra call
+const ARC_LATER = "yn_arc_later";
+function archiveInvite() {
+  const host = h("div", {});
+  const later = Number(localStorage.getItem(ARC_LATER) || 0);
+  if (Date.now() < later) return host;
+
+  const show = (n) => {
+    if (n > 0) return;
+    const card = h("section", { class: "tcard glass arc-invite" },
+      h("div", { class: "ai-top" },
+        h("span", { class: "ai-ic", "aria-hidden": "true" }, "🗂️"),
+        h("div", {}, h("b", {}, "أدخِلا محادثتكما"),
+          h("p", {}, "كل ما قلتماه قبل هذا التطبيق. أدخِلاه مرّة، فتصير «في مثل هذا اليوم» و«رسالة الشهر» عن سنواتكما لا عن أسبوع."))),
+      h("div", { class: "ai-row" },
+        h("button", { class: "btn hero-go", onclick: () => { track("archive_invite_tap"); go("us/archive"); } }, "أدخِلاها الآن"),
+        h("button", { class: "btn ghost sm", style: { width: "auto" }, onclick: () => {
+          try { localStorage.setItem(ARC_LATER, String(Date.now() + 7 * 86400000)); } catch {}
+          track("archive_invite_later");
+          card.remove();
+        } }, "لاحقًا")));
+    host.appendChild(card);
+  };
+
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(ARC_SEEN) || "null"); } catch {}
+  if (cached && Date.now() - cached.at < 86400000) { show(cached.n); return host; }
+  // unknown: ask, then fill in place rather than guessing wrong in either direction
+  api.archiveStats().then((r) => {
+    if (!r.ok) return;
+    const n = (r.data.stats && r.data.stats.n) || 0;
+    try { localStorage.setItem(ARC_SEEN, JSON.stringify({ n, at: Date.now() })); } catch {}
+    // the answer can arrive after Today has been repainted; only fill a host
+    // that is still on screen (the synchronous cached path has not been
+    // appended yet, which is why this check cannot live inside show())
+    if (host.isConnected) show(n);
+  });
+  return host;
+}
+
 function heroCard(d) {
   const ask = pickAsk(d);
   lastAsk = ask.key;
