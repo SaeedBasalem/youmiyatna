@@ -1027,3 +1027,14 @@ body.cam-open{overflow:hidden}
 .wq-adh.done .wq-cta{color:var(--ok,var(--ink-3));font-weight:400}
 .wq-them{font-size:11.5px;color:var(--ink-3);flex:none}
 .wq-them.on{color:var(--ok,var(--rose-deep))}
+
+/* "أنا هنا" — the one notification a person sends on purpose */
+.here-btn{width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;
+  justify-content:center;font-size:18px;background:var(--glass);border:1px solid var(--line)}
+.here-btn:active{transform:scale(.92)}
+.here-btn:disabled{opacity:.5}
+.here-btn.sending{animation:hereWave .7s var(--ease-out,ease-out) infinite}
+.here-btn.done{background:var(--rose-soft);border-color:color-mix(in srgb,var(--rose) 40%,var(--line))}
+@keyframes hereWave{0%,100%{transform:rotate(0)}30%{transform:rotate(16deg)}60%{transform:rotate(-10deg)}}
+.tog-min{font-size:10.5px;opacity:.85;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){ .here-btn.sending{animation:none} }

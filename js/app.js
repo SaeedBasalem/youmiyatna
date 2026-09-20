@@ -22,6 +22,7 @@ import { startTouchListener } from "./touch.js";
 import { openCapture } from "./capture.js";
 import { startGameInvites } from "./views/together.js";
 import { startTrack, track } from "./track.js";
+import { startTogether } from "./together.js";
 import { startSky } from "./sky.js";
 import { captureNow } from "./now.js";
 import { viewToday, todayOpenWinddown } from "./views/today.js";
@@ -41,7 +42,7 @@ import { viewProfile } from "./views/profile.js";
 const APP = () => document.getElementById("app");
 
 /* ---------------- boot ---------------- */
-store.init(); applyTheme(); startLooks(); applyBackground(); startLiving(); startOutbox(); startPalette(); startTrack(); startSky();
+store.init(); applyTheme(); startLooks(); applyBackground(); startLiving(); startOutbox(); startPalette(); startTrack(); startSky(); startTogether();
 watchInstall(() => { if (currentRoute() === "home") renderRoute(); });
 if (isStandalone()) document.documentElement.setAttribute("data-standalone", "1");
 setAuthFailHandler(() => { rt.stop(); store.clearAuth(); toast("انتهت الجلسة، افتحا من جديد"); go("lock"); });

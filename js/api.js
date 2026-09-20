@@ -1,5 +1,5 @@
 // يومياتنا — the single network module: every gate, one token.
-import { FN, FN2, FN3, FN4, FN5, FN6, FN7, FN8, ANON } from "./config.js";
+import { FN, FN2, FN3, FN4, FN5, FN6, FN7, FN8, FN9, ANON } from "./config.js";
 
 let TOKEN = null;
 let onAuthFail = null;
@@ -13,7 +13,7 @@ export function setAuthFailHandler(fn) { onAuthFail = fn; }
 // once more — by then the busy moment has usually passed — instead of leaving
 // a screen spinning. A write is never repeated: sending a whisper twice is
 // worse than saying it did not go.
-const READ = /^(get_|list_|status$|rituals_today$|chat_unread$|mood_calendar$|on_this_day$|activity$|search_all$|counts$|entries_to_embed$|period_moments$|home$|rt$|now_state$|now_history$|dhikr_today$|grove$|shots$|sign$|sign_download$|game_state$|game_open$|game_stats$|recall$|month_letter$|projects$|apart$|worship$|archive_months$|archive_stats$|archive_slice$|archive_search$|archive_on_this_day$|archive_month$|archive_random$|imports$)/;
+const READ = /^(get_|list_|status$|rituals_today$|chat_unread$|mood_calendar$|on_this_day$|activity$|search_all$|counts$|entries_to_embed$|period_moments$|home$|rt$|now_state$|now_history$|dhikr_today$|grove$|shots$|sign$|sign_download$|game_state$|game_open$|game_stats$|recall$|month_letter$|projects$|apart$|worship$|archive_months$|archive_stats$|archive_slice$|archive_search$|archive_on_this_day$|archive_month$|archive_random$|imports$|together_stats$)/;
 
 async function request(url, action, extra = {}, { authFail = true } = {}) {
   const read = READ.test(action);
@@ -52,6 +52,7 @@ const call5 = (a, x) => request(FN5, a, x);
 const call6 = (a, x) => request(FN6, a, x);
 const call7 = (a, x) => request(FN7, a, x);
 const call8 = (a, x) => request(FN8, a, x);
+const call9 = (a, x) => request(FN9, a, x);
 
 export const api = {
   raw: call,
@@ -200,5 +201,9 @@ export const api = {
   archiveOnThisDay: (month, day)  => call8("archive_on_this_day", { month, day }),
   archiveMonth:  (ym)             => call8("archive_month", { ym }),
   archiveRandom: ()               => call8("archive_random"),
+  // ---- being here at the same time (journal9) ----
+  here:          (partner_online) => call9("here", { partner_online }),
+  togetherTick:  (partner_online) => call9("together_tick", { partner_online }),
+  togetherStats: ()               => call9("together_stats"),
   sign6:         (paths)          => call6("sign", { paths }),
 };

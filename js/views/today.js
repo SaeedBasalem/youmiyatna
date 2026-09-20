@@ -226,7 +226,61 @@ function touchRow(d) {
   const end = d.unread
     ? h("button", { class: "unread-pill", "aria-label": arNum(d.unread) + " همسة لم تُقرأ", onclick: () => go("chat") }, arNum(d.unread))
     : h("button", { class: "th-btn", "aria-label": "افتح همس", onclick: () => go("chat") }, icon("chat", { size: 18 }));
-  return h("section", { class: "tcard glass touch-row", "aria-label": "نبضة وهمس" }, heart, peek, end);
+  const mins = h("span", { class: "tog-min" });
+  if (rt.partnerHere) togetherNote(mins);
+  peek.querySelector(".here-now").appendChild(mins);
+  return h("section", { class: "tcard glass touch-row", "aria-label": "نبضة وهمس" },
+    heart, peek, rt.partnerHere ? null : hereButton(), end);
+}
+
+// ---- "أنا هنا" ----
+// The only notification in this app a person sends on purpose. Every refusal
+// the server can give is said out loud rather than swallowed, because "she is
+// already here" and "you sent one a minute ago" are different facts and the
+// button should not pretend otherwise.
+const HERE_WHY = {
+  already_here: (pn) => pn + " هنا بالفعل 🤍",
+  too_soon: () => "أرسلتَها قبل قليل — أمهلاها".replace("أرسلتَ", __g("أرسلتَ", "أرسلتِ")),
+  night: () => "الوقت متأخّر — في الصباح 🌙",
+  enough_today: () => "يكفي اليوم — حتى لا تصير إشعارًا يُهمَل",
+};
+function hereButton() {
+  const pn = PEOPLE[other(store.person)].name;
+  const btn = h("button", { class: "here-btn", "aria-label": "قل لـ" + pn + " إنك هنا" },
+    h("span", { "aria-hidden": "true" }, "👋"));
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.classList.add("sending");
+    const r = await api.here(rt.partnerHere);
+    btn.classList.remove("sending");
+    if (!r.ok) { toast("تعذّر الإرسال"); btn.disabled = false; return; }
+    if (r.data.sent) {
+      toast(pn + " تعرف الآن أنك هنا 🤍".replace("تعرف", other(store.person) === "her" ? "تعرف" : "يعرف"));
+      haptic.success(); sound.post(); track("here_sent", { delivered: r.data.delivered || 0 });
+      btn.classList.add("done");
+    } else {
+      toast((HERE_WHY[r.data.why] || (() => "لم تُرسل"))(pn));
+      track("here_refused", { why: String(r.data.why || "") });
+    }
+    setTimeout(() => { btn.disabled = false; }, 5000);
+  });
+  return btn;
+}
+
+// The minutes they were both in here at once — asked for only while that is
+// actually true, and remembered for ten minutes so a repaint costs nothing.
+let togetherCache = { at: 0, today: 0 };
+function togetherNote(host) {
+  if (Date.now() - togetherCache.at < 600000) {
+    if (togetherCache.today >= 5) host.textContent = " · " + arNum(togetherCache.today) + " د معًا اليوم";
+    return;
+  }
+  togetherCache.at = Date.now();
+  api.togetherStats().then((r) => {
+    if (!r.ok || !r.data.stats) return;
+    togetherCache = { at: Date.now(), today: Number(r.data.stats.today) || 0 };
+    if (togetherCache.today >= 5 && host.isConnected) host.textContent = " · " + arNum(togetherCache.today) + " د معًا اليوم";
+  }).catch(() => {});
 }
 
 // ---- play together ----
